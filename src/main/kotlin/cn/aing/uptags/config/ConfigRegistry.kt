@@ -153,6 +153,16 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
         val tagId = yaml.getString("settings.force-default-tag.tag-id", "newbie") ?: "newbie"
         settings = PluginSettings(interval, enabled, tagId)
         storage = StorageSettings(
+            mode = StorageMode.from(yaml.getString("storage.mode", "yml")),
+            yml = YamlStorageSettings(
+                file = yaml.getString("storage.yml.file", "data/playerdata") ?: "data/playerdata",
+            ),
+            mysql = MysqlSettings(
+                jdbcUrl = yaml.getString("storage.mysql.jdbc-url", "jdbc:mysql://127.0.0.1:3306/minecraft?useSSL=false&characterEncoding=utf8") ?: "",
+                username = yaml.getString("storage.mysql.username", "root") ?: "root",
+                password = yaml.getString("storage.mysql.password", "") ?: "",
+                table = yaml.getString("storage.mysql.table", "uptags_player_data") ?: "uptags_player_data",
+            ),
             pg = PostgresSettings(
                 jdbcUrl = yaml.getString("storage.pg.jdbc-url", "jdbc:postgresql://127.0.0.1:5432/minecraft") ?: "",
                 username = yaml.getString("storage.pg.username", "postgres") ?: "postgres",

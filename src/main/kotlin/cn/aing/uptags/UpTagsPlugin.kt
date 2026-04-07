@@ -4,13 +4,16 @@ import cn.aing.uptags.command.TagsCommand
 import cn.aing.uptags.compat.PlatformScheduler
 import cn.aing.uptags.config.ConfigRegistry
 import cn.aing.uptags.config.MessageService
+import cn.aing.uptags.config.StorageMode
 import cn.aing.uptags.gui.MenuService
 import cn.aing.uptags.listener.ChatInputListener
 import cn.aing.uptags.listener.PlayerListener
 import cn.aing.uptags.listener.ScrollListener
 import cn.aing.uptags.repository.PlayerDataRepository
+import cn.aing.uptags.repository.store.MysqlPlayerDataStore
 import cn.aing.uptags.repository.store.PlayerDataStore
 import cn.aing.uptags.repository.store.PostgresPlayerDataStore
+import cn.aing.uptags.repository.store.YamlPlayerDataStore
 import cn.aing.uptags.service.ClickableMessageService
 import cn.aing.uptags.service.CustomTitleService
 import cn.aing.uptags.service.EconomyBridge
@@ -26,6 +29,7 @@ import cn.aing.uptags.service.sync.RedisSyncService
 import org.bukkit.Bukkit
 import org.bukkit.event.HandlerList
 import org.bukkit.plugin.java.JavaPlugin
+import java.io.File
 
 class UpTagsPlugin : JavaPlugin() {
     lateinit var config: ConfigRegistry
@@ -113,12 +117,21 @@ class UpTagsPlugin : JavaPlugin() {
     }
 
     private fun createStore(): PlayerDataStore {
-        return PostgresPlayerDataStore(
-            jdbcUrl = config.storage.pg.jdbcUrl,
-            username = config.storage.pg.username,
-            password = config.storage.pg.password,
-            table = config.storage.pg.table,
-        )
+        return when (config.storage.mode) {
+            StorageMode.YML -> YamlPlayerDataStore(File(dataFolder, config.storage.yml.file))
+            StorageMode.MYSQL -> MysqlPlayerDataStore(
+                jdbcUrl = config.storage.mysql.jdbcUrl,
+                username = config.storage.mysql.username,
+                password = config.storage.mysql.password,
+                table = config.storage.mysql.table,
+            )
+            StorageMode.PG -> PostgresPlayerDataStore(
+                jdbcUrl = config.storage.pg.jdbcUrl,
+                username = config.storage.pg.username,
+                password = config.storage.pg.password,
+                table = config.storage.pg.table,
+            )
+        }
     }
 
     private fun createRedisSyncService(): RedisSyncService {

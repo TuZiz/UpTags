@@ -5,6 +5,14 @@
     tag-id: "newbie"
 
 storage:
+  mode: "yml"
+  yml:
+    file: "data/playerdata"
+  mysql:
+    jdbc-url: "jdbc:mysql://127.0.0.1:3306/minecraft?useSSL=false&characterEncoding=utf8"
+    username: "root"
+    password: "change-me"
+    table: "uptags_player_data"
   pg:
     jdbc-url: "jdbc:postgresql://127.0.0.1:5432/minecraft"
     username: "postgres"
@@ -30,6 +38,7 @@ sync:
 # %tags_active_particle%
 # %tags_active_particle_id%
 # %tags_points%
+# %tags_title_coin%
 # %tags_can_upgrade%
 # %tags_tag_owned_<tagId>%
 # %tags_tag_buff_count_<tagId>%

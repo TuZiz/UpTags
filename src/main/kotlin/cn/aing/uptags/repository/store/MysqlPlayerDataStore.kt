@@ -7,7 +7,7 @@ import java.sql.DriverManager
 import java.util.LinkedHashMap
 import java.util.UUID
 
-class PostgresPlayerDataStore(
+class MysqlPlayerDataStore(
     private val jdbcUrl: String,
     private val username: String,
     private val password: String,
@@ -22,7 +22,7 @@ class PostgresPlayerDataStore(
                         """
                         CREATE TABLE IF NOT EXISTS $table (
                             uuid VARCHAR(36) PRIMARY KEY,
-                            data_json TEXT NOT NULL,
+                            data_json LONGTEXT NOT NULL,
                             version BIGINT NOT NULL,
                             updated_at BIGINT NOT NULL
                         )
@@ -32,7 +32,7 @@ class PostgresPlayerDataStore(
             }
         } catch (ex: Exception) {
             throw IllegalStateException(
-                "PostgreSQL 初始化失败，请检查 storage.pg.jdbc-url / username / password / table 配置。原始错误: ${ex.message}",
+                "MySQL 初始化失败，请检查 storage.mysql.jdbc-url / username / password / table 配置。原始错误: ${ex.message}",
                 ex,
             )
         }
@@ -59,7 +59,7 @@ class PostgresPlayerDataStore(
             connection().use { connection ->
                 if (expectedVersion == null || expectedVersion == 0L) {
                     connection.prepareStatement(
-                        "INSERT INTO $table (uuid, data_json, version, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT (uuid) DO UPDATE SET data_json = EXCLUDED.data_json, version = EXCLUDED.version, updated_at = EXCLUDED.updated_at",
+                        "INSERT INTO $table (uuid, data_json, version, updated_at) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE data_json = VALUES(data_json), version = VALUES(version), updated_at = VALUES(updated_at)",
                     ).use { statement ->
                         bindSnapshot(statement, snapshot)
                         statement.executeUpdate()
@@ -82,7 +82,7 @@ class PostgresPlayerDataStore(
             }
             SaveResult.Success(snapshot.version, snapshot.updatedAt)
         } catch (ex: Exception) {
-            SaveResult.Failure("PostgreSQL 保存失败: ${ex.message}", ex)
+            SaveResult.Failure("MySQL 保存失败: ${ex.message}", ex)
         }
     }
 
@@ -111,7 +111,7 @@ class PostgresPlayerDataStore(
     }
 
     private fun ensureDriverLoaded() {
-        Class.forName("org.postgresql.Driver")
+        Class.forName("com.mysql.cj.jdbc.Driver")
     }
 
     private fun connection(): Connection {
@@ -120,7 +120,7 @@ class PostgresPlayerDataStore(
             DriverManager.getConnection(jdbcUrl, username, password)
         } catch (ex: Exception) {
             throw IllegalStateException(
-                "无法连接 PostgreSQL: $jdbcUrl，请检查数据库地址、用户名和密码。原始错误: ${ex.message}",
+                "无法连接 MySQL: $jdbcUrl，请检查数据库地址、用户名和密码。原始错误: ${ex.message}",
                 ex,
             )
         }
