@@ -1,6 +1,6 @@
 Title: "&#C4B5FD称号&#A78BFA商店"
 GuiPlain:
-  - "X#######X"
+  - "X##C###X"
   - "#@@@@@@@#"
   - "#@@@@@@@#"
   - "#@@@@@@@#"
@@ -15,6 +15,18 @@ GuiKey:
   "X":
     Material: "GRAY_STAINED_GLASS_PANE"
     Name: "&#1F2937"
+  "C":
+    IconFunction: "custom"
+    Material: "BOOK"
+    Name: "&#FF8FD8自定义称号"
+    Lore:
+      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
+      - "&#E2E8F0点击后先在聊天栏选择支付方式"
+      - "&#E2E8F0可选: 金币 888888 / 称号币 100 / 点券 30"
+      - "&#E2E8F0然后输入称号名字"
+      - "&#E2E8F0切换颜色并确认后，再输入升级组"
+      - "&#A7F3D0▶ 点击开始定制"
+      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
   "B":
     IconFunction: "back"
     Material: "BARRIER"
