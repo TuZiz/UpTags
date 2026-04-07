@@ -1,0 +1,69 @@
+Title: "&#C77DFF称号&#FF8FD8仓库"
+GuiPlain:
+  - "X#######X"
+  - "#@@@@@@@#"
+  - "#@@@@@@@#"
+  - "#@@@@@@@#"
+  - "#@@@@@@@#"
+  - "L###B###N"
+GuiKey:
+  "@":
+    IconFunction: "item"
+  "#":
+    Material: "BLACK_STAINED_GLASS_PANE"
+    Name: "&#111827"
+  "X":
+    Material: "GRAY_STAINED_GLASS_PANE"
+    Name: "&#1F2937"
+  "B":
+    IconFunction: "back"
+    Material: "BARRIER"
+    Name: "&#FF7B7B关闭仓库"
+  "L":
+    IconFunction: "last"
+    has:
+      Material: "ARROW"
+      Name: "&#FDE68A上一页"
+    normal:
+      Material: "GRAY_STAINED_GLASS_PANE"
+      Name: "&#94A3B8已经是第一页"
+  "N":
+    IconFunction: "next"
+    has:
+      Material: "ARROW"
+      Name: "&#FDE68A下一页"
+    normal:
+      Material: "GRAY_STAINED_GLASS_PANE"
+      Name: "&#94A3B8已经是最后一页"
+
+# placeholders:
+# %tag_display% %tag_rarity% %tag_buff_count% %tag_particle_count%
+# %tag_buffs% %tag_particles%
+templates:
+  tag-owned:
+    material: "NAME_TAG"
+    name: "&#F8FAFC✦ %tag_display% &#F8FAFC✦"
+    lore:
+      - "&#334155&l&m━━━━━━━━━━━━━━━━━━━━━━━━"
+      - "%tag_description%"
+      - ""
+      - " &#7DD3FC◆ &#E2E8F0稀有度: %tag_rarity%"
+      - " &#FDE68A◆ &#E2E8F0已激活属性: &#FDE68A%tag_buff_count%  &#FF8FD8◆ &#E2E8F0已激活粒子: &#FF8FD8%tag_particle_count%"
+      - " &#86EFAC◆ &#E2E8F0Buff: &#86EFAC%tag_buffs%"
+      - " &#C084FC◆ &#E2E8F0粒子: &#C084FC%tag_particles%"
+      - ""
+      - " &#FDE68A▶ &#FFF3B0左键佩戴这个称号"
+      - " &#FFB86C▶ &#FFE0B2右键打开强化 / 升级卷使用页"
+      - "&#334155&l&m━━━━━━━━━━━━━━━━━━━━━━━━"
+
+  tag-locked:
+    material: "BARRIER"
+    name: "&#94A3B8✦ %tag_display% &#64748B(未解锁)"
+    lore:
+      - "&#334155&l&m━━━━━━━━━━━━━━━━━━━━━━━━"
+      - "%tag_description%"
+      - ""
+      - " &#CBD5E1◆ 稀有度: %tag_rarity%"
+      - " &#FCA5A5◆ 拥有状态: &#FF7B7B未获得"
+      - " &#94A3B8◆ 获取后才能升级 Buff 与粒子"
+      - "&#334155&l&m━━━━━━━━━━━━━━━━━━━━━━━━"

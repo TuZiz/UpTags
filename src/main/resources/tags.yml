@@ -1,0 +1,26 @@
+# 稀有度显示
+rarity-display:
+  COMMON: '&#E2E8F0[&#7DD3FC普通&#E2E8F0]'
+  LIMITED: '&#E2E8F0[&#FF8FD8限定&#E2E8F0]'
+  EPIC: '&#E2E8F0[&#C084FC史诗&#E2E8F0]'
+
+# 稀有度映射到升级组
+rarity-upgrade-group:
+  COMMON: COMMON
+  LIMITED: LIMITED
+  EPIC: EPIC
+
+tag-template:
+  rarity: COMMON
+  default-unlocked: false
+  default-particle: ''
+
+tags:
+  newbie:
+    display: '&#E2E8F0[&#7DD3FC萌新&#E2E8F0]'
+    description:
+      - '&#94A3B8加入服务器的第一个称号'
+    rarity: COMMON
+    default-unlocked: true
+    upgrade-groups:
+      - COMMON

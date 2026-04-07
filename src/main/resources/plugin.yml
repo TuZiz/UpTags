@@ -1,0 +1,22 @@
+name: UpTags
+version: ${version}
+main: cn.aing.uptags.UpTagsPlugin
+api-version: '1.20'
+author: Codex
+description: Kotlin 重构的称号插件，兼容 Spigot / Folia
+softdepend:
+  - PlaceholderAPI
+  - Vault
+  - PlayerPoints
+commands:
+  tags:
+    description: 打开称号仓库
+    usage: /tags [reload|equip|unequip|upgrade|admin ...]
+    aliases: [tag, uptags]
+permissions:
+  uptags.use:
+    default: true
+  uptags.admin:
+    default: op
+  uptags.reload:
+    default: op

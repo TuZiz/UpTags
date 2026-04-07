@@ -1,0 +1,43 @@
+﻿settings:
+  effect-tick-interval: 20
+  force-default-tag:
+    enabled: true
+    tag-id: "newbie"
+
+storage:
+  pg:
+    jdbc-url: "jdbc:postgresql://127.0.0.1:5432/minecraft"
+    username: "postgres"
+    password: "change-me"
+    table: "uptags_player_data"
+
+sync:
+  server-id: "server-1"
+  online-refresh-delay-ticks: 20
+  stale-max-age-seconds: 3
+  redis:
+    enabled: false
+    uri: "redis://127.0.0.1:6379"
+    channel: "uptags:player-sync"
+
+# PlaceholderAPI 变量说明（前缀统一为 %tags_...%）
+# %tags_current%
+# %tags_current_id%
+# %tags_collected%
+# %tags_total%
+# %tags_progress%
+# %tags_active_buffs%
+# %tags_active_particle%
+# %tags_active_particle_id%
+# %tags_points%
+# %tags_can_upgrade%
+# %tags_tag_owned_<tagId>%
+# %tags_tag_buff_count_<tagId>%
+# %tags_tag_first_buff_<tagId>%
+# %tags_tag_buffs_<tagId>%
+# %tags_tag_particle_count_<tagId>%
+# %tags_tag_particle_<tagId>%
+# %tags_tag_particles_<tagId>%
+# %tags_track_<trackId>%
+# %tags_group_level_<groupId>%
+# %tags_group_name_<groupId>%

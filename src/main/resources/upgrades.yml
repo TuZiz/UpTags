@@ -1,0 +1,578 @@
+buffs:
+  strength:
+    type: INCREASE_DAMAGE
+    display: '&#FF8A8A力量'
+    max-level: 5
+    duration: 280
+    cost:
+      type: POINTS
+      levels:
+        '1': 20
+        '2': 35
+        '3': 55
+        '4': 80
+        '5': 110
+      conditions: []
+  speed:
+    type: SPEED
+    display: '&#7DD3FC速度'
+    max-level: 5
+    duration: 280
+    cost:
+      type: POINTS
+      levels:
+        '1': 20
+        '2': 35
+        '3': 55
+        '4': 80
+        '5': 110
+      conditions: []
+  haste:
+    type: FAST_DIGGING
+    display: '&#FDE68A急迫'
+    max-level: 5
+    duration: 280
+    cost:
+      type: POINTS
+      levels:
+        '1': 20
+        '2': 35
+        '3': 55
+        '4': 80
+        '5': 110
+      conditions: []
+  regeneration:
+    type: REGENERATION
+    display: '&#FF8FD8生命恢复'
+    max-level: 5
+    duration: 280
+    cost:
+      type: POINTS
+      levels:
+        '1': 25
+        '2': 40
+        '3': 60
+        '4': 85
+        '5': 115
+      conditions: []
+  jump_boost:
+    type: JUMP
+    display: '&#86EFAC跳跃提升'
+    max-level: 5
+    duration: 280
+    cost:
+      type: POINTS
+      levels:
+        '1': 15
+        '2': 30
+        '3': 45
+        '4': 70
+        '5': 95
+      conditions: []
+  fire_resistance:
+    type: FIRE_RESISTANCE
+    display: '&#FFB86C抗火'
+    max-level: 5
+    duration: 280
+    cost:
+      type: POINTS
+      levels:
+        '1': 15
+        '2': 30
+        '3': 45
+        '4': 70
+        '5': 95
+      conditions: []
+  water_breathing:
+    type: WATER_BREATHING
+    display: '&#7EE7C4水下呼吸'
+    max-level: 5
+    duration: 280
+    cost:
+      type: POINTS
+      levels:
+        '1': 15
+        '2': 30
+        '3': 45
+        '4': 70
+        '5': 95
+      conditions: []
+  health_boost:
+    type: HEALTH_BOOST
+    display: '&#F87171生命提升'
+    max-level: 5
+    duration: 280
+    cost:
+      type: POINTS
+      levels:
+        '1': 30
+        '2': 45
+        '3': 65
+        '4': 90
+        '5': 120
+      conditions: []
+  absorption:
+    type: ABSORPTION
+    display: '&#FFE082伤害吸收'
+    max-level: 5
+    duration: 280
+    cost:
+      type: POINTS
+      levels:
+        '1': 25
+        '2': 40
+        '3': 60
+        '4': 85
+        '5': 115
+      conditions: []
+  night_vision:
+    type: NIGHT_VISION
+    display: '&#C084FC夜视'
+    max-level: 5
+    duration: 280
+    cost:
+      type: POINTS
+      levels:
+        '1': 15
+        '2': 25
+        '3': 40
+        '4': 60
+        '5': 85
+      conditions: []
+  luck:
+    type: LUCK
+    display: '&#86EFAC幸运'
+    max-level: 5
+    duration: 280
+    cost:
+      type: POINTS
+      levels:
+        '1': 20
+        '2': 35
+        '3': 55
+        '4': 80
+        '5': 110
+      conditions: []
+  resistance:
+    type: DAMAGE_RESISTANCE
+    display: '&#93C5FD抗性提升'
+    max-level: 2
+    duration: 280
+    cost:
+      type: POINTS
+      levels:
+        '1': 40
+        '2': 70
+      conditions: []
+  instant_health:
+    type: HEAL
+    display: '&#FCA5A5瞬间治疗'
+    max-level: 2
+    duration: 1
+    cost:
+      type: POINTS
+      levels:
+        '1': 35
+        '2': 60
+      conditions: []
+groups:
+  COMMON:
+    name: '普通组'
+    display: '&#7DD3FCCOMMON'
+    buffs: [strength, speed, haste]
+    particles: [pulse, feet, halo]
+  LIMITED:
+    name: '限定组'
+    display: '&#FF8FD8LIMITED'
+    buffs: [strength, speed, haste, regeneration, jump_boost, fire_resistance, water_breathing, night_vision]
+    particles: [pulse, aura, helix, ring, comet]
+  EPIC:
+    name: '史诗组'
+    display: '&#C084FCEPIC'
+    buffs: [strength, speed, haste, regeneration, jump_boost, fire_resistance, water_breathing, health_boost, absorption, night_vision, luck, resistance, instant_health]
+    particles: [halo, aura, helix, spiral, ring, crown, orbit, pulse, wings, feet, flame, totem, spark, comet, rain, shield]
+particles:
+  halo:
+    display: '&#FDE68A圣洁光环'
+    pattern: halo
+    cost: { type: POINTS, amount: 35, conditions: [] }
+  aura:
+    display: '&#86EFAC自然灵气'
+    pattern: aura
+    cost: { type: POINTS, amount: 45, conditions: [] }
+  helix:
+    display: '&#7DD3FC双螺旋'
+    pattern: helix
+    cost: { type: POINTS, amount: 50, conditions: [] }
+  spiral:
+    display: '&#C084FC星轨旋纹'
+    pattern: spiral
+    cost: { type: POINTS, amount: 55, conditions: [] }
+  ring:
+    display: '&#93C5FD守护星环'
+    pattern: ring
+    cost: { type: POINTS, amount: 55, conditions: [] }
+  crown:
+    display: '&#FDE68A王者冠冕'
+    pattern: crown
+    cost: { type: POINTS, amount: 70, conditions: [] }
+  orbit:
+    display: '&#7EE7C4双星环绕'
+    pattern: orbit
+    cost: { type: POINTS, amount: 65, conditions: [] }
+  pulse:
+    display: '&#FF8FD8能量脉冲'
+    pattern: pulse
+    cost: { type: POINTS, amount: 45, conditions: [] }
+  wings:
+    display: '&#F8FAFC光翼'
+    pattern: wings
+    cost: { type: POINTS, amount: 85, conditions: [] }
+  feet:
+    display: '&#CBD5E1行者足迹'
+    pattern: feet
+    cost: { type: POINTS, amount: 30, conditions: [] }
+  flame:
+    display: '&#FF9E7A烈焰之心'
+    pattern: flame
+    cost: { type: POINTS, amount: 50, conditions: [] }
+  totem:
+    display: '&#86EFAC图腾庇佑'
+    pattern: totem
+    cost: { type: POINTS, amount: 80, conditions: [] }
+  spark:
+    display: '&#FDE68A星火飞散'
+    pattern: spark
+    cost: { type: POINTS, amount: 55, conditions: [] }
+  comet:
+    display: '&#93C5FD彗星拖尾'
+    pattern: comet
+    cost: { type: POINTS, amount: 65, conditions: [] }
+  rain:
+    display: '&#7EE7C4灵雨落辉'
+    pattern: rain
+    cost: { type: POINTS, amount: 50, conditions: [] }
+  shield:
+    display: '&#C084FC护盾环阵'
+    pattern: shield
+    cost: { type: POINTS, amount: 75, conditions: [] }
+scrolls:
+  strength_scroll:
+    type: BUFF
+    target: strength
+    material: ENCHANTED_BOOK
+    glow: true
+    name: '&#FF8FD8%target_name%升级卷'
+    lore:
+      - '&#CBD5E1目标类型: &#F8FAFCBuff'
+      - '&#CBD5E1目标内容: &#F8FAFC%target_name% &#64748B(%target_id%)'
+      - '&#CBD5E1右键后选择要生效的称号'
+      - '&#94A3B8成功后会消耗 1 张升级卷'
+  speed_scroll:
+    type: BUFF
+    target: speed
+    material: ENCHANTED_BOOK
+    glow: true
+    name: '&#FF8FD8%target_name%升级卷'
+    lore:
+      - '&#CBD5E1目标类型: &#F8FAFCBuff'
+      - '&#CBD5E1目标内容: &#F8FAFC%target_name% &#64748B(%target_id%)'
+      - '&#CBD5E1右键后选择要生效的称号'
+      - '&#94A3B8成功后会消耗 1 张升级卷'
+  haste_scroll:
+    type: BUFF
+    target: haste
+    material: ENCHANTED_BOOK
+    glow: true
+    name: '&#FF8FD8%target_name%升级卷'
+    lore:
+      - '&#CBD5E1目标类型: &#F8FAFCBuff'
+      - '&#CBD5E1目标内容: &#F8FAFC%target_name% &#64748B(%target_id%)'
+      - '&#CBD5E1右键后选择要生效的称号'
+      - '&#94A3B8成功后会消耗 1 张升级卷'
+  regeneration_scroll:
+    type: BUFF
+    target: regeneration
+    material: ENCHANTED_BOOK
+    glow: true
+    name: '&#FF8FD8%target_name%升级卷'
+    lore:
+      - '&#CBD5E1目标类型: &#F8FAFCBuff'
+      - '&#CBD5E1目标内容: &#F8FAFC%target_name% &#64748B(%target_id%)'
+      - '&#CBD5E1右键后选择要生效的称号'
+      - '&#94A3B8成功后会消耗 1 张升级卷'
+  jump_boost_scroll:
+    type: BUFF
+    target: jump_boost
+    material: ENCHANTED_BOOK
+    glow: true
+    name: '&#FF8FD8%target_name%升级卷'
+    lore:
+      - '&#CBD5E1目标类型: &#F8FAFCBuff'
+      - '&#CBD5E1目标内容: &#F8FAFC%target_name% &#64748B(%target_id%)'
+      - '&#CBD5E1右键后选择要生效的称号'
+      - '&#94A3B8成功后会消耗 1 张升级卷'
+  fire_resistance_scroll:
+    type: BUFF
+    target: fire_resistance
+    material: ENCHANTED_BOOK
+    glow: true
+    name: '&#FF8FD8%target_name%升级卷'
+    lore:
+      - '&#CBD5E1目标类型: &#F8FAFCBuff'
+      - '&#CBD5E1目标内容: &#F8FAFC%target_name% &#64748B(%target_id%)'
+      - '&#CBD5E1右键后选择要生效的称号'
+      - '&#94A3B8成功后会消耗 1 张升级卷'
+  water_breathing_scroll:
+    type: BUFF
+    target: water_breathing
+    material: ENCHANTED_BOOK
+    glow: true
+    name: '&#FF8FD8%target_name%升级卷'
+    lore:
+      - '&#CBD5E1目标类型: &#F8FAFCBuff'
+      - '&#CBD5E1目标内容: &#F8FAFC%target_name% &#64748B(%target_id%)'
+      - '&#CBD5E1右键后选择要生效的称号'
+      - '&#94A3B8成功后会消耗 1 张升级卷'
+  health_boost_scroll:
+    type: BUFF
+    target: health_boost
+    material: ENCHANTED_BOOK
+    glow: true
+    name: '&#FF8FD8%target_name%升级卷'
+    lore:
+      - '&#CBD5E1目标类型: &#F8FAFCBuff'
+      - '&#CBD5E1目标内容: &#F8FAFC%target_name% &#64748B(%target_id%)'
+      - '&#CBD5E1右键后选择要生效的称号'
+      - '&#94A3B8成功后会消耗 1 张升级卷'
+  absorption_scroll:
+    type: BUFF
+    target: absorption
+    material: ENCHANTED_BOOK
+    glow: true
+    name: '&#FF8FD8%target_name%升级卷'
+    lore:
+      - '&#CBD5E1目标类型: &#F8FAFCBuff'
+      - '&#CBD5E1目标内容: &#F8FAFC%target_name% &#64748B(%target_id%)'
+      - '&#CBD5E1右键后选择要生效的称号'
+      - '&#94A3B8成功后会消耗 1 张升级卷'
+  night_vision_scroll:
+    type: BUFF
+    target: night_vision
+    material: ENCHANTED_BOOK
+    glow: true
+    name: '&#FF8FD8%target_name%升级卷'
+    lore:
+      - '&#CBD5E1目标类型: &#F8FAFCBuff'
+      - '&#CBD5E1目标内容: &#F8FAFC%target_name% &#64748B(%target_id%)'
+      - '&#CBD5E1右键后选择要生效的称号'
+      - '&#94A3B8成功后会消耗 1 张升级卷'
+  luck_scroll:
+    type: BUFF
+    target: luck
+    material: ENCHANTED_BOOK
+    glow: true
+    name: '&#FF8FD8%target_name%升级卷'
+    lore:
+      - '&#CBD5E1目标类型: &#F8FAFCBuff'
+      - '&#CBD5E1目标内容: &#F8FAFC%target_name% &#64748B(%target_id%)'
+      - '&#CBD5E1右键后选择要生效的称号'
+      - '&#94A3B8成功后会消耗 1 张升级卷'
+  resistance_scroll:
+    type: BUFF
+    target: resistance
+    material: ENCHANTED_BOOK
+    glow: true
+    name: '&#FF8FD8%target_name%升级卷'
+    lore:
+      - '&#CBD5E1目标类型: &#F8FAFCBuff'
+      - '&#CBD5E1目标内容: &#F8FAFC%target_name% &#64748B(%target_id%)'
+      - '&#CBD5E1右键后选择要生效的称号'
+      - '&#94A3B8成功后会消耗 1 张升级卷'
+  instant_health_scroll:
+    type: BUFF
+    target: instant_health
+    material: ENCHANTED_BOOK
+    glow: true
+    name: '&#FF8FD8%target_name%升级卷'
+    lore:
+      - '&#CBD5E1目标类型: &#F8FAFCBuff'
+      - '&#CBD5E1目标内容: &#F8FAFC%target_name% &#64748B(%target_id%)'
+      - '&#CBD5E1右键后选择要生效的称号'
+      - '&#94A3B8成功后会消耗 1 张升级卷'
+  halo_scroll:
+    type: PARTICLE
+    target: halo
+    material: NETHER_STAR
+    glow: true
+    name: '&#7DD3FC%target_name%解锁卷'
+    lore:
+      - '&#CBD5E1目标类型: &#F8FAFC粒子'
+      - '&#CBD5E1目标内容: &#F8FAFC%target_name% &#64748B(%target_id%)'
+      - '&#CBD5E1右键后选择要生效的称号'
+      - '&#94A3B8成功后会消耗 1 张升级卷'
+  aura_scroll:
+    type: PARTICLE
+    target: aura
+    material: NETHER_STAR
+    glow: true
+    name: '&#7DD3FC%target_name%解锁卷'
+    lore:
+      - '&#CBD5E1目标类型: &#F8FAFC粒子'
+      - '&#CBD5E1目标内容: &#F8FAFC%target_name% &#64748B(%target_id%)'
+      - '&#CBD5E1右键后选择要生效的称号'
+      - '&#94A3B8成功后会消耗 1 张升级卷'
+  helix_scroll:
+    type: PARTICLE
+    target: helix
+    material: NETHER_STAR
+    glow: true
+    name: '&#7DD3FC%target_name%解锁卷'
+    lore:
+      - '&#CBD5E1目标类型: &#F8FAFC粒子'
+      - '&#CBD5E1目标内容: &#F8FAFC%target_name% &#64748B(%target_id%)'
+      - '&#CBD5E1右键后选择要生效的称号'
+      - '&#94A3B8成功后会消耗 1 张升级卷'
+  spiral_scroll:
+    type: PARTICLE
+    target: spiral
+    material: NETHER_STAR
+    glow: true
+    name: '&#7DD3FC%target_name%解锁卷'
+    lore:
+      - '&#CBD5E1目标类型: &#F8FAFC粒子'
+      - '&#CBD5E1目标内容: &#F8FAFC%target_name% &#64748B(%target_id%)'
+      - '&#CBD5E1右键后选择要生效的称号'
+      - '&#94A3B8成功后会消耗 1 张升级卷'
+  ring_scroll:
+    type: PARTICLE
+    target: ring
+    material: NETHER_STAR
+    glow: true
+    name: '&#7DD3FC%target_name%解锁卷'
+    lore:
+      - '&#CBD5E1目标类型: &#F8FAFC粒子'
+      - '&#CBD5E1目标内容: &#F8FAFC%target_name% &#64748B(%target_id%)'
+      - '&#CBD5E1右键后选择要生效的称号'
+      - '&#94A3B8成功后会消耗 1 张升级卷'
+  crown_scroll:
+    type: PARTICLE
+    target: crown
+    material: NETHER_STAR
+    glow: true
+    name: '&#7DD3FC%target_name%解锁卷'
+    lore:
+      - '&#CBD5E1目标类型: &#F8FAFC粒子'
+      - '&#CBD5E1目标内容: &#F8FAFC%target_name% &#64748B(%target_id%)'
+      - '&#CBD5E1右键后选择要生效的称号'
+      - '&#94A3B8成功后会消耗 1 张升级卷'
+  orbit_scroll:
+    type: PARTICLE
+    target: orbit
+    material: NETHER_STAR
+    glow: true
+    name: '&#7DD3FC%target_name%解锁卷'
+    lore:
+      - '&#CBD5E1目标类型: &#F8FAFC粒子'
+      - '&#CBD5E1目标内容: &#F8FAFC%target_name% &#64748B(%target_id%)'
+      - '&#CBD5E1右键后选择要生效的称号'
+      - '&#94A3B8成功后会消耗 1 张升级卷'
+  pulse_scroll:
+    type: PARTICLE
+    target: pulse
+    material: NETHER_STAR
+    glow: true
+    name: '&#7DD3FC%target_name%解锁卷'
+    lore:
+      - '&#CBD5E1目标类型: &#F8FAFC粒子'
+      - '&#CBD5E1目标内容: &#F8FAFC%target_name% &#64748B(%target_id%)'
+      - '&#CBD5E1右键后选择要生效的称号'
+      - '&#94A3B8成功后会消耗 1 张升级卷'
+  wings_scroll:
+    type: PARTICLE
+    target: wings
+    material: NETHER_STAR
+    glow: true
+    name: '&#7DD3FC%target_name%解锁卷'
+    lore:
+      - '&#CBD5E1目标类型: &#F8FAFC粒子'
+      - '&#CBD5E1目标内容: &#F8FAFC%target_name% &#64748B(%target_id%)'
+      - '&#CBD5E1右键后选择要生效的称号'
+      - '&#94A3B8成功后会消耗 1 张升级卷'
+  feet_scroll:
+    type: PARTICLE
+    target: feet
+    material: NETHER_STAR
+    glow: true
+    name: '&#7DD3FC%target_name%解锁卷'
+    lore:
+      - '&#CBD5E1目标类型: &#F8FAFC粒子'
+      - '&#CBD5E1目标内容: &#F8FAFC%target_name% &#64748B(%target_id%)'
+      - '&#CBD5E1右键后选择要生效的称号'
+      - '&#94A3B8成功后会消耗 1 张升级卷'
+  flame_scroll:
+    type: PARTICLE
+    target: flame
+    material: NETHER_STAR
+    glow: true
+    name: '&#7DD3FC%target_name%解锁卷'
+    lore:
+      - '&#CBD5E1目标类型: &#F8FAFC粒子'
+      - '&#CBD5E1目标内容: &#F8FAFC%target_name% &#64748B(%target_id%)'
+      - '&#CBD5E1右键后选择要生效的称号'
+      - '&#94A3B8成功后会消耗 1 张升级卷'
+  totem_scroll:
+    type: PARTICLE
+    target: totem
+    material: NETHER_STAR
+    glow: true
+    name: '&#7DD3FC%target_name%解锁卷'
+    lore:
+      - '&#CBD5E1目标类型: &#F8FAFC粒子'
+      - '&#CBD5E1目标内容: &#F8FAFC%target_name% &#64748B(%target_id%)'
+      - '&#CBD5E1右键后选择要生效的称号'
+      - '&#94A3B8成功后会消耗 1 张升级卷'
+  spark_scroll:
+    type: PARTICLE
+    target: spark
+    material: NETHER_STAR
+    glow: true
+    name: '&#7DD3FC%target_name%解锁卷'
+    lore:
+      - '&#CBD5E1目标类型: &#F8FAFC粒子'
+      - '&#CBD5E1目标内容: &#F8FAFC%target_name% &#64748B(%target_id%)'
+      - '&#CBD5E1右键后选择要生效的称号'
+      - '&#94A3B8成功后会消耗 1 张升级卷'
+  comet_scroll:
+    type: PARTICLE
+    target: comet
+    material: NETHER_STAR
+    glow: true
+    name: '&#7DD3FC%target_name%解锁卷'
+    lore:
+      - '&#CBD5E1目标类型: &#F8FAFC粒子'
+      - '&#CBD5E1目标内容: &#F8FAFC%target_name% &#64748B(%target_id%)'
+      - '&#CBD5E1右键后选择要生效的称号'
+      - '&#94A3B8成功后会消耗 1 张升级卷'
+  rain_scroll:
+    type: PARTICLE
+    target: rain
+    material: NETHER_STAR
+    glow: true
+    name: '&#7DD3FC%target_name%解锁卷'
+    lore:
+      - '&#CBD5E1目标类型: &#F8FAFC粒子'
+      - '&#CBD5E1目标内容: &#F8FAFC%target_name% &#64748B(%target_id%)'
+      - '&#CBD5E1右键后选择要生效的称号'
+      - '&#94A3B8成功后会消耗 1 张升级卷'
+  shield_scroll:
+    type: PARTICLE
+    target: shield
+    material: NETHER_STAR
+    glow: true
+    name: '&#7DD3FC%target_name%解锁卷'
+    lore:
+      - '&#CBD5E1目标类型: &#F8FAFC粒子'
+      - '&#CBD5E1目标内容: &#F8FAFC%target_name% &#64748B(%target_id%)'
+      - '&#CBD5E1右键后选择要生效的称号'
+      - '&#94A3B8成功后会消耗 1 张升级卷'

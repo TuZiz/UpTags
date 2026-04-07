@@ -1,0 +1,80 @@
+Title: "&#7DD3FC称号&#C084FC强化中心"
+GuiPlain:
+  - "X#######X"
+  - "#@@@@@@@#"
+  - "#@@@@@@@#"
+  - "#@@@@@@@#"
+  - "#@@@@@@@#"
+  - "L###B###N"
+GuiKey:
+  "@":
+    IconFunction: "item"
+  "#":
+    Material: "BLACK_STAINED_GLASS_PANE"
+    Name: " "
+  "X":
+    Material: "GRAY_STAINED_GLASS_PANE"
+    Name: " "
+  "B":
+    IconFunction: "back"
+    Material: "BARRIER"
+    Name: "&#FF7B7B返回仓库"
+  "L":
+    IconFunction: "last"
+    has:
+      Material: "ARROW"
+      Name: "&#FDE68A上一页"
+    normal:
+      Material: "GRAY_STAINED_GLASS_PANE"
+      Name: "&#94A3B8已经是第一页"
+  "N":
+    IconFunction: "next"
+    has:
+      Material: "ARROW"
+      Name: "&#FDE68A下一页"
+    normal:
+      Material: "GRAY_STAINED_GLASS_PANE"
+      Name: "&#94A3B8已经是最后一页"
+
+templates:
+  buff:
+    material: "ENCHANTED_BOOK"
+    name: "&#7DD3FC%entry_display% &#CBD5E1Lv.&#FDE68A%entry_current%&#94A3B8/&#FDE68A%entry_max%"
+    lore:
+      - "&#334155&l&m━━━━━━━━━━━━━━━━━━━━━━━━"
+      - " &#CBD5E1状态: &#F8FAFC%entry_status% &#64748B| &#F8FAFC%entry_equip_state%"
+      - " &#CBD5E1下一阶强化:"
+      - " %entry_buffs%"
+      - ""
+      - " &#CBD5E1消耗: &#FDE68A%entry_points% %entry_currency%"
+      - " &#86EFAC%entry_action%"
+      - " &#FFB86C%entry_right_action%"
+      - "&#334155&l&m━━━━━━━━━━━━━━━━━━━━━━━━"
+    lore-maxed:
+      - "&#334155&l&m━━━━━━━━━━━━━━━━━━━━━━━━"
+      - " &#CBD5E1状态: &#F8FAFC%entry_status% &#64748B| &#F8FAFC%entry_equip_state%"
+      - " &#CBD5E1当前强化:"
+      - " %entry_buffs%"
+      - ""
+      - " &#FFB86C%entry_right_action%"
+      - "&#334155&l&m━━━━━━━━━━━━━━━━━━━━━━━━"
+
+  particle:
+    material: "NETHER_STAR"
+    name: "&#C084FC%entry_display%"
+    lore:
+      - "&#334155&l&m━━━━━━━━━━━━━━━━━━━━━━━━"
+      - " &#CBD5E1状态: &#F8FAFC%entry_status% &#64748B| &#F8FAFC%entry_equip_state%"
+      - " &#CBD5E1粒子效果: &#F8FAFC%entry_display%"
+      - ""
+      - " &#CBD5E1消耗: &#FDE68A%entry_points% %entry_currency%"
+      - " &#86EFAC%entry_action%"
+      - " &#FFB86C%entry_right_action%"
+      - "&#334155&l&m━━━━━━━━━━━━━━━━━━━━━━━━"
+    lore-maxed:
+      - "&#334155&l&m━━━━━━━━━━━━━━━━━━━━━━━━"
+      - " &#CBD5E1状态: &#F8FAFC%entry_status% &#64748B| &#F8FAFC%entry_equip_state%"
+      - " &#CBD5E1粒子效果: &#F8FAFC%entry_display%"
+      - ""
+      - " &#FFB86C%entry_right_action%"
+      - "&#334155&l&m━━━━━━━━━━━━━━━━━━━━━━━━"
