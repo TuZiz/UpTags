@@ -1,36 +1,17 @@
 products:
-  warrior_tag:
-    type: TAG
-    target-id: newbie
-    enabled: true
-    permission: ''
-    conditions: []
-    cost:
-      type: MONEY
-      amount: 1000
-      conditions: []
-    icon:
-      material: NAME_TAG
-      name: '&#FDE68A战士称号'
-      lore:
-        - '&#CBD5E1内容: &#F8FAFC%tag_display%'
-        - '&#CBD5E1价格: &#FDE68A1000 金币'
-        - '&#86EFAC左键购买并解锁该称号'
   custom_basic:
     type: CUSTOM
     target-id: basic
     enabled: true
     permission: ''
     conditions: []
-    cost:
-      type: TITLE_COIN
-      amount: 5
-      conditions: []
     icon:
       material: BOOK
       name: '&#FF8FD8自定义专属称号'
       lore:
-        - '&#CBD5E1支持输入自定义文本'
-        - '&#CBD5E1支持随机多套 RGB 配色'
-        - '&#CBD5E1价格: &#FDE68A5 称号币'
-        - '&#86EFAC左键开始定制'
+        - '&#E2E8F0点击后先在聊天栏选择支付方式'
+        - '&#E2E8F0可选: 金币 888888 / 称号币 100 / 点券 30'
+        - '&#E2E8F0确认支付方式后再输入称号名字'
+        - '&#E2E8F0随后切换颜色并确认，最后选择升级组'
+        - '&#A7F3D0左键开始定制'
+

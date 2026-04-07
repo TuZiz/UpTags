@@ -6,7 +6,6 @@ import cn.aing.uptags.config.MessageService
 import cn.aing.uptags.model.config.CurrencyType
 import cn.aing.uptags.model.config.GuiLayout
 import cn.aing.uptags.model.config.GuiTemplate
-import cn.aing.uptags.model.config.ShopProductDefinition
 import cn.aing.uptags.model.config.TagDefinition
 import cn.aing.uptags.model.runtime.ScrollKind
 import cn.aing.uptags.model.runtime.ScrollSelectionContext
@@ -254,6 +253,7 @@ class MenuService(
                         template = if (page < maxPage && key.has != null) key.has else key.normal
                         if (page < maxPage) session.actions[slot] = { changePage(player, session, page + 1) }
                     }
+                    function.equals("shop", true) -> session.actions[slot] = { openShop(player, 0) }
                     function.equals("back", true) -> session.actions[slot] = { goBack(player, session) }
                 }
                 if (template != null) {

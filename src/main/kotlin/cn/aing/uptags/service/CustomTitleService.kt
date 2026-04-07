@@ -3,9 +3,9 @@ package cn.aing.uptags.service
 import cn.aing.uptags.Support
 import cn.aing.uptags.config.ConfigRegistry
 import cn.aing.uptags.config.MessageService
+import cn.aing.uptags.model.config.CurrencyType
 import cn.aing.uptags.model.config.CustomTitlePreset
 import cn.aing.uptags.model.runtime.CustomTitleData
-import cn.aing.uptags.model.runtime.PlayerTagData
 import cn.aing.uptags.repository.PlayerDataRepository
 import org.bukkit.entity.Player
 import java.util.Locale
@@ -17,46 +17,83 @@ import kotlin.random.Random
 class CustomTitleService(
     private val config: ConfigRegistry,
     private val repository: PlayerDataRepository,
+    private val economyBridge: EconomyBridge,
     private val messageService: MessageService,
 ) {
-    private val previewSessions = ConcurrentHashMap<UUID, CustomTitleDraft>()
+    private val drafts = ConcurrentHashMap<UUID, CustomTitleDraft>()
+    private val customTagPrefix = "custom-"
 
     fun startDraft(player: Player, presetId: String): Boolean {
         val preset = config.customTitleSettings.presets[presetId] ?: return false
-        previewSessions[player.uniqueId] = CustomTitleDraft(presetId = preset.id, updatedAt = System.currentTimeMillis())
-        messageService.send(player, "custom-title-input")
+        drafts[player.uniqueId] = CustomTitleDraft(
+            presetId = preset.id,
+            stage = CustomTitleStage.CHOOSE_CURRENCY,
+            updatedAt = System.currentTimeMillis(),
+        )
+        messageService.send(player, "custom-title-choose-currency")
         return true
     }
 
-    fun cancelDraft(player: Player, notify: Boolean = true) {
-        previewSessions.remove(player.uniqueId)
-        if (notify) {
-            messageService.send(player, "custom-title-cancelled")
-        }
-    }
-
     fun activeDraft(player: Player): CustomTitleDraft? {
-        val draft = previewSessions[player.uniqueId] ?: return null
+        val draft = drafts[player.uniqueId] ?: return null
         val timeout = config.customTitleSettings.sessionTimeoutSeconds * 1000
         if (System.currentTimeMillis() - draft.updatedAt > timeout) {
-            previewSessions.remove(player.uniqueId)
+            drafts.remove(player.uniqueId)
             return null
         }
         return draft
     }
 
-    fun submitText(player: Player, input: String): ValidationResult {
+    fun cancelDraft(player: Player, notify: Boolean = true) {
+        drafts.remove(player.uniqueId)
+        if (notify) {
+            messageService.send(player, "custom-title-cancelled")
+        }
+    }
+
+    fun handleInput(player: Player, input: String): ValidationResult {
         val draft = activeDraft(player) ?: return ValidationResult(false, "custom-title-no-session")
         if (input.equals("cancel", true)) {
             cancelDraft(player)
             return ValidationResult(false, null)
         }
         val preset = config.customTitleSettings.presets[draft.presetId] ?: return ValidationResult(false, "custom-title-invalid-preset")
+        draft.updatedAt = System.currentTimeMillis()
+        return when (draft.stage) {
+            CustomTitleStage.CHOOSE_CURRENCY -> handleCurrencyChoice(player, draft, input)
+            CustomTitleStage.INPUT_NAME -> handleNameInput(draft, preset, input)
+            CustomTitleStage.CHOOSE_GROUP -> handleGroupChoice(player, draft, input)
+            CustomTitleStage.PREVIEW -> ValidationResult(false, "custom-title-preview-help")
+        }
+    }
+
+    private fun handleCurrencyChoice(player: Player, draft: CustomTitleDraft, input: String): ValidationResult {
+        val normalized = input.trim().lowercase(Locale.ROOT)
+        val (currency, amount) = when (normalized) {
+            "money", "金币", "gold" -> CurrencyType.MONEY to 888888.0
+            "title_coin", "称号币", "coin" -> CurrencyType.TITLE_COIN to 100.0
+            "points", "点券" -> CurrencyType.POINTS to 30.0
+            else -> return ValidationResult(false, "custom-title-invalid-currency")
+        }
+        if (!economyBridge.isAvailable(currency)) {
+            return ValidationResult(false, "economy-unavailable", economyBridge.displayName(currency))
+        }
+        if (economyBridge.balance(player, currency) < amount || !economyBridge.withdraw(player, currency, amount)) {
+            return ValidationResult(false, "not-enough", arrayOf(Support.formatDouble(amount), economyBridge.displayName(currency)))
+        }
+        draft.currencyType = currency
+        draft.currencyAmount = amount
+        draft.stage = CustomTitleStage.INPUT_NAME
+        messageService.send(player, "custom-title-input")
+        return ValidationResult(false, null)
+    }
+
+    private fun handleNameInput(draft: CustomTitleDraft, preset: CustomTitlePreset, input: String): ValidationResult {
         val visible = Support.stripColor(input).trim()
         if (visible.isBlank()) return ValidationResult(false, "custom-title-empty")
         if (!preset.allowSpaces && visible.contains(' ')) return ValidationResult(false, "custom-title-no-spaces")
         if (visible.length < preset.minLength) return ValidationResult(false, "custom-title-too-short", preset.minLength)
-        if (visible.length > preset.maxLength) return ValidationResult(false, "custom-title-too-long", preset.maxLength)
+            return ValidationResult(false, "custom-title-too-long", preset.maxLength)
         preset.allowedPattern?.toRegex()?.let { regex ->
             if (!regex.matches(visible)) return ValidationResult(false, "custom-title-invalid-pattern")
         }
@@ -68,15 +105,47 @@ class CustomTitleService(
         draft.rawText = visible
         draft.randomSchemes = generateRandomSchemes(preset)
         draft.selectedSchemeIndex = 0
-        draft.updatedAt = System.currentTimeMillis()
+        draft.stage = CustomTitleStage.PREVIEW
         return ValidationResult(true, null)
+    }
+
+    private fun handleGroupChoice(player: Player, draft: CustomTitleDraft, input: String): ValidationResult {
+        val group = input.trim()
+        if (!config.hasUpgradeGroup(group)) {
+            return ValidationResult(false, "custom-title-invalid-group")
+        }
+        draft.groupId = group
+        val titleId = "$customTagPrefix${System.currentTimeMillis()}"
+        val created = config.createTag(titleId)
+        created.display = previewText(player) ?: draft.rawText
+        created.description = listOf("&7玩家自定义称号")
+        created.upgradeGroups = mutableListOf(group)
+        created.permission = null
+        config.saveTags()
+
+        val data = repository.get(player.uniqueId)
+        data.ownedTags.add(titleId)
+        data.equippedTagId = titleId
+        data.equippedCustomTitleId = null
+        data.customTitles[titleId] = CustomTitleData(
+            id = titleId,
+            rawText = draft.rawText,
+            presetId = draft.presetId,
+            manualColors = draft.manualColors.toMutableList(),
+            randomSchemes = draft.randomSchemes.map { it.toMutableList() }.toMutableList(),
+            selectedSchemeIndex = draft.selectedSchemeIndex,
+            createdAt = System.currentTimeMillis(),
+        )
+        repository.saveAsync(data)
+        drafts.remove(player.uniqueId)
+        return ValidationResult(true, "custom-title-confirmed", previewTextFromDraft(draft))
     }
 
     fun cycleScheme(player: Player, step: Int): String? {
         val draft = activeDraft(player) ?: return null
         if (draft.randomSchemes.isEmpty()) return null
         val size = draft.randomSchemes.size
-        draft.selectedSchemeIndex = (draft.selectedSchemeIndex + step).floorMod(size)
+        draft.selectedSchemeIndex = ((draft.selectedSchemeIndex + step) % size + size) % size
         draft.updatedAt = System.currentTimeMillis()
         return previewText(player)
     }
@@ -90,52 +159,29 @@ class CustomTitleService(
         return previewText(player)
     }
 
-    fun applyManualColors(player: Player, colors: List<String>): ValidationResult {
-        val draft = activeDraft(player) ?: return ValidationResult(false, "custom-title-no-session")
-        val preset = config.customTitleSettings.presets[draft.presetId] ?: return ValidationResult(false, "custom-title-invalid-preset")
-        if (!preset.allowManualColors) return ValidationResult(false, "custom-title-manual-disabled")
-        val normalized = colors.map { normalizeHex(it) ?: return ValidationResult(false, "custom-title-invalid-color", it) }
-        draft.manualColors = normalized.toMutableList()
-        draft.updatedAt = System.currentTimeMillis()
-        return ValidationResult(true, null)
-    }
-
     fun previewText(player: Player): String? {
         val draft = activeDraft(player) ?: return null
-        val preset = config.customTitleSettings.presets[draft.presetId] ?: return null
-        val colors = currentColors(draft)
-        if (draft.rawText.isBlank()) return null
+        return previewTextFromDraft(draft)
+    }
+
+    private fun previewTextFromDraft(draft: CustomTitleDraft): String {
+        val preset = config.customTitleSettings.presets[draft.presetId] ?: return draft.rawText
+        val colors = if (draft.manualColors.isNotEmpty()) draft.manualColors else draft.randomSchemes.getOrNull(draft.selectedSchemeIndex).orEmpty()
         return Support.apply(preset.previewTemplate, mapOf("title" to colorize(draft.rawText, colors)))
     }
 
     fun confirm(player: Player): String? {
         val draft = activeDraft(player) ?: return null
-        val preset = config.customTitleSettings.presets[draft.presetId] ?: return null
-        if (draft.rawText.isBlank()) return null
-        val data = repository.get(player.uniqueId)
-        val customId = "custom-${System.currentTimeMillis()}"
-        val custom = CustomTitleData(
-            id = customId,
-            rawText = draft.rawText,
-            presetId = draft.presetId,
-            manualColors = draft.manualColors.toMutableList(),
-            randomSchemes = draft.randomSchemes.map { it.toMutableList() }.toMutableList(),
-            selectedSchemeIndex = draft.selectedSchemeIndex,
-            createdAt = System.currentTimeMillis(),
-        )
-        data.customTitles[customId] = custom
-        if (preset.equipAfterConfirm) {
-            data.equippedCustomTitleId = customId
-        }
-        repository.saveAsync(data)
-        previewSessions.remove(player.uniqueId)
-        return render(custom)
+        draft.stage = CustomTitleStage.CHOOSE_GROUP
+        messageService.send(player, "custom-title-choose-group", config.allUpgradeGroups().joinToString(", "))
+        return previewText(player)
     }
 
     fun currentDisplay(player: Player): String? {
         val id = repository.get(player.uniqueId).equippedCustomTitleId ?: return null
         val custom = repository.get(player.uniqueId).customTitles[id] ?: return null
-        return render(custom)
+        val colors = if (custom.manualColors.isNotEmpty()) custom.manualColors else custom.randomSchemes.getOrNull(custom.selectedSchemeIndex).orEmpty()
+        return colorize(custom.rawText, colors)
     }
 
     fun addTitleCoins(player: Player, amount: Double): Double {
@@ -157,8 +203,9 @@ class CustomTitleService(
 
     fun preparePlayer(player: Player) {
         val data = repository.get(player.uniqueId)
-        if (data.titleCoinBalance <= 0.0 && config.customTitleSettings.defaultTitleCoinBalance > 0.0) {
+        if (!data.titleCoinInitialized && config.customTitleSettings.defaultTitleCoinBalance > 0.0) {
             data.titleCoinBalance = config.customTitleSettings.defaultTitleCoinBalance
+            data.titleCoinInitialized = true
             repository.saveAsync(data)
         }
     }
@@ -168,10 +215,10 @@ class CustomTitleService(
             return mutableListOf(mutableListOf("#FFFFFF"))
         }
         val result = mutableListOf<MutableList<String>>()
-        repeat(preset.maxSchemes) {
+        repeat(maxOf(8, preset.maxSchemes)) {
             val palette = preset.palettes.random(Random(System.nanoTime()))
             val colors = mutableListOf<String>()
-            repeat(min(preset.colorsPerScheme, palette.size)) { index ->
+            repeat(min(maxOf(3, preset.colorsPerScheme), palette.size)) { index ->
                 colors += normalizeHex(palette[index]) ?: "#FFFFFF"
             }
             if (colors.isEmpty()) colors += "#FFFFFF"
@@ -180,23 +227,12 @@ class CustomTitleService(
         return result
     }
 
-    private fun currentColors(draft: CustomTitleDraft): List<String> {
-        if (draft.manualColors.isNotEmpty()) return draft.manualColors
-        return draft.randomSchemes.getOrNull(draft.selectedSchemeIndex) ?: listOf("#FFFFFF")
-    }
-
-    private fun render(custom: CustomTitleData): String {
-        val colors = if (custom.manualColors.isNotEmpty()) custom.manualColors else custom.randomSchemes.getOrNull(custom.selectedSchemeIndex).orEmpty()
-        return colorize(custom.rawText, if (colors.isEmpty()) listOf("#FFFFFF") else colors)
-    }
-
     private fun colorize(text: String, colors: List<String>): String {
         if (text.isBlank()) return text
         val palette = if (colors.isEmpty()) listOf("#FFFFFF") else colors
         val builder = StringBuilder()
         text.forEachIndexed { index, char ->
-            val color = palette[index % palette.size]
-            builder.append('&').append(color).append(char)
+            builder.append('&').append(palette[index % palette.size]).append(char)
         }
         return Support.color(builder.toString())
     }
@@ -205,16 +241,25 @@ class CustomTitleService(
         val raw = input.trim().removePrefix("&").removePrefix("#")
         return if (raw.matches(Regex("[A-Fa-f0-9]{6}"))) "#${raw.uppercase(Locale.ROOT)}" else null
     }
+}
 
-    private fun Int.floorMod(mod: Int): Int = ((this % mod) + mod) % mod
+enum class CustomTitleStage {
+    CHOOSE_CURRENCY,
+    INPUT_NAME,
+    PREVIEW,
+    CHOOSE_GROUP,
 }
 
 data class CustomTitleDraft(
     val presetId: String,
+    var stage: CustomTitleStage,
     var rawText: String = "",
+    var currencyType: CurrencyType? = null,
+    var currencyAmount: Double = 0.0,
     var manualColors: MutableList<String> = mutableListOf(),
     var randomSchemes: MutableList<MutableList<String>> = mutableListOf(),
     var selectedSchemeIndex: Int = 0,
+    var groupId: String? = null,
     var updatedAt: Long = System.currentTimeMillis(),
 )
 

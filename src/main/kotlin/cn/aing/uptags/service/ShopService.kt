@@ -31,21 +31,21 @@ class ShopService(
             messageService.send(player, "condition-failed")
             return false
         }
-        if (product.type == ShopProductType.TAG && tagService.isOwned(player, product.targetId)) {
-            messageService.send(player, "tag-already-owned", tagService.tagName(product.targetId))
-            return false
-        }
-        val price = product.cost.priceForLevel(1)
-        if (!economyBridge.isAvailable(product.cost.type)) {
-            messageService.send(player, "economy-unavailable", economyBridge.displayName(product.cost.type))
-            return false
-        }
-        if (economyBridge.balance(player, product.cost.type) < price || !economyBridge.withdraw(player, product.cost.type, price)) {
-            messageService.send(player, "not-enough", price, economyBridge.displayName(product.cost.type))
-            return false
-        }
         return when (product.type) {
             ShopProductType.TAG -> {
+                if (tagService.isOwned(player, product.targetId)) {
+                    messageService.send(player, "tag-already-owned", tagService.tagName(product.targetId))
+                    return false
+                }
+                val price = product.cost.priceForLevel(1)
+                if (!economyBridge.isAvailable(product.cost.type)) {
+                    messageService.send(player, "economy-unavailable", economyBridge.displayName(product.cost.type))
+                    return false
+                }
+                if (economyBridge.balance(player, product.cost.type) < price || !economyBridge.withdraw(player, product.cost.type, price)) {
+                    messageService.send(player, "not-enough", price, economyBridge.displayName(product.cost.type))
+                    return false
+                }
                 val success = tagService.giveTag(player, product.targetId)
                 if (success) {
                     messageService.send(player, "shop-tag-bought", tagService.tagName(product.targetId), economyBridge.displayName(product.cost.type), price)
@@ -55,8 +55,8 @@ class ShopService(
             ShopProductType.CUSTOM -> {
                 val success = customTitleService.startDraft(player, product.targetId)
                 if (success) {
-                    messageService.send(player, "shop-custom-start", economyBridge.displayName(product.cost.type), price)
-                    clickableMessageService.sendPreviewControls(player, customTitleService.previewText(player))
+                    messageService.send(player, "shop-custom-start")
+                    clickableMessageService.sendCurrencyChoices(player)
                 }
                 success
             }

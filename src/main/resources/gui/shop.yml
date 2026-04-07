@@ -1,4 +1,4 @@
-Title: "&#FDE68A称号&#FF8FD8商店"
+Title: "&#C4B5FD称号&#A78BFA商店"
 GuiPlain:
   - "X#######X"
   - "#@@@@@@@#"
@@ -18,12 +18,12 @@ GuiKey:
   "B":
     IconFunction: "back"
     Material: "BARRIER"
-    Name: "&#FF7B7B返回仓库"
+    Name: "&#F87171返回仓库"
   "L":
     IconFunction: "last"
     has:
       Material: "ARROW"
-      Name: "&#FDE68A上一页"
+      Name: "&#FDE047上一页"
     normal:
       Material: "GRAY_STAINED_GLASS_PANE"
       Name: "&#94A3B8已经是第一页"
@@ -31,7 +31,7 @@ GuiKey:
     IconFunction: "next"
     has:
       Material: "ARROW"
-      Name: "&#FDE68A下一页"
+      Name: "&#FDE047下一页"
     normal:
       Material: "GRAY_STAINED_GLASS_PANE"
       Name: "&#94A3B8已经是最后一页"
@@ -41,18 +41,18 @@ templates:
     material: "NAME_TAG"
     name: "%product_name%"
     lore:
-      - "&#334155&l&m━━━━━━━━━━━━━━━━━━━━━━━━"
+      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
       - "%product_lore%"
       - ""
-      - " &#CBD5E1价格: &#FDE68A%product_price% %product_currency%"
-      - " &#86EFAC▶ 左键购买"
-      - "&#334155&l&m━━━━━━━━━━━━━━━━━━━━━━━━"
+      - " &#E2E8F0价格: &#FDE047%product_price% %product_currency%"
+      - " &#A7F3D0▶ 左键购买"
+      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
   product-locked:
     material: "BARRIER"
     name: "%product_name%"
     lore:
-      - "&#334155&l&m━━━━━━━━━━━━━━━━━━━━━━━━"
+      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
       - "%product_lore%"
       - ""
-      - " &#FF7B7B当前不可购买"
-      - "&#334155&l&m━━━━━━━━━━━━━━━━━━━━━━━━"
+      - " &#F87171▶ 当前不可购买"
+      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"

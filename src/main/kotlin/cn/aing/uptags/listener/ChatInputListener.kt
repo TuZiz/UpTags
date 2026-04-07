@@ -14,20 +14,27 @@ class ChatInputListener(
 ) : Listener {
     @EventHandler(ignoreCancelled = true)
     fun onChat(event: AsyncPlayerChatEvent) {
-        val draft = customTitleService.activeDraft(event.player) ?: return
+        customTitleService.activeDraft(event.player) ?: return
         event.isCancelled = true
-        val result = customTitleService.submitText(event.player, event.message)
+        val result = customTitleService.handleInput(event.player, event.message)
         if (!result.success) {
             result.messageKey?.let { key ->
-                if (result.args != null) {
-                    messageService.send(event.player, key, result.args)
-                } else {
-                    messageService.send(event.player, key)
+                when (val args = result.args) {
+                    null -> messageService.send(event.player, key)
+                    is Array<*> -> messageService.send(event.player, key, *args)
+                    else -> messageService.send(event.player, key, args)
                 }
             }
             return
         }
+        result.messageKey?.let { key ->
+            when (val args = result.args) {
+                null -> messageService.send(event.player, key)
+                is Array<*> -> messageService.send(event.player, key, *args)
+                else -> messageService.send(event.player, key, args)
+            }
+        }
         clickableMessageService.sendPreviewControls(event.player, customTitleService.previewText(event.player))
-        messageService.send(event.player, "custom-title-preview-ready", draft.presetId)
+        messageService.send(event.player, "custom-title-preview-ready")
     }
 }

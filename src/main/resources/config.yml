@@ -1,4 +1,4 @@
-﻿settings:
+settings:
   effect-tick-interval: 20
   force-default-tag:
     enabled: true

@@ -79,7 +79,7 @@ class UpTagsPlugin : JavaPlugin() {
         economyBridge.hook()
         tagService = TagService(this, config, repository, economyBridge, messages)
         clickableMessageService = ClickableMessageService()
-        customTitleService = CustomTitleService(config, repository, messages)
+        customTitleService = CustomTitleService(config, repository, economyBridge, messages)
         economyBridge.attachTitleCoinAccessors(
             balanceAccessor = { customTitleService.titleCoins(it) },
             withdrawAccessor = { player, amount -> customTitleService.takeTitleCoins(player, amount) },

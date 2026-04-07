@@ -63,3 +63,7 @@ custom-title-preview-ready: '&#A7F3D0已生成可预览的颜色方案，点击�
 custom-title-confirmed: '&#A7F3D0你的专属称号已保存并生效: &#FDE047{0}'
 custom-title-not-found: '&#FECACA未找到该自定义称号。'
 custom-title-equipped: '&#A7F3D0已佩戴专属称号: &#FDE047{0}'
+custom-title-choose-currency: '&#E2E8F0请点击聊天栏按钮选择支付方式：&#FDE047金币 888888 &#60A5FA/ &#A78BFA称号币 100 &#60A5FA/ &#93C5FD点券 30'
+custom-title-invalid-currency: '&#FECACA无效的支付方式，请点击聊天栏中的按钮重新选择。'
+custom-title-choose-group: '&#E2E8F0请输入要绑定的升级组 ID，可选：&#FDE047{0}'
+custom-title-invalid-group: '&#FECACA无效的升级组，请输入存在于 &#F87171upgrades.yml &#FECACA中的组 ID。'
