@@ -8,7 +8,7 @@ import cn.aing.uptags.model.config.BuffDefinition
 import cn.aing.uptags.model.config.CurrencyType
 import cn.aing.uptags.model.config.ParticleDefinition
 import cn.aing.uptags.model.config.TagDefinition
-import cn.aing.uptags.model.config.UpgradeGroupDefinition
+import cn.aing.uptags.model.runtime.CustomTitleData
 import cn.aing.uptags.model.runtime.PlayerTagData
 import cn.aing.uptags.model.runtime.TagProgress
 import cn.aing.uptags.repository.PlayerDataRepository
@@ -76,7 +76,7 @@ class TagService(
         val forcedTag = config.tags[settings.forcedTagId] ?: return
         data.ownedTags += forcedTag.id
         ensureProgress(forcedTag, data)
-        if (data.equippedTagId != forcedTag.id) {
+        if (data.equippedCustomTitleId == null && data.equippedTagId != forcedTag.id) {
             data.equippedTagId = forcedTag.id
         }
     }
@@ -94,9 +94,34 @@ class TagService(
         return config.tags[id]
     }
 
-    fun currentTagId(player: Player): String = equippedTag(player)?.id ?: ""
+    fun equippedCustomTitle(player: Player): CustomTitleData? {
+        val id = data(player).equippedCustomTitleId ?: return null
+        return data(player).customTitles[id]
+    }
 
-    fun currentTagDisplay(player: Player): String = equippedTag(player)?.let { Support.color(it.display) } ?: "无"
+    fun currentTagId(player: Player): String = data(player).equippedCustomTitleId ?: equippedTag(player)?.id ?: ""
+
+    fun currentTagDisplay(player: Player): String {
+        equippedCustomTitle(player)?.let { return renderCustomTitle(it) }
+        return equippedTag(player)?.let { Support.color(it.display) } ?: "无"
+    }
+
+    private fun renderCustomTitle(customTitle: CustomTitleData): String {
+        val colors = if (customTitle.manualColors.isNotEmpty()) {
+            customTitle.manualColors
+        } else {
+            customTitle.randomSchemes.getOrNull(customTitle.selectedSchemeIndex).orEmpty()
+        }
+        if (customTitle.rawText.isBlank()) {
+            return "无"
+        }
+        val palette = if (colors.isEmpty()) listOf("#FFFFFF") else colors
+        val builder = StringBuilder()
+        customTitle.rawText.forEachIndexed { index, char ->
+            builder.append('&').append(palette[index % palette.size]).append(char)
+        }
+        return Support.color(builder.toString())
+    }
 
     fun resolveTag(input: String?): TagDefinition? {
         if (input.isNullOrBlank()) {
@@ -131,15 +156,33 @@ class TagService(
             return false
         }
         ensureProgress(definition, data)
+        data.equippedCustomTitleId = null
         data.equippedTagId = definition.id
         repository.saveAsync(data)
         messageService.send(player, "tag-equipped", Support.stripColor(definition.display))
         return true
     }
 
+    fun equipCustomTitle(player: Player, customId: String): Boolean {
+        val data = data(player)
+        if (customId !in data.customTitles) {
+            messageService.send(player, "custom-title-not-found")
+            return false
+        }
+        data.equippedCustomTitleId = customId
+        data.equippedTagId = null
+        repository.saveAsync(data)
+        messageService.send(player, "custom-title-equipped", currentTagDisplay(player))
+        return true
+    }
+
     fun unequipTag(player: Player): Boolean {
         val data = data(player)
+        data.equippedCustomTitleId = null
         if (config.settings.forceDefaultTag) {
+            val forcedTag = config.tags[config.settings.forcedTagId] ?: return false
+            data.equippedTagId = forcedTag.id
+            repository.saveAsync(data)
             messageService.send(player, "force-default-block")
             return false
         }
@@ -432,13 +475,13 @@ class TagService(
 
     fun collectedCount(player: Player): Int {
         preparePlayer(player, false)
-        return data(player).ownedTags.size
+        return data(player).ownedTags.size + data(player).customTitles.size
     }
 
     fun totalCount(): Int = config.tags.size
 
     fun progress(player: Player): String {
-        val total = totalCount().coerceAtLeast(1)
+        val total = maxOf(1, totalCount() + data(player).customTitles.size)
         return Support.formatDouble(collectedCount(player) * 100.0 / total)
     }
 
@@ -507,6 +550,8 @@ class TagService(
     }
 
     fun points(player: Player): Double = economyBridge.balance(player, CurrencyType.POINTS)
+
+    fun titleCoins(player: Player): Double = economyBridge.balance(player, CurrencyType.TITLE_COIN)
 
     fun rarityDisplay(rarity: String): String = Support.color(config.rarityDisplay(rarity))
 

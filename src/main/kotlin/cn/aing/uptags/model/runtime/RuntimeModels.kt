@@ -26,6 +26,26 @@ data class ScrollSelectionContext(
     val hand: EquipmentSlot,
 )
 
+data class CustomTitleData(
+    val id: String,
+    var rawText: String,
+    var presetId: String,
+    var manualColors: MutableList<String> = mutableListOf(),
+    var randomSchemes: MutableList<MutableList<String>> = mutableListOf(),
+    var selectedSchemeIndex: Int = 0,
+    var createdAt: Long = System.currentTimeMillis(),
+) {
+    fun copyDeep(): CustomTitleData = CustomTitleData(
+        id = id,
+        rawText = rawText,
+        presetId = presetId,
+        manualColors = manualColors.toMutableList(),
+        randomSchemes = randomSchemes.map { it.toMutableList() }.toMutableList(),
+        selectedSchemeIndex = selectedSchemeIndex,
+        createdAt = createdAt,
+    )
+}
+
 class TagProgress {
     val buffLevels: MutableMap<String, Int> = LinkedHashMap()
     val activeBuffs: MutableSet<String> = LinkedHashSet()
@@ -46,12 +66,20 @@ class PlayerTagData(val uniqueId: UUID) {
     val ownedTags: MutableSet<String> = LinkedHashSet()
     val tagProgress: MutableMap<String, TagProgress> = LinkedHashMap()
     var equippedTagId: String? = null
+    var titleCoinBalance: Double = 0.0
+    var titleCoinInitialized: Boolean = false
+    val customTitles: MutableMap<String, CustomTitleData> = LinkedHashMap()
+    var equippedCustomTitleId: String? = null
 
     fun copyDeep(): PlayerTagData {
         val copy = PlayerTagData(uniqueId)
         copy.ownedTags.addAll(ownedTags)
         copy.equippedTagId = equippedTagId
+        copy.titleCoinBalance = titleCoinBalance
+        copy.titleCoinInitialized = titleCoinInitialized
+        copy.equippedCustomTitleId = equippedCustomTitleId
         tagProgress.forEach { (key, value) -> copy.tagProgress[key] = value.copyDeep() }
+        customTitles.forEach { (key, value) -> copy.customTitles[key] = value.copyDeep() }
         return copy
     }
 }

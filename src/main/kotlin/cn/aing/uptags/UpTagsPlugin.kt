@@ -5,14 +5,18 @@ import cn.aing.uptags.compat.PlatformScheduler
 import cn.aing.uptags.config.ConfigRegistry
 import cn.aing.uptags.config.MessageService
 import cn.aing.uptags.gui.MenuService
+import cn.aing.uptags.listener.ChatInputListener
 import cn.aing.uptags.listener.PlayerListener
 import cn.aing.uptags.listener.ScrollListener
 import cn.aing.uptags.repository.PlayerDataRepository
 import cn.aing.uptags.repository.store.PlayerDataStore
 import cn.aing.uptags.repository.store.PostgresPlayerDataStore
+import cn.aing.uptags.service.ClickableMessageService
+import cn.aing.uptags.service.CustomTitleService
 import cn.aing.uptags.service.EconomyBridge
 import cn.aing.uptags.service.EffectService
 import cn.aing.uptags.service.ScrollService
+import cn.aing.uptags.service.ShopService
 import cn.aing.uptags.service.TagService
 import cn.aing.uptags.service.UpTagsPlaceholderExpansion
 import cn.aing.uptags.service.sync.JedisRedisSyncService
@@ -32,6 +36,9 @@ class UpTagsPlugin : JavaPlugin() {
     private lateinit var economyBridge: EconomyBridge
     private lateinit var tagService: TagService
     private lateinit var scrollService: ScrollService
+    private lateinit var clickableMessageService: ClickableMessageService
+    private lateinit var customTitleService: CustomTitleService
+    private lateinit var shopService: ShopService
     private lateinit var menuService: MenuService
     private lateinit var effectService: EffectService
     private lateinit var playerSyncService: PlayerSyncService
@@ -67,16 +74,25 @@ class UpTagsPlugin : JavaPlugin() {
         economyBridge = EconomyBridge(this)
         economyBridge.hook()
         tagService = TagService(this, config, repository, economyBridge, messages)
+        clickableMessageService = ClickableMessageService()
+        customTitleService = CustomTitleService(config, repository, messages)
+        economyBridge.attachTitleCoinAccessors(
+            balanceAccessor = { customTitleService.titleCoins(it) },
+            withdrawAccessor = { player, amount -> customTitleService.takeTitleCoins(player, amount) },
+            depositAccessor = { player, amount -> customTitleService.addTitleCoins(player, amount); true },
+        )
+        shopService = ShopService(config, tagService, economyBridge, customTitleService, clickableMessageService, messages)
         scrollService = ScrollService(this, config, tagService, messages)
-        menuService = MenuService(this, config, tagService, scrollService, messages)
+        menuService = MenuService(this, config, tagService, scrollService, shopService, messages)
         effectService = EffectService(this, scheduler, config, tagService)
 
         server.pluginManager.registerEvents(menuService, this)
-        server.pluginManager.registerEvents(PlayerListener(tagService, repository, effectService), this)
+        server.pluginManager.registerEvents(PlayerListener(tagService, customTitleService, repository, effectService), this)
         server.pluginManager.registerEvents(ScrollListener(menuService, scrollService, messages), this)
+        server.pluginManager.registerEvents(ChatInputListener(customTitleService, clickableMessageService, messages), this)
 
         getCommand("tags")?.let { command ->
-            val executor = TagsCommand(this, tagService, scrollService, menuService, messages)
+            val executor = TagsCommand(this, tagService, scrollService, shopService, customTitleService, clickableMessageService, menuService, messages)
             command.setExecutor(executor)
             command.tabCompleter = executor
         }
@@ -91,6 +107,7 @@ class UpTagsPlugin : JavaPlugin() {
         redisSyncService.start()
         server.onlinePlayers.forEach { player ->
             tagService.preparePlayer(player, false)
+            customTitleService.preparePlayer(player)
             effectService.startPlayer(player)
         }
     }

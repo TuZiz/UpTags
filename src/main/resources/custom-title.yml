@@ -1,0 +1,26 @@
+settings:
+  default-title-coin-balance: 10
+  session-timeout-seconds: 120
+
+presets:
+  basic:
+    min-length: 2
+    max-length: 12
+    random-schemes: 4
+    colors-per-scheme: 2
+    allow-manual-colors: true
+    allow-spaces: true
+    allowed-pattern: '^[A-Za-z0-9_\u4e00-\u9fa5 ]+$'
+    blocked-words:
+      - admin
+      - gm
+      - op
+    blocked-patterns:
+      - '(?i)owner'
+    palettes:
+      - '#FDE68A,#FF8FD8'
+      - '#7DD3FC,#C084FC'
+      - '#86EFAC,#FDE68A'
+      - '#F8FAFC,#93C5FD'
+    preview-template: '&#FDE68A当前预览: %title%'
+    equip-after-confirm: true

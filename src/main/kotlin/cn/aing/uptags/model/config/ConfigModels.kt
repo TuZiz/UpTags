@@ -5,7 +5,8 @@ import org.bukkit.potion.PotionEffectType
 
 enum class CurrencyType {
     POINTS,
-    MONEY;
+    MONEY,
+    TITLE_COIN;
 
     companion object {
         fun from(raw: String?): CurrencyType {
@@ -13,6 +14,20 @@ enum class CurrencyType {
                 return POINTS
             }
             return entries.firstOrNull { it.name.equals(raw.trim(), ignoreCase = true) } ?: POINTS
+        }
+    }
+}
+
+enum class ShopProductType {
+    TAG,
+    CUSTOM;
+
+    companion object {
+        fun from(raw: String?): ShopProductType {
+            if (raw.isNullOrBlank()) {
+                return TAG
+            }
+            return entries.firstOrNull { it.name.equals(raw.trim(), ignoreCase = true) } ?: TAG
         }
     }
 }
@@ -80,6 +95,39 @@ data class ItemTemplate(
     val material: String,
     val name: String,
     val lore: List<String>,
+)
+
+data class ShopProductDefinition(
+    val id: String,
+    val type: ShopProductType,
+    val targetId: String,
+    val enabled: Boolean,
+    val permission: String?,
+    val conditions: List<String>,
+    val cost: CostDefinition,
+    val icon: ItemTemplate,
+)
+
+data class CustomTitleSettings(
+    val defaultTitleCoinBalance: Double,
+    val sessionTimeoutSeconds: Long,
+    val presets: Map<String, CustomTitlePreset>,
+)
+
+data class CustomTitlePreset(
+    val id: String,
+    val minLength: Int,
+    val maxLength: Int,
+    val maxSchemes: Int,
+    val colorsPerScheme: Int,
+    val allowManualColors: Boolean,
+    val allowSpaces: Boolean,
+    val allowedPattern: String?,
+    val blockedWords: Set<String>,
+    val blockedPatterns: List<String>,
+    val palettes: List<List<String>>,
+    val previewTemplate: String,
+    val equipAfterConfirm: Boolean,
 )
 
 data class GuiKey(

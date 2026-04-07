@@ -2,33 +2,61 @@ package cn.aing.uptags.service
 
 import cn.aing.uptags.model.config.CurrencyType
 import org.bukkit.Bukkit
+import org.bukkit.entity.Player
 import org.bukkit.plugin.java.JavaPlugin
 import java.lang.reflect.Method
+import kotlin.math.ceil
 
 class EconomyBridge(private val plugin: JavaPlugin) {
     private var vaultEconomy: Any? = null
     private var playerPointsApi: Any? = null
+    private var titleCoinAccessor: ((Player) -> Double)? = null
+    private var titleCoinWithdrawer: ((Player, Double) -> Boolean)? = null
+    private var titleCoinDepositor: ((Player, Double) -> Boolean)? = null
 
     fun hook() {
         hookVault()
         hookPlayerPoints()
     }
 
+    fun attachTitleCoinAccessors(
+        balanceAccessor: (Player) -> Double,
+        withdrawAccessor: (Player, Double) -> Boolean,
+        depositAccessor: (Player, Double) -> Boolean,
+    ) {
+        titleCoinAccessor = balanceAccessor
+        titleCoinWithdrawer = withdrawAccessor
+        titleCoinDepositor = depositAccessor
+    }
+
     fun isAvailable(type: CurrencyType): Boolean = when (type) {
         CurrencyType.MONEY -> vaultEconomy != null
         CurrencyType.POINTS -> playerPointsApi != null
+        CurrencyType.TITLE_COIN -> titleCoinAccessor != null && titleCoinWithdrawer != null && titleCoinDepositor != null
     }
 
-    fun displayName(type: CurrencyType): String = if (type == CurrencyType.MONEY) "金币" else "点券"
+    fun displayName(type: CurrencyType): String = when (type) {
+        CurrencyType.MONEY -> "金币"
+        CurrencyType.POINTS -> "点券"
+        CurrencyType.TITLE_COIN -> "称号币"
+    }
 
-    fun balance(player: org.bukkit.entity.Player, type: CurrencyType): Double = when (type) {
+    fun balance(player: Player, type: CurrencyType): Double = when (type) {
         CurrencyType.MONEY -> getVaultBalance(player)
         CurrencyType.POINTS -> getPlayerPoints(player)
+        CurrencyType.TITLE_COIN -> titleCoinAccessor?.invoke(player) ?: 0.0
     }
 
-    fun withdraw(player: org.bukkit.entity.Player, type: CurrencyType, amount: Double): Boolean = when (type) {
+    fun withdraw(player: Player, type: CurrencyType, amount: Double): Boolean = when (type) {
         CurrencyType.MONEY -> takeVault(player, amount)
-        CurrencyType.POINTS -> takePlayerPoints(player, kotlin.math.ceil(amount).toInt())
+        CurrencyType.POINTS -> takePlayerPoints(player, ceil(amount).toInt())
+        CurrencyType.TITLE_COIN -> titleCoinWithdrawer?.invoke(player, amount) ?: false
+    }
+
+    fun deposit(player: Player, type: CurrencyType, amount: Double): Boolean = when (type) {
+        CurrencyType.MONEY -> false
+        CurrencyType.POINTS -> false
+        CurrencyType.TITLE_COIN -> titleCoinDepositor?.invoke(player, amount) ?: false
     }
 
     private fun hookVault() {
@@ -61,7 +89,7 @@ class EconomyBridge(private val plugin: JavaPlugin) {
         }
     }
 
-    private fun getVaultBalance(player: org.bukkit.entity.Player): Double {
+    private fun getVaultBalance(player: Player): Double {
         val economy = vaultEconomy ?: return 0.0
         return try {
             val method = economy.javaClass.getMethod("getBalance", org.bukkit.OfflinePlayer::class.java)
@@ -71,7 +99,7 @@ class EconomyBridge(private val plugin: JavaPlugin) {
         }
     }
 
-    private fun takeVault(player: org.bukkit.entity.Player, amount: Double): Boolean {
+    private fun takeVault(player: Player, amount: Double): Boolean {
         val economy = vaultEconomy ?: return false
         return try {
             val has = economy.javaClass.getMethod("has", org.bukkit.OfflinePlayer::class.java, Double::class.javaPrimitiveType)
@@ -87,12 +115,12 @@ class EconomyBridge(private val plugin: JavaPlugin) {
         }
     }
 
-    private fun getPlayerPoints(player: org.bukkit.entity.Player): Double {
+    private fun getPlayerPoints(player: Player): Double {
         val api = playerPointsApi ?: return 0.0
         return invokeNumber(api, "look", player.uniqueId) ?: invokeNumber(api, "look", player) ?: 0.0
     }
 
-    private fun takePlayerPoints(player: org.bukkit.entity.Player, amount: Int): Boolean {
+    private fun takePlayerPoints(player: Player, amount: Int): Boolean {
         val api = playerPointsApi ?: return false
         if (getPlayerPoints(player) < amount) {
             return false

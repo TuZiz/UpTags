@@ -30,6 +30,7 @@ class UpTagsPlaceholderExpansion(
             params.equals("active_particle", true) -> tagService.particleDisplay(player)
             params.equals("active_particle_id", true) -> tagService.particleId(player)
             params.equals("points", true) -> Support.formatDouble(tagService.points(player))
+            params.equals("title_coin", true) -> Support.formatDouble(tagService.titleCoins(player))
             params.equals("can_upgrade", true) -> if (tagService.canUpgrade(player)) "是" else "否"
             params.startsWith("tag_owned_") -> if (tagService.isOwned(player, params.removePrefix("tag_owned_"))) "已拥有" else "未拥有"
             params.startsWith("tag_buff_count_") -> tagService.tagBuffCount(player, params.removePrefix("tag_buff_count_")).toString()

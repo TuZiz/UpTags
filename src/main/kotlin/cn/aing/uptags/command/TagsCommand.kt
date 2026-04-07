@@ -4,7 +4,10 @@ import cn.aing.uptags.UpTagsPlugin
 import cn.aing.uptags.config.MessageService
 import cn.aing.uptags.gui.MenuService
 import cn.aing.uptags.model.runtime.ScrollKind
+import cn.aing.uptags.service.ClickableMessageService
+import cn.aing.uptags.service.CustomTitleService
 import cn.aing.uptags.service.ScrollService
+import cn.aing.uptags.service.ShopService
 import cn.aing.uptags.service.TagService
 import org.bukkit.Bukkit
 import org.bukkit.OfflinePlayer
@@ -20,6 +23,9 @@ class TagsCommand(
     private val plugin: UpTagsPlugin,
     private val tagService: TagService,
     private val scrollService: ScrollService,
+    private val shopService: ShopService,
+    private val customTitleService: CustomTitleService,
+    private val clickableMessageService: ClickableMessageService,
     private val menuService: MenuService,
     private val messageService: MessageService,
 ) : CommandExecutor, TabCompleter {
@@ -27,6 +33,7 @@ class TagsCommand(
         const val BUFF_ALL_KEY = "buff_all"
         const val PARTICLE_ALL_KEY = "particle_all"
     }
+
     override fun onCommand(sender: CommandSender, command: Command, label: String, args: Array<out String>): Boolean {
         if (args.isEmpty()) {
             val player = sender as? Player ?: run {
@@ -41,6 +48,8 @@ class TagsCommand(
             "equip" -> handleEquip(sender, args)
             "unequip" -> handleUnequip(sender)
             "upgrade" -> handleUpgrade(sender, args)
+            "shop" -> handleShop(sender)
+            "custom" -> handleCustom(sender, args)
             "create" -> handleQuickCreate(sender, args)
             "admin" -> handleAdmin(sender, args)
             else -> {
@@ -93,6 +102,42 @@ class TagsCommand(
             return true
         }
         menuService.openUpgrade(player, definition.id, 0)
+        return true
+    }
+
+    private fun handleShop(sender: CommandSender): Boolean {
+        val player = sender as? Player ?: run {
+            messageService.send(sender, "player-only")
+            return true
+        }
+        menuService.openShop(player, 0)
+        return true
+    }
+
+    private fun handleCustom(sender: CommandSender, args: Array<out String>): Boolean {
+        val player = sender as? Player ?: run {
+            messageService.send(sender, "player-only")
+            return true
+        }
+        if (args.size < 3 || !args[1].equals("preview", true)) {
+            messageService.send(sender, "custom-title-preview-help")
+            return true
+        }
+        when (args[2].lowercase(Locale.ROOT)) {
+            "prev" -> clickableMessageService.sendPreviewControls(player, customTitleService.cycleScheme(player, -1))
+            "next" -> clickableMessageService.sendPreviewControls(player, customTitleService.cycleScheme(player, 1))
+            "reroll" -> clickableMessageService.sendPreviewControls(player, customTitleService.rerollSchemes(player))
+            "confirm" -> {
+                val preview = customTitleService.confirm(player)
+                if (preview != null) {
+                    messageService.send(player, "custom-title-confirmed", preview)
+                } else {
+                    messageService.send(player, "custom-title-no-session")
+                }
+            }
+            "cancel" -> customTitleService.cancelDraft(player)
+            else -> messageService.send(sender, "custom-title-preview-help")
+        }
         return true
     }
 
@@ -217,7 +262,6 @@ class TagsCommand(
         return true
     }
 
-
     private fun handleAdminTag(sender: CommandSender, args: Array<out String>): Boolean {
         if (args.size < 4) {
             messageService.send(sender, "admin-help")
@@ -264,10 +308,16 @@ class TagsCommand(
 
     override fun onTabComplete(sender: CommandSender, command: Command, alias: String, args: Array<out String>): List<String> {
         return when (args.size) {
-            1 -> filter(listOf("reload", "equip", "unequip", "upgrade", "create", "admin"), args[0])
-            2 -> if (args[0].equals("admin", true)) filter(listOf("give", "take", "scroll", "tag"), args[1]) else if (args[0].equals("equip", true) || args[0].equals("upgrade", true)) filter(plugin.config.tags.keys.toList(), args[1]) else emptyList()
+            1 -> filter(listOf("reload", "equip", "unequip", "upgrade", "shop", "custom", "create", "admin"), args[0])
+            2 -> when {
+                args[0].equals("admin", true) -> filter(listOf("give", "take", "scroll", "tag"), args[1])
+                args[0].equals("custom", true) -> filter(listOf("preview"), args[1])
+                args[0].equals("equip", true) || args[0].equals("upgrade", true) -> filter(plugin.config.tags.keys.toList(), args[1])
+                else -> emptyList()
+            }
             3 -> when {
                 args[0].equals("create", true) -> filter(listOf("uptags.tag.${args[1]}"), args[2])
+                args[0].equals("custom", true) && args[1].equals("preview", true) -> filter(listOf("prev", "next", "reroll", "confirm", "cancel"), args[2])
                 args[0].equals("admin", true) && (args[1].equals("give", true) || args[1].equals("take", true)) -> filter(Bukkit.getOnlinePlayers().map(Player::getName), args[2])
                 args[0].equals("admin", true) && args[1].equals("scroll", true) -> filter(listOf("give"), args[2])
                 args[0].equals("admin", true) && args[1].equals("tag", true) -> filter(listOf("create", "delete", "setdisplay", "setrarity", "setgroups", "setdefault"), args[2])

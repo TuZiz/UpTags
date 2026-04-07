@@ -3,13 +3,15 @@ package cn.aing.uptags.gui
 import cn.aing.uptags.Support
 import cn.aing.uptags.config.ConfigRegistry
 import cn.aing.uptags.config.MessageService
+import cn.aing.uptags.model.config.CurrencyType
 import cn.aing.uptags.model.config.GuiLayout
 import cn.aing.uptags.model.config.GuiTemplate
+import cn.aing.uptags.model.config.ShopProductDefinition
 import cn.aing.uptags.model.config.TagDefinition
-import cn.aing.uptags.model.config.CurrencyType
 import cn.aing.uptags.model.runtime.ScrollKind
 import cn.aing.uptags.model.runtime.ScrollSelectionContext
 import cn.aing.uptags.service.ScrollService
+import cn.aing.uptags.service.ShopService
 import cn.aing.uptags.service.TagService
 import org.bukkit.Bukkit
 import org.bukkit.Material
@@ -28,6 +30,7 @@ class MenuService(
     private val config: ConfigRegistry,
     private val tagService: TagService,
     private val scrollService: ScrollService,
+    private val shopService: ShopService,
     private val messageService: MessageService,
 ) : Listener {
     fun openWarehouse(player: Player, page: Int) {
@@ -62,6 +65,35 @@ class MenuService(
                     } else if (click.isRightClick) {
                         openUpgrade(player, tag.id, 0)
                     }
+                }
+            }
+        }
+        player.openInventory(session.inventory)
+    }
+
+    fun openShop(player: Player, page: Int) {
+        val layout = config.shopLayout
+        val products = shopService.visibleProducts(player)
+        val session = createSession(MenuType.SHOP, layout, page, null, null)
+        fillStatic(player, layout, session, page, products.size)
+        val slots = layout.entrySlots()
+        val start = page * slots.size
+        for (offset in slots.indices) {
+            val index = start + offset
+            if (index >= products.size) continue
+            val product = products[index]
+            val template = layout.templates["product-available"]
+            val placeholders = mapOf(
+                "product_name" to product.icon.name,
+                "product_lore" to product.icon.lore.joinToString("\n"),
+                "product_price" to Support.formatDouble(product.cost.priceForLevel(1)),
+                "product_currency" to currencyName(product.cost.type),
+            )
+            val slot = slots[offset]
+            session.inventory.setItem(slot, templateItem(template, placeholders, false))
+            session.actions[slot] = {
+                if (shopService.buy(player, product.id)) {
+                    openShop(player, page)
                 }
             }
         }
@@ -162,7 +194,7 @@ class MenuService(
                 "entry_equip_state" to if (enabled) "已启用" else "未启用",
                 "entry_buffs" to Support.color(buff.display) + " " + Support.roman(maxOf(1, if (level == 0) 1 else level)),
                 "entry_points" to Support.formatDouble(price),
-                "entry_currency" to if (buff.cost.type == CurrencyType.POINTS) "点券" else "金币",
+                "entry_currency" to currencyName(buff.cost.type),
                 "entry_action" to if (maxed) "左键已无可升级项" else if (buffId in tagService.allowedBuffIds(tag)) "左键购买或用升级卷提升下一阶" else "该词条来自升级卷，仍可继续升级",
                 "entry_right_action" to "右键切换启用 / 停用",
             )
@@ -180,13 +212,19 @@ class MenuService(
                 "entry_status" to if (owned) "已拥有" else if (particleId in tagService.allowedParticleIds(tag)) "未拥有" else "卷轴专属",
                 "entry_equip_state" to if (selected) "已选中" else "未选中",
                 "entry_points" to Support.formatDouble(particle.cost.priceForLevel(1)),
-                "entry_currency" to if (particle.cost.type == CurrencyType.POINTS) "点券" else "金币",
+                "entry_currency" to currencyName(particle.cost.type),
                 "entry_action" to if (owned) "左键已解锁" else if (particleId in tagService.allowedParticleIds(tag)) "左键购买或用升级卷解锁" else "该粒子可通过升级卷直接解锁",
                 "entry_right_action" to "右键设为当前粒子 / 取消",
             )
             entries += UpgradeEntry(particleId, EntryKind.PARTICLE, Support.createItem(template.material, template.name, template.lore, placeholders, selected))
         }
         return entries
+    }
+
+    private fun currencyName(type: CurrencyType): String = when (type) {
+        CurrencyType.POINTS -> "点券"
+        CurrencyType.MONEY -> "金币"
+        CurrencyType.TITLE_COIN -> "称号币"
     }
 
     private fun createSession(type: MenuType, layout: GuiLayout, page: Int, tagId: String?, scrollContext: ScrollSelectionContext?, title: String = layout.title): MenuSession {
@@ -233,6 +271,7 @@ class MenuService(
     private fun changePage(player: Player, session: MenuSession, page: Int) {
         when (session.type) {
             MenuType.WAREHOUSE -> openWarehouse(player, page)
+            MenuType.SHOP -> openShop(player, page)
             MenuType.UPGRADE -> openUpgrade(player, session.tagId ?: return, page)
             MenuType.SCROLL_SELECT -> openScrollSelection(player, session.scrollContext ?: return, page)
         }
@@ -240,13 +279,14 @@ class MenuService(
 
     private fun goBack(player: Player, session: MenuSession) {
         when (session.type) {
-            MenuType.UPGRADE, MenuType.SCROLL_SELECT -> openWarehouse(player, 0)
+            MenuType.UPGRADE, MenuType.SCROLL_SELECT, MenuType.SHOP -> openWarehouse(player, 0)
             MenuType.WAREHOUSE -> player.closeInventory()
         }
     }
 
     private enum class MenuType {
         WAREHOUSE,
+        SHOP,
         UPGRADE,
         SCROLL_SELECT,
     }

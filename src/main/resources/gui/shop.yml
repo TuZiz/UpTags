@@ -1,0 +1,58 @@
+Title: "&#FDE68A称号&#FF8FD8商店"
+GuiPlain:
+  - "X#######X"
+  - "#@@@@@@@#"
+  - "#@@@@@@@#"
+  - "#@@@@@@@#"
+  - "#@@@@@@@#"
+  - "L###B###N"
+GuiKey:
+  "@":
+    IconFunction: "item"
+  "#":
+    Material: "BLACK_STAINED_GLASS_PANE"
+    Name: "&#111827"
+  "X":
+    Material: "GRAY_STAINED_GLASS_PANE"
+    Name: "&#1F2937"
+  "B":
+    IconFunction: "back"
+    Material: "BARRIER"
+    Name: "&#FF7B7B返回仓库"
+  "L":
+    IconFunction: "last"
+    has:
+      Material: "ARROW"
+      Name: "&#FDE68A上一页"
+    normal:
+      Material: "GRAY_STAINED_GLASS_PANE"
+      Name: "&#94A3B8已经是第一页"
+  "N":
+    IconFunction: "next"
+    has:
+      Material: "ARROW"
+      Name: "&#FDE68A下一页"
+    normal:
+      Material: "GRAY_STAINED_GLASS_PANE"
+      Name: "&#94A3B8已经是最后一页"
+
+templates:
+  product-available:
+    material: "NAME_TAG"
+    name: "%product_name%"
+    lore:
+      - "&#334155&l&m━━━━━━━━━━━━━━━━━━━━━━━━"
+      - "%product_lore%"
+      - ""
+      - " &#CBD5E1价格: &#FDE68A%product_price% %product_currency%"
+      - " &#86EFAC▶ 左键购买"
+      - "&#334155&l&m━━━━━━━━━━━━━━━━━━━━━━━━"
+  product-locked:
+    material: "BARRIER"
+    name: "%product_name%"
+    lore:
+      - "&#334155&l&m━━━━━━━━━━━━━━━━━━━━━━━━"
+      - "%product_lore%"
+      - ""
+      - " &#FF7B7B当前不可购买"
+      - "&#334155&l&m━━━━━━━━━━━━━━━━━━━━━━━━"

@@ -3,6 +3,8 @@ package cn.aing.uptags.config
 import cn.aing.uptags.model.config.BuffDefinition
 import cn.aing.uptags.model.config.CostDefinition
 import cn.aing.uptags.model.config.CurrencyType
+import cn.aing.uptags.model.config.CustomTitlePreset
+import cn.aing.uptags.model.config.CustomTitleSettings
 import cn.aing.uptags.model.config.GuiKey
 import cn.aing.uptags.model.config.GuiLayout
 import cn.aing.uptags.model.config.GuiTemplate
@@ -10,6 +12,8 @@ import cn.aing.uptags.model.config.ItemTemplate
 import cn.aing.uptags.model.config.ParticleDefinition
 import cn.aing.uptags.model.config.PluginSettings
 import cn.aing.uptags.model.config.ScrollDefinition
+import cn.aing.uptags.model.config.ShopProductDefinition
+import cn.aing.uptags.model.config.ShopProductType
 import cn.aing.uptags.model.config.TagDefinition
 import cn.aing.uptags.model.config.UpgradeGroupDefinition
 import cn.aing.uptags.model.runtime.ScrollKind
@@ -30,6 +34,7 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
     val particles: MutableMap<String, ParticleDefinition> = LinkedHashMap()
     val scrolls: MutableMap<String, ScrollDefinition> = LinkedHashMap()
     val upgradeGroups: MutableMap<String, UpgradeGroupDefinition> = LinkedHashMap()
+    val shopProducts: MutableMap<String, ShopProductDefinition> = LinkedHashMap()
     val rarityDisplays: MutableMap<String, String> = LinkedHashMap()
     val rarityUpgradeGroups: MutableMap<String, String> = LinkedHashMap()
     var settings: PluginSettings = PluginSettings(20, true, "newbie")
@@ -38,9 +43,13 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
         private set
     lateinit var upgradeLayout: GuiLayout
         private set
+    lateinit var shopLayout: GuiLayout
+        private set
     lateinit var storage: StorageSettings
         private set
     lateinit var sync: SyncSettings
+        private set
+    lateinit var customTitleSettings: CustomTitleSettings
         private set
     var defaultTagRarity: String = "COMMON"
         private set
@@ -52,13 +61,19 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
         saveDefaultIfAbsent("messages.yml")
         saveDefaultIfAbsent("tags.yml")
         saveDefaultIfAbsent("upgrades.yml")
+        saveDefaultIfAbsent("shop.yml")
+        saveDefaultIfAbsent("custom-title.yml")
         saveDefaultIfAbsent("gui/warehouse.yml")
         saveDefaultIfAbsent("gui/upgrade.yml")
+        saveDefaultIfAbsent("gui/shop.yml")
         loadSettings()
         loadTags()
         loadUpgrades()
+        loadShop()
+        loadCustomTitleSettings()
         warehouseLayout = loadGuiLayout("gui/warehouse.yml")
         upgradeLayout = loadGuiLayout("gui/upgrade.yml")
+        shopLayout = loadGuiLayout("gui/shop.yml")
     }
 
     fun saveTags() {
@@ -241,6 +256,61 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
                 glow = section.getBoolean("glow", true),
             )
         }
+    }
+
+    private fun loadShop() {
+        shopProducts.clear()
+        val yaml = YamlConfiguration.loadConfiguration(File(plugin.dataFolder, "shop.yml"))
+        yaml.getConfigurationSection("products")?.getKeys(false)?.forEach { productId ->
+            val section = yaml.getConfigurationSection("products.$productId") ?: return@forEach
+            val iconSection = section.getConfigurationSection("icon")
+            shopProducts[productId] = ShopProductDefinition(
+                id = productId,
+                type = ShopProductType.from(section.getString("type")),
+                targetId = section.getString("target-id", productId) ?: productId,
+                enabled = section.getBoolean("enabled", true),
+                permission = section.getString("permission")?.takeIf { it.isNotBlank() },
+                conditions = section.getStringList("conditions"),
+                cost = parseCost(section.getConfigurationSection("cost")),
+                icon = ItemTemplate(
+                    material = iconSection?.getString("material", "NAME_TAG") ?: "NAME_TAG",
+                    name = iconSection?.getString("name", productId) ?: productId,
+                    lore = iconSection?.getStringList("lore") ?: emptyList(),
+                ),
+            )
+        }
+    }
+
+    private fun loadCustomTitleSettings() {
+        val yaml = YamlConfiguration.loadConfiguration(File(plugin.dataFolder, "custom-title.yml"))
+        val presets = LinkedHashMap<String, CustomTitlePreset>()
+        yaml.getConfigurationSection("presets")?.getKeys(false)?.forEach { presetId ->
+            val section = yaml.getConfigurationSection("presets.$presetId") ?: return@forEach
+            val palettes = section.getStringList("palettes").mapNotNull { row ->
+                val values = row.split(',').map { it.trim() }.filter { it.isNotBlank() }
+                if (values.isEmpty()) null else values
+            }
+            presets[presetId] = CustomTitlePreset(
+                id = presetId,
+                minLength = section.getInt("min-length", 2).coerceAtLeast(1),
+                maxLength = section.getInt("max-length", 12).coerceAtLeast(1),
+                maxSchemes = section.getInt("random-schemes", 4).coerceAtLeast(1),
+                colorsPerScheme = section.getInt("colors-per-scheme", 2).coerceAtLeast(1),
+                allowManualColors = section.getBoolean("allow-manual-colors", true),
+                allowSpaces = section.getBoolean("allow-spaces", true),
+                allowedPattern = section.getString("allowed-pattern")?.takeIf { it.isNotBlank() },
+                blockedWords = section.getStringList("blocked-words").map { it.lowercase() }.toSet(),
+                blockedPatterns = section.getStringList("blocked-patterns"),
+                palettes = palettes,
+                previewTemplate = section.getString("preview-template", "%title%") ?: "%title%",
+                equipAfterConfirm = section.getBoolean("equip-after-confirm", true),
+            )
+        }
+        customTitleSettings = CustomTitleSettings(
+            defaultTitleCoinBalance = yaml.getDouble("settings.default-title-coin-balance", 0.0),
+            sessionTimeoutSeconds = yaml.getLong("settings.session-timeout-seconds", 120L).coerceAtLeast(15L),
+            presets = presets,
+        )
     }
 
     private fun loadGuiLayout(path: String): GuiLayout {
