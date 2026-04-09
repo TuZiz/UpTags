@@ -53,10 +53,18 @@ class EconomyBridge(private val plugin: JavaPlugin) {
         CurrencyType.TITLE_COIN -> titleCoinWithdrawer?.invoke(player, amount) ?: false
     }
 
-    fun deposit(player: Player, type: CurrencyType, amount: Double): Boolean = when (type) {
-        CurrencyType.MONEY -> false
-        CurrencyType.POINTS -> false
-        CurrencyType.TITLE_COIN -> titleCoinDepositor?.invoke(player, amount) ?: false
+    /**
+     * 自定义称号流程取消/超时时退款入口。
+     * 目前只自动退还称号币，其他货币交给服主手动处理。
+     */
+    fun refund(player: Player, type: CurrencyType, amount: Double) {
+        if (amount <= 0.0) return
+        when (type) {
+            CurrencyType.TITLE_COIN -> titleCoinDepositor?.invoke(player, amount)
+            CurrencyType.MONEY, CurrencyType.POINTS -> {
+                // 不做处理，避免和外部经济插件冲突
+            }
+        }
     }
 
     private fun hookVault() {
@@ -125,7 +133,9 @@ class EconomyBridge(private val plugin: JavaPlugin) {
         if (getPlayerPoints(player) < amount) {
             return false
         }
-        return invokeBoolean(api, "take", player.uniqueId, amount) ?: invokeBoolean(api, "take", player, amount) ?: false
+        return invokeBoolean(api, "take", player.uniqueId, amount)
+            ?: invokeBoolean(api, "take", player, amount)
+            ?: false
     }
 
     private fun invokeNumber(target: Any, methodName: String, vararg args: Any): Double? {

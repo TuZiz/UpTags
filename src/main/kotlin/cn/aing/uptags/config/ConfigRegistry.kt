@@ -1,5 +1,6 @@
 package cn.aing.uptags.config
 
+import cn.aing.uptags.Support
 import cn.aing.uptags.model.config.BuffDefinition
 import cn.aing.uptags.model.config.CostDefinition
 import cn.aing.uptags.model.config.CurrencyType
@@ -29,6 +30,7 @@ import java.util.LinkedHashMap
 import java.util.LinkedHashSet
 
 class ConfigRegistry(private val plugin: JavaPlugin) {
+    private val legacyCustomTagPrefix = "custom-"
     val tags: MutableMap<String, TagDefinition> = LinkedHashMap()
     val buffs: MutableMap<String, BuffDefinition> = LinkedHashMap()
     val particles: MutableMap<String, ParticleDefinition> = LinkedHashMap()
@@ -45,10 +47,17 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
         private set
     lateinit var shopLayout: GuiLayout
         private set
+    lateinit var customTitleCurrencyLayout: GuiLayout
+        private set
+    lateinit var customTitleColorLayout: GuiLayout
+        private set
+    lateinit var customTitleGroupLayout: GuiLayout
+        private set
     lateinit var storage: StorageSettings
         private set
     lateinit var sync: SyncSettings
         private set
+
     lateinit var customTitleSettings: CustomTitleSettings
         private set
     var defaultTagRarity: String = "COMMON"
@@ -66,6 +75,9 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
         saveDefaultIfAbsent("gui/warehouse.yml")
         saveDefaultIfAbsent("gui/upgrade.yml")
         saveDefaultIfAbsent("gui/shop.yml")
+        saveDefaultIfAbsent("gui/custom-title-currency.yml")
+        saveDefaultIfAbsent("gui/custom-title-color.yml")
+        saveDefaultIfAbsent("gui/custom-title-group.yml")
         loadSettings()
         loadTags()
         loadUpgrades()
@@ -74,6 +86,9 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
         warehouseLayout = loadGuiLayout("gui/warehouse.yml")
         upgradeLayout = loadGuiLayout("gui/upgrade.yml")
         shopLayout = loadGuiLayout("gui/shop.yml")
+        customTitleCurrencyLayout = loadGuiLayout("gui/custom-title-currency.yml")
+        customTitleColorLayout = loadGuiLayout("gui/custom-title-color.yml")
+        customTitleGroupLayout = loadGuiLayout("gui/custom-title-group.yml")
     }
 
     fun saveTags() {
@@ -186,6 +201,7 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
         tags.clear()
         rarityDisplays.clear()
         rarityUpgradeGroups.clear()
+        var skippedLegacyCustomTags = false
         val yaml = YamlConfiguration.loadConfiguration(File(plugin.dataFolder, "tags.yml"))
         yaml.getConfigurationSection("rarity-display")?.getKeys(false)?.forEach { key ->
             rarityDisplays[key.uppercase()] = yaml.getString("rarity-display.$key", key) ?: key
@@ -196,6 +212,10 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
         defaultTagRarity = (yaml.getString("tag-template.rarity", "COMMON") ?: "COMMON").uppercase()
         defaultTagUnlocked = yaml.getBoolean("tag-template.default-unlocked", false)
         yaml.getConfigurationSection("tags")?.getKeys(false)?.forEach { tagId ->
+            if (tagId.startsWith(legacyCustomTagPrefix, ignoreCase = true)) {
+                skippedLegacyCustomTags = true
+                return@forEach
+            }
             val section = yaml.getConfigurationSection("tags.$tagId") ?: return@forEach
             val rarity = (section.getString("rarity", defaultTagRarity) ?: defaultTagRarity).uppercase()
             val groups = section.getStringList("upgrade-groups").ifEmpty { defaultGroupsForRarity(rarity) }
@@ -208,6 +228,9 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
                 upgradeGroups = groups.toMutableList(),
                 permission = section.getString("permission")?.takeIf { it.isNotBlank() },
             )
+        }
+        if (skippedLegacyCustomTags) {
+            saveTags()
         }
     }
 
@@ -296,10 +319,9 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
         val presets = LinkedHashMap<String, CustomTitlePreset>()
         yaml.getConfigurationSection("presets")?.getKeys(false)?.forEach { presetId ->
             val section = yaml.getConfigurationSection("presets.$presetId") ?: return@forEach
-            val palettes = section.getStringList("palettes").mapNotNull { row ->
-                val values = row.split(',').map { it.trim() }.filter { it.isNotBlank() }
-                if (values.isEmpty()) null else values
-            }
+            val palettes = readPaletteLibraries(section).ifEmpty { readPaletteGroups(section, "palettes") }
+            val randomColorPool = section.getStringList("random-color-pool")
+                .mapNotNull(Support::normalizeHex)
             presets[presetId] = CustomTitlePreset(
                 id = presetId,
                 minLength = section.getInt("min-length", 2).coerceAtLeast(1),
@@ -312,6 +334,7 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
                 blockedWords = section.getStringList("blocked-words").map { it.lowercase() }.toSet(),
                 blockedPatterns = section.getStringList("blocked-patterns"),
                 palettes = palettes,
+                randomColorPool = randomColorPool,
                 previewTemplate = section.getString("preview-template", "%title%") ?: "%title%",
                 equipAfterConfirm = section.getBoolean("equip-after-confirm", true),
             )
@@ -319,8 +342,60 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
         customTitleSettings = CustomTitleSettings(
             defaultTitleCoinBalance = yaml.getDouble("settings.default-title-coin-balance", 0.0),
             sessionTimeoutSeconds = yaml.getLong("settings.session-timeout-seconds", 120L).coerceAtLeast(15L),
+            currencyCosts = linkedMapOf(
+                CurrencyType.MONEY to yaml.getDouble("settings.costs.money", 888888.0),
+                CurrencyType.POINTS to yaml.getDouble("settings.costs.points", 35.0),
+                CurrencyType.TITLE_COIN to yaml.getDouble("settings.costs.title-coin", 100.0),
+            ),
             presets = presets,
         )
+    }
+
+    private fun readPaletteGroups(section: ConfigurationSection, path: String): List<List<String>> {
+        return section.getList(path)
+            .orEmpty()
+            .mapNotNull { entry ->
+                when (entry) {
+                    is String -> entry.split(',').map(String::trim).filter(String::isNotBlank)
+                    is List<*> -> entry.mapNotNull { it?.toString()?.trim() }.filter(String::isNotBlank)
+                    else -> emptyList()
+                }
+                    .mapNotNull(Support::normalizeHex)
+                    .ifEmpty { null }
+            }
+    }
+
+    private fun readPaletteLibraries(section: ConfigurationSection): List<List<String>> {
+        val libraries = section.getConfigurationSection("palette-libraries") ?: return emptyList()
+        val order = listOf(
+            "single" to 1,
+            "double" to 2,
+            "triple" to 3,
+            "quad" to 4,
+        )
+        return buildList {
+            order.forEach { (key, expectedSize) ->
+                addAll(readPaletteLibraryGroup(libraries, key, expectedSize))
+            }
+        }
+    }
+
+    private fun readPaletteLibraryGroup(
+        libraries: ConfigurationSection,
+        key: String,
+        expectedSize: Int,
+    ): List<List<String>> {
+        return libraries.getList(key)
+            .orEmpty()
+            .mapNotNull { entry ->
+                when (entry) {
+                    is String -> entry.split(',').map(String::trim).filter(String::isNotBlank)
+                    is List<*> -> entry.mapNotNull { it?.toString()?.trim() }.filter(String::isNotBlank)
+                    else -> emptyList()
+                }
+                    .mapNotNull(Support::normalizeHex)
+                    .takeIf { it.size == expectedSize }
+            }
     }
 
     private fun loadGuiLayout(path: String): GuiLayout {

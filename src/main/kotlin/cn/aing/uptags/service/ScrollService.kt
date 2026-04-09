@@ -4,9 +4,9 @@ import cn.aing.uptags.Support
 import cn.aing.uptags.config.ConfigRegistry
 import cn.aing.uptags.config.MessageService
 import cn.aing.uptags.model.config.ScrollDefinition
-import cn.aing.uptags.model.config.TagDefinition
 import cn.aing.uptags.model.runtime.ScrollKind
 import cn.aing.uptags.model.runtime.ScrollSelectionContext
+import cn.aing.uptags.model.runtime.TitleEntry
 import org.bukkit.Material
 import org.bukkit.NamespacedKey
 import org.bukkit.entity.Player
@@ -61,10 +61,10 @@ class ScrollService(
         }
     }
 
-    fun eligibleTags(player: Player, context: ScrollSelectionContext): List<TagDefinition> = tagService.visibleTags(player).filter { tag ->
-        tagService.isOwned(player, tag.id) && when (context.kind) {
-            ScrollKind.BUFF -> tagService.canUpgradeBuff(tag.id, context.targetId, player)
-            ScrollKind.PARTICLE -> tagService.canUnlockParticle(tag.id, context.targetId, player)
+    fun eligibleTitles(player: Player, context: ScrollSelectionContext): List<TitleEntry> = tagService.visibleTitles(player).filter { title ->
+        title.owned && when (context.kind) {
+            ScrollKind.BUFF -> tagService.canUpgradeBuff(title.id, context.targetId, player)
+            ScrollKind.PARTICLE -> tagService.canUnlockParticle(title.id, context.targetId, player)
         }
     }
 
@@ -85,7 +85,13 @@ class ScrollService(
         }
         consume(player, context.hand)
         val targetName = displayName(context.kind, context.targetId)
-        messageService.send(player, if (context.kind == ScrollKind.BUFF) "scroll-applied-buff" else "scroll-applied-particle", targetName, tagService.tagName(tagId), context.scrollKey)
+        messageService.send(
+            player,
+            if (context.kind == ScrollKind.BUFF) "scroll-applied-buff" else "scroll-applied-particle",
+            targetName,
+            tagService.titleName(player, tagId),
+            context.scrollKey,
+        )
         return true
     }
 

@@ -23,13 +23,29 @@ class MessageService(private val plugin: JavaPlugin) {
 
     fun get(key: String, vararg args: Any?): String {
         val prefix = messages["prefix"] ?: ""
-        val pattern = messages[key] ?: key
+        val pattern = overridePattern(key) ?: messages[key] ?: fallbackPattern(key) ?: key
         val formatted = if (args.isEmpty()) pattern else MessageFormat.format(pattern, *args)
         return Support.color(prefix + formatted)
     }
 
     fun send(sender: CommandSender, key: String, vararg args: Any?) {
         sender.sendMessage(get(key, *args))
+    }
+
+    private fun overridePattern(key: String): String? {
+        return when (key) {
+            "custom-title-preview-help" -> "&e用法: /tags custom preview <money|title_coin|points|single|double|triple|quad|manual|auto|prev|next|confirm|cancel>"
+            "custom-title-preview-ready" -> "&a已生成配色预览，可先切换单色 / 双色 / 三色 / 四色库，再点击自定义组合或自动组合。"
+            else -> null
+        }
+    }
+
+    private fun fallbackPattern(key: String): String? {
+        return when (key) {
+            "custom-title-manual-limit" -> "&c当前只允许选择 {0} 个颜色，请先替换或移除已有颜色。"
+            "custom-title-manual-count-mismatch" -> "&c当前需要 {0} 个颜色，已选择 {1} 个。"
+            else -> null
+        }
     }
 
     private fun defaultMessages(): Map<String, String> = linkedMapOf(
@@ -74,5 +90,31 @@ class MessageService(private val plugin: JavaPlugin) {
         "quick-create-no-group" to "&c创建失败：当前没有可用的升级组，请先检查 upgrades.yml",
         "quick-create-success" to "&a创建成功: {0}，权限={1}，Buff组={2}，粒子组={3}。可继续在 tags.yml 中修改显示名（支持 Paper RGB）",
         "quick-create-failed" to "&c创建失败，请检查称号是否已存在，或 Buff组 / 粒子组 是否有效。",
+        "shop-not-available" to "&c该商品当前不可购买。",
+        "shop-tag-bought" to "&a你已购买称号 {0}，消耗 {2} {1}。",
+        "shop-custom-start" to "&a已开启自定义称号流程，请在 GUI 中选择支付方式。",
+        "shop-custom-selected" to "&a已选择定制方案 {0}，价格 {1} {2}，输入名称后再最终扣费。",
+        "shop-custom-select-product" to "&e请直接点击商店列表里的自定义称号商品。",
+        "custom-title-input" to "&7请输入你的自定义称号文本，输入 &ccancel &7可取消。",
+        "custom-title-cancelled" to "&e已取消本次自定义称号流程。",
+        "custom-title-no-session" to "&c当前没有正在进行的自定义称号会话。",
+        "custom-title-invalid-preset" to "&c自定义称号模板不存在。",
+        "custom-title-empty" to "&c称号内容不能为空。",
+        "custom-title-no-spaces" to "&c当前模板不允许输入空格。",
+        "custom-title-too-short" to "&c称号太短，至少需要 {0} 个字符。",
+        "custom-title-too-long" to "&c称号太长，最多允许 {0} 个字符。",
+        "custom-title-invalid-pattern" to "&c称号包含非法字符，请重新输入。",
+        "custom-title-blocked-word" to "&c称号包含敏感词或受限内容。",
+        "custom-title-manual-disabled" to "&c当前模板不允许手动指定颜色，请使用配色库。",
+        "custom-title-invalid-color" to "&c无效颜色值 {0}，请输入 6 位 HEX 颜色。",
+        "custom-title-preview-help" to "&e用法: /tags custom preview <money|title_coin|points|single|double|triple|quad|manual|auto|prev|next|confirm|cancel>",
+        "custom-title-preview-ready" to "&a已生成配色预览，可先选择单色 / 双色 / 三色 / 四色库，再继续切换或确认。",
+        "custom-title-library-unavailable" to "&c当前模板没有配置 {0} 配色库。",
+        "custom-title-library-locked" to "&c当前支付方式为 {1}，不能选择 {0} 配色库。",
+        "custom-title-confirmed" to "&a你的专属称号已保存并生效: {0}",
+        "custom-title-not-found" to "&c未找到该自定义称号。",
+        "custom-title-equipped" to "&a已装备专属称号 {0}",
+        "custom-title-invalid-currency" to "&c无效的支付方式。",
+        "custom-title-choose-group" to "&7请选择要绑定的升级组，可选: {0}",
     )
 }

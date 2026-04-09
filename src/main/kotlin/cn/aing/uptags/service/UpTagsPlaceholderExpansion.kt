@@ -1,4 +1,4 @@
-package cn.aing.uptags.service
+﻿package cn.aing.uptags.service
 
 import cn.aing.uptags.Support
 import cn.aing.uptags.UpTagsPlugin

@@ -1,5 +1,6 @@
 package cn.aing.uptags.command
 
+import cn.aing.uptags.Support
 import cn.aing.uptags.UpTagsPlugin
 import cn.aing.uptags.config.MessageService
 import cn.aing.uptags.gui.MenuService
@@ -78,7 +79,15 @@ class TagsCommand(
             messageService.send(sender, "help")
             return true
         }
-        tagService.equipTag(player, args[1])
+        val titleId = tagService.resolveTitleId(player, args[1]) ?: run {
+            messageService.send(sender, "tag-not-found", args[1])
+            return true
+        }
+        if (tagService.data(player).customTitles.containsKey(titleId)) {
+            tagService.equipCustomTitle(player, titleId)
+        } else {
+            tagService.equipTag(player, titleId)
+        }
         return true
     }
 
@@ -97,11 +106,11 @@ class TagsCommand(
             return true
         }
         val input = args.getOrNull(1) ?: tagService.currentTagId(player)
-        val definition = tagService.resolveTag(input) ?: run {
+        val titleId = tagService.resolveTitleId(player, input) ?: run {
             messageService.send(sender, "tag-not-found", input)
             return true
         }
-        menuService.openUpgrade(player, definition.id, 0)
+        menuService.openUpgrade(player, titleId, 0)
         return true
     }
 
@@ -120,25 +129,222 @@ class TagsCommand(
             return true
         }
         if (args.size < 3 || !args[1].equals("preview", true)) {
-            messageService.send(sender, "custom-title-preview-help")
+            sendCustomPreviewHelp(sender)
             return true
         }
-        when (args[2].lowercase(Locale.ROOT)) {
-            "prev" -> clickableMessageService.sendPreviewControls(player, customTitleService.cycleScheme(player, -1))
-            "next" -> clickableMessageService.sendPreviewControls(player, customTitleService.cycleScheme(player, 1))
-            "reroll" -> clickableMessageService.sendPreviewControls(player, customTitleService.rerollSchemes(player))
+        val action = args[2].lowercase(Locale.ROOT)
+        if (action.startsWith("pick_")) {
+            val index = action.removePrefix("pick_").toIntOrNull()
+            if (index == null) {
+                sendCustomPreviewHelp(sender)
+                return true
+            }
+            val result = customTitleService.selectManualColor(player, index)
+            if (!dispatchCustomValidation(player, result)) {
+                return true
+            }
+            sendManualPicker(player)
+            return true
+        }
+        when (action) {
+            "money", "title_coin", "points" -> {
+                val result = customTitleService.handleInput(player, args[2])
+                result.messageKey?.let { key ->
+                    when (val payload = result.args) {
+                        null -> messageService.send(player, key)
+                        is Array<*> -> messageService.send(player, key, *payload)
+                        else -> messageService.send(player, key, payload)
+                    }
+                }
+            }
+            "single" -> {
+                val result = customTitleService.selectPaletteLibrary(player, 1)
+                if (!dispatchCustomValidation(player, result)) {
+                    return true
+                }
+                sendPreview(player)
+            }
+            "double" -> {
+                val result = customTitleService.selectPaletteLibrary(player, 2)
+                if (!dispatchCustomValidation(player, result)) {
+                    return true
+                }
+                sendPreview(player)
+            }
+            "triple" -> {
+                val result = customTitleService.selectPaletteLibrary(player, 3)
+                if (!dispatchCustomValidation(player, result)) {
+                    return true
+                }
+                sendPreview(player)
+            }
+            "quad" -> {
+                val result = customTitleService.selectPaletteLibrary(player, 4)
+                if (!dispatchCustomValidation(player, result)) {
+                    return true
+                }
+                sendPreview(player)
+            }
+            "auto" -> {
+                val result = customTitleService.autoComposePalette(player)
+                if (!dispatchCustomValidation(player, result)) {
+                    return true
+                }
+                sendPreview(player)
+            }
+            "manual" -> {
+                sendManualLibraryChooser(player)
+            }
+            "manual_single" -> {
+                val result = customTitleService.beginManualPaletteEditing(player, 1)
+                if (!dispatchCustomValidation(player, result)) {
+                    return true
+                }
+                sendManualPicker(player)
+            }
+            "manual_double" -> {
+                val result = customTitleService.beginManualPaletteEditing(player, 2)
+                if (!dispatchCustomValidation(player, result)) {
+                    return true
+                }
+                sendManualPicker(player)
+            }
+            "manual_triple" -> {
+                val result = customTitleService.beginManualPaletteEditing(player, 3)
+                if (!dispatchCustomValidation(player, result)) {
+                    return true
+                }
+                sendManualPicker(player)
+            }
+            "manual_quad" -> {
+                val result = customTitleService.beginManualPaletteEditing(player, 4)
+                if (!dispatchCustomValidation(player, result)) {
+                    return true
+                }
+                sendManualPicker(player)
+            }
+            "manual_choose_back" -> {
+                sendPreview(player)
+            }
+            "manual_remove" -> {
+                val result = customTitleService.removeLastManualColor(player)
+                if (!dispatchCustomValidation(player, result)) {
+                    return true
+                }
+                sendManualPicker(player)
+            }
+            "manual_clear" -> {
+                val result = customTitleService.clearManualColors(player)
+                if (!dispatchCustomValidation(player, result)) {
+                    return true
+                }
+                sendManualPicker(player)
+            }
+            "manual_page_prev" -> {
+                val result = customTitleService.changeManualColorPage(player, -1)
+                if (!dispatchCustomValidation(player, result)) {
+                    return true
+                }
+                sendManualPicker(player)
+            }
+            "manual_page_next" -> {
+                val result = customTitleService.changeManualColorPage(player, 1)
+                if (!dispatchCustomValidation(player, result)) {
+                    return true
+                }
+                sendManualPicker(player)
+            }
+            "manual_done" -> {
+                val result = customTitleService.finishManualPaletteEditing(player)
+                if (!dispatchCustomValidation(player, result)) {
+                    return true
+                }
+                sendPreview(player)
+            }
+            "manual_back" -> {
+                val result = customTitleService.cancelManualPaletteEditing(player)
+                if (!dispatchCustomValidation(player, result)) {
+                    return true
+                }
+                sendPreview(player)
+            }
+            "prev" -> {
+                customTitleService.cycleScheme(player, -1)
+                sendPreview(player)
+            }
+            "next" -> {
+                customTitleService.cycleScheme(player, 1)
+                sendPreview(player)
+            }
             "confirm" -> {
-                val preview = customTitleService.confirm(player)
-                if (preview != null) {
-                    messageService.send(player, "custom-title-confirmed", preview)
-                } else {
-                    messageService.send(player, "custom-title-no-session")
+                val result = customTitleService.confirm(player)
+                result.messageKey?.let { key ->
+                    when (val payload = result.args) {
+                        null -> messageService.send(player, key)
+                        is Array<*> -> messageService.send(player, key, *payload)
+                        else -> messageService.send(player, key, payload)
+                    }
+                }
+                if (result.success && customTitleService.activeDraft(player)?.stage?.name == "CHOOSE_GROUP") {
+                    menuService.openCustomTitleGroupSelector(player)
+                } else if (result.success && customTitleService.activeDraft(player) != null) {
+                    sendPreview(player)
                 }
             }
             "cancel" -> customTitleService.cancelDraft(player)
-            else -> messageService.send(sender, "custom-title-preview-help")
+            else -> sendCustomPreviewHelp(sender)
         }
         return true
+    }
+
+    private fun sendPreview(player: Player) {
+        clickableMessageService.sendPreviewControls(
+            player,
+            customTitleService.previewMessage(player),
+            customTitleService.previewPalette(player),
+            customTitleService.currentPaletteLibrary(player),
+            customTitleService.availablePaletteLibraries(player),
+            customTitleService.manualColorsAllowed(player),
+        )
+    }
+
+    private fun dispatchCustomValidation(player: Player, result: cn.aing.uptags.service.ValidationResult): Boolean {
+        result.messageKey?.let { key ->
+            when (val payload = result.args) {
+                null -> messageService.send(player, key)
+                is Array<*> -> messageService.send(player, key, *payload)
+                else -> messageService.send(player, key, payload)
+            }
+        }
+        return result.success
+    }
+
+    private fun sendManualPicker(player: Player) {
+        val page = customTitleService.manualColorPage(player)
+        clickableMessageService.sendManualColorPicker(
+            player,
+            customTitleService.draftRawText(player),
+            customTitleService.previewMessage(player),
+            customTitleService.selectedManualColors(player),
+            page.colors,
+            page.pageIndex,
+            page.totalPages,
+            page.pageOffset,
+            customTitleService.manualPaletteTarget(player) ?: customTitleService.currentPaletteLibrary(player) ?: 1,
+        )
+    }
+
+    private fun sendManualLibraryChooser(player: Player) {
+        clickableMessageService.sendManualLibraryChooser(
+            player,
+            customTitleService.availablePaletteLibraries(player),
+        )
+    }
+
+    private fun sendCustomPreviewHelp(sender: CommandSender) {
+        sender.sendMessage(
+            Support.color("&#E2E8F0用法: &#FDE047/tags custom preview <money|title_coin|points|single|double|triple|quad|manual|auto|prev|next|confirm|cancel>"),
+        )
     }
 
     private fun handleQuickCreate(sender: CommandSender, args: Array<out String>): Boolean {
@@ -312,12 +518,19 @@ class TagsCommand(
             2 -> when {
                 args[0].equals("admin", true) -> filter(listOf("give", "take", "scroll", "tag"), args[1])
                 args[0].equals("custom", true) -> filter(listOf("preview"), args[1])
-                args[0].equals("equip", true) || args[0].equals("upgrade", true) -> filter(plugin.config.tags.keys.toList(), args[1])
+                args[0].equals("equip", true) || args[0].equals("upgrade", true) -> {
+                    val values = if (sender is Player) {
+                        plugin.config.tags.keys.toList() + tagService.data(sender).customTitles.keys
+                    } else {
+                        plugin.config.tags.keys.toList()
+                    }
+                    filter(values.distinct(), args[1])
+                }
                 else -> emptyList()
             }
             3 -> when {
                 args[0].equals("create", true) -> filter(listOf("uptags.tag.${args[1]}"), args[2])
-                args[0].equals("custom", true) && args[1].equals("preview", true) -> filter(listOf("prev", "next", "reroll", "confirm", "cancel"), args[2])
+                args[0].equals("custom", true) && args[1].equals("preview", true) -> filter(listOf("money", "title_coin", "points", "manual", "manual_remove", "manual_clear", "manual_page_prev", "manual_page_next", "manual_done", "manual_back", "auto", "prev", "next", "confirm", "cancel"), args[2])
                 args[0].equals("admin", true) && (args[1].equals("give", true) || args[1].equals("take", true)) -> filter(Bukkit.getOnlinePlayers().map(Player::getName), args[2])
                 args[0].equals("admin", true) && args[1].equals("scroll", true) -> filter(listOf("give"), args[2])
                 args[0].equals("admin", true) && args[1].equals("tag", true) -> filter(listOf("create", "delete", "setdisplay", "setrarity", "setgroups", "setdefault"), args[2])

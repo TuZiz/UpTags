@@ -1,0 +1,36 @@
+Title: "&#A78BFA自定义称号 - 选择升级组"
+GuiPlain:
+  - "X#######X"
+  - "#@@@@@@@#"
+  - "#@@@@@@@#"
+  - "#@@@@@@@#"
+  - "#@@@@@@@#"
+  - "X###B###X"
+GuiKey:
+  "@":
+    IconFunction: "item"
+  "#":
+    Material: "BLACK_STAINED_GLASS_PANE"
+    Name: " "
+  "X":
+    Material: "GRAY_STAINED_GLASS_PANE"
+    Name: " "
+  "B":
+    Material: "BARRIER"
+    Name: "&#F87171取消并返回"
+    Lore:
+      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
+      - " &#E2E8F0放弃本次自定义称号创建，返回称号商店"
+      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
+
+templates:
+  group:
+    material: "BOOK"
+    name: "%group_name%"
+    lore:
+      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
+      - " &#E2E8F0升级组 ID: &#FDE047%group_id%"
+      - " &#E2E8F0显示名: %group_display%"
+      - ""
+      - " &#A7F3D0▶ 点击使用此升级组创建称号"
+      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"

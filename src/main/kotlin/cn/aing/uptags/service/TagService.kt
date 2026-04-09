@@ -1,4 +1,4 @@
-package cn.aing.uptags.service
+﻿package cn.aing.uptags.service
 
 import cn.aing.uptags.Support
 import cn.aing.uptags.UpTagsPlugin
@@ -11,6 +11,8 @@ import cn.aing.uptags.model.config.TagDefinition
 import cn.aing.uptags.model.runtime.CustomTitleData
 import cn.aing.uptags.model.runtime.PlayerTagData
 import cn.aing.uptags.model.runtime.TagProgress
+import cn.aing.uptags.model.runtime.TitleEntry
+import cn.aing.uptags.model.runtime.TitleKind
 import cn.aing.uptags.repository.PlayerDataRepository
 import org.bukkit.Bukkit
 import org.bukkit.OfflinePlayer
@@ -28,9 +30,14 @@ class TagService(
     private val messageService: MessageService,
 ) {
     private val conditionPattern = Pattern.compile("(.+?)(==|!=|>=|<=|>|<)(.+)")
+    private val legacyCustomTagPrefix = "custom-"
 
     fun preparePlayer(player: Player, announce: Boolean) {
         val data = repository.get(player.uniqueId)
+        migrateLegacyCustomTitles(data)
+        if (data.tagColorOverrides.isNotEmpty()) {
+            data.tagColorOverrides.clear()
+        }
         val unlocked = syncAutoUnlocks(player, data)
         if (announce && unlocked > 0) {
             messageService.send(player, "default-unlocked", unlocked)
@@ -81,12 +88,28 @@ class TagService(
         }
     }
 
-    private fun ensureProgress(definition: TagDefinition, data: PlayerTagData): TagProgress {
-        val progress = data.tagProgress.computeIfAbsent(definition.id) { TagProgress() }
+    private fun ensureProgress(definition: TagDefinition, data: PlayerTagData): TagProgress = ensureProgress(definition.id, data)
+
+    private fun ensureProgress(titleId: String, data: PlayerTagData): TagProgress {
+        val progress = data.tagProgress.computeIfAbsent(titleId) { TagProgress() }
         if (progress.selectedParticleId != null && progress.selectedParticleId !in progress.ownedParticles) {
             progress.selectedParticleId = null
         }
         return progress
+    }
+
+    private fun migrateLegacyCustomTitles(data: PlayerTagData) {
+        val legacyOwned = data.ownedTags.filter { it.startsWith(legacyCustomTagPrefix, ignoreCase = true) && it in data.customTitles }
+        if (legacyOwned.isNotEmpty()) {
+            data.ownedTags.removeAll(legacyOwned.toSet())
+        }
+        val legacyEquipped = data.equippedTagId?.takeIf {
+            it.startsWith(legacyCustomTagPrefix, ignoreCase = true) && it in data.customTitles
+        }
+        if (legacyEquipped != null) {
+            data.equippedCustomTitleId = legacyEquipped
+            data.equippedTagId = null
+        }
     }
 
     fun equippedTag(player: Player): TagDefinition? {
@@ -99,14 +122,21 @@ class TagService(
         return data(player).customTitles[id]
     }
 
-    fun currentTagId(player: Player): String = data(player).equippedCustomTitleId ?: equippedTag(player)?.id ?: ""
+    private fun equippedTitleId(player: Player): String? = data(player).equippedCustomTitleId ?: data(player).equippedTagId
+
+    fun currentTagId(player: Player): String = equippedTitleId(player) ?: ""
 
     fun currentTagDisplay(player: Player): String {
         equippedCustomTitle(player)?.let { return renderCustomTitle(it) }
-        return equippedTag(player)?.let { Support.color(it.display) } ?: "无"
+        return equippedTag(player)?.let { renderedTagDisplay(player, it.id) } ?: "无"
     }
 
-    private fun renderCustomTitle(customTitle: CustomTitleData): String {
+    fun renderedTagDisplay(player: Player, tagId: String): String {
+        val tag = config.tags[tagId] ?: return tagId
+        return Support.color(tag.display)
+    }
+
+    fun renderCustomTitle(customTitle: CustomTitleData): String {
         val colors = if (customTitle.manualColors.isNotEmpty()) {
             customTitle.manualColors
         } else {
@@ -115,12 +145,7 @@ class TagService(
         if (customTitle.rawText.isBlank()) {
             return "无"
         }
-        val palette = if (colors.isEmpty()) listOf("#FFFFFF") else colors
-        val builder = StringBuilder()
-        customTitle.rawText.forEachIndexed { index, char ->
-            builder.append('&').append(palette[index % palette.size]).append(char)
-        }
-        return Support.color(builder.toString())
+        return Support.renderPaletteText(customTitle.rawText, colors)
     }
 
     fun resolveTag(input: String?): TagDefinition? {
@@ -132,16 +157,70 @@ class TagService(
         return config.tags.values.firstOrNull { Support.stripColor(it.display).equals(normalized, ignoreCase = true) }
     }
 
+    fun resolveTitleId(player: Player, input: String?): String? {
+        if (input.isNullOrBlank()) {
+            return null
+        }
+        config.tags[input]?.let { return it.id }
+        data(player).customTitles[input]?.let { return it.id }
+        val normalized = Support.stripColor(input).trim()
+        config.tags.values.firstOrNull { Support.stripColor(it.display).equals(normalized, ignoreCase = true) }?.let { return it.id }
+        return data(player).customTitles.values.firstOrNull { custom ->
+            custom.id.equals(normalized, ignoreCase = true) ||
+                custom.rawText.equals(normalized, ignoreCase = true) ||
+                Support.stripColor(renderCustomTitle(custom)).equals(normalized, ignoreCase = true)
+        }?.id
+    }
+
+    fun titleExists(player: Player, titleId: String): Boolean = titleId in config.tags || titleId in data(player).customTitles
+
     fun tagName(tagId: String): String = config.tags[tagId]?.let { Support.stripColor(it.display) } ?: tagId
+
+    fun titleName(player: Player, titleId: String): String {
+        return data(player).customTitles[titleId]?.let { Support.stripColor(renderCustomTitle(it)) } ?: tagName(titleId)
+    }
 
     fun visibleTags(player: Player): List<TagDefinition> {
         preparePlayer(player, false)
         return config.tags.values.toList()
     }
 
+    fun visibleTitles(player: Player): List<TitleEntry> {
+        preparePlayer(player, false)
+        val data = data(player)
+        val entries = ArrayList<TitleEntry>(config.tags.size + data.customTitles.size)
+        config.tags.values.forEach { tag ->
+            entries += TitleEntry(
+                id = tag.id,
+                display = renderedTagDisplay(player, tag.id),
+                description = tag.description,
+                rarityDisplay = rarityDisplay(tag.rarity),
+                owned = tag.id in data.ownedTags,
+                kind = TitleKind.TAG,
+            )
+        }
+        data.customTitles.values.sortedBy { it.createdAt }.forEach { custom ->
+            val groupName = custom.groupId?.let { config.upgradeGroups[it]?.display }?.let(Support::color) ?: Support.color("&#94A3B8未绑定")
+            entries += TitleEntry(
+                id = custom.id,
+                display = renderCustomTitle(custom),
+                description = listOf(
+                    "&#E2E8F0玩家自定义称号",
+                    "&#E2E8F0鍘熷鏂囨湰: &#F8FAFC${custom.rawText}",
+                    "&#E2E8F0升级组: $groupName",
+                ),
+                rarityDisplay = Support.color("&#FF8FD8自定义"),
+                owned = true,
+                kind = TitleKind.CUSTOM,
+            )
+        }
+        return entries
+    }
+
     fun isOwned(player: Player, tagId: String): Boolean {
         preparePlayer(player, false)
-        return tagId in data(player).ownedTags
+        val data = data(player)
+        return tagId in data.ownedTags || tagId in data.customTitles
     }
 
     fun equipTag(player: Player, tagId: String): Boolean {
@@ -169,6 +248,7 @@ class TagService(
             messageService.send(player, "custom-title-not-found")
             return false
         }
+        ensureProgress(customId, data)
         data.equippedCustomTitleId = customId
         data.equippedTagId = null
         repository.saveAsync(data)
@@ -226,17 +306,25 @@ class TagService(
 
     fun isParticleSelected(player: Player, tagId: String, particleId: String): Boolean = data(player).tagProgress[tagId]?.selectedParticleId == particleId
 
-    fun allowedBuffIds(tag: TagDefinition): List<String> {
+    fun allowedBuffIds(tag: TagDefinition): List<String> = allowedBuffIds(effectiveGroups(tag))
+
+    fun allowedParticleIds(tag: TagDefinition): List<String> = allowedParticleIds(effectiveGroups(tag))
+
+    fun allowedBuffIds(player: Player, titleId: String): List<String> = allowedBuffIds(titleGroups(player, titleId))
+
+    fun allowedParticleIds(player: Player, titleId: String): List<String> = allowedParticleIds(titleGroups(player, titleId))
+
+    private fun allowedBuffIds(groups: List<String>): List<String> {
         val ids = LinkedHashSet<String>()
-        for (groupId in effectiveGroups(tag)) {
+        for (groupId in groups) {
             config.upgradeGroups[groupId]?.let { ids += it.buffs }
         }
         return ids.toList()
     }
 
-    fun allowedParticleIds(tag: TagDefinition): List<String> {
+    private fun allowedParticleIds(groups: List<String>): List<String> {
         val ids = LinkedHashSet<String>()
-        for (groupId in effectiveGroups(tag)) {
+        for (groupId in groups) {
             config.upgradeGroups[groupId]?.let { ids += it.particles }
         }
         return ids.toList()
@@ -244,19 +332,23 @@ class TagService(
 
     private fun effectiveGroups(tag: TagDefinition): List<String> = if (tag.upgradeGroups.isNotEmpty()) tag.upgradeGroups else config.defaultGroupsForRarity(tag.rarity)
 
+    private fun titleGroups(player: Player, titleId: String): List<String> {
+        config.tags[titleId]?.let { return effectiveGroups(it) }
+        return data(player).customTitles[titleId]?.groupId?.takeIf(config::hasUpgradeGroup)?.let(::listOf).orEmpty()
+    }
+
     fun upgradeBuff(player: Player, tagId: String, buffId: String): Boolean {
-        val tag = config.tags[tagId]
         val buff = config.buffs[buffId]
-        if (tag == null || buff == null || !isOwned(player, tagId)) {
+        if (buff == null || !isOwned(player, tagId)) {
             messageService.send(player, "not-owned")
             return false
         }
-        if (buffId !in allowedBuffIds(tag)) {
+        if (buffId !in allowedBuffIds(player, tagId)) {
             messageService.send(player, "condition-failed")
             return false
         }
         val data = data(player)
-        val progress = ensureProgress(tag, data)
+        val progress = ensureProgress(tagId, data)
         val currentLevel = progress.buffLevels.getOrDefault(buffId, 0)
         if (currentLevel >= buff.maxLevel) {
             return false
@@ -284,9 +376,8 @@ class TagService(
     }
 
     fun canUpgradeBuff(tagId: String, buffId: String, player: Player): Boolean {
-        val tag = config.tags[tagId] ?: return false
         val buff = config.buffs[buffId] ?: return false
-        if (!isOwned(player, tagId)) return false
+        if (!isOwned(player, tagId) || buffId !in allowedBuffIds(player, tagId)) return false
         return buffLevel(player, tagId, buffId) < buff.maxLevel
     }
 
@@ -294,10 +385,9 @@ class TagService(
         if (!canUpgradeBuff(tagId, buffId, player)) {
             return false
         }
-        val tag = config.tags[tagId] ?: return false
         val buff = config.buffs[buffId] ?: return false
         val data = data(player)
-        val progress = ensureProgress(tag, data)
+        val progress = ensureProgress(tagId, data)
         val nextLevel = progress.buffLevels.getOrDefault(buffId, 0) + 1
         progress.buffLevels[buffId] = nextLevel
         progress.activeBuffs += buffId
@@ -323,15 +413,14 @@ class TagService(
     }
 
     fun buyParticle(player: Player, tagId: String, particleId: String): Boolean {
-        val tag = config.tags[tagId]
         val particle = config.particles[particleId]
-        if (tag == null || particle == null || !isOwned(player, tagId)) return false
-        if (particleId !in allowedParticleIds(tag)) {
+        if (particle == null || !isOwned(player, tagId)) return false
+        if (particleId !in allowedParticleIds(player, tagId)) {
             messageService.send(player, "condition-failed")
             return false
         }
         val data = data(player)
-        val progress = ensureProgress(tag, data)
+        val progress = ensureProgress(tagId, data)
         if (particleId in progress.ownedParticles) {
             return true
         }
@@ -359,9 +448,8 @@ class TagService(
     }
 
     fun canUnlockParticle(tagId: String, particleId: String, player: Player): Boolean {
-        val tag = config.tags[tagId] ?: return false
         val particle = config.particles[particleId] ?: return false
-        if (!isOwned(player, tagId)) return false
+        if (!isOwned(player, tagId) || particle.id !in allowedParticleIds(player, tagId)) return false
         return particle.id !in (data(player).tagProgress[tagId]?.ownedParticles ?: emptySet())
     }
 
@@ -369,10 +457,9 @@ class TagService(
         if (!canUnlockParticle(tagId, particleId, player)) {
             return false
         }
-        val tag = config.tags[tagId] ?: return false
         val particle = config.particles[particleId] ?: return false
         val data = data(player)
-        val progress = ensureProgress(tag, data)
+        val progress = ensureProgress(tagId, data)
         progress.ownedParticles += particleId
         if (progress.selectedParticleId.isNullOrBlank()) {
             progress.selectedParticleId = particleId
@@ -400,8 +487,8 @@ class TagService(
     }
 
     fun activeBuffs(player: Player): Collection<BuffDefinition> {
-        val tag = equippedTag(player) ?: return emptyList()
-        val progress = data(player).tagProgress[tag.id] ?: return emptyList()
+        val titleId = equippedTitleId(player) ?: return emptyList()
+        val progress = data(player).tagProgress[titleId] ?: return emptyList()
         return progress.activeBuffs.mapNotNull { buffId ->
             val level = progress.buffLevels.getOrDefault(buffId, 0)
             if (level <= 0) null else config.buffs[buffId]
@@ -409,14 +496,14 @@ class TagService(
     }
 
     fun activeBuffLevel(player: Player, buffId: String): Int {
-        val tag = equippedTag(player) ?: return 0
-        val progress = data(player).tagProgress[tag.id] ?: return 0
+        val titleId = equippedTitleId(player) ?: return 0
+        val progress = data(player).tagProgress[titleId] ?: return 0
         return if (buffId in progress.activeBuffs) progress.buffLevels.getOrDefault(buffId, 0) else 0
     }
 
     fun selectedParticle(player: Player): ParticleDefinition? {
-        val tag = equippedTag(player) ?: return null
-        val progress = data(player).tagProgress[tag.id] ?: return null
+        val titleId = equippedTitleId(player) ?: return null
+        val progress = data(player).tagProgress[titleId] ?: return null
         return progress.selectedParticleId?.let { config.particles[it] }
     }
 
@@ -459,8 +546,8 @@ class TagService(
     }
 
     fun activeBuffsDisplay(player: Player): String {
-        val tag = equippedTag(player) ?: return "无"
-        val progress = data(player).tagProgress[tag.id] ?: return "无"
+        val titleId = equippedTitleId(player) ?: return "无"
+        val progress = data(player).tagProgress[titleId] ?: return "无"
         val values = progress.activeBuffs.mapNotNull { buffId ->
             val level = progress.buffLevels.getOrDefault(buffId, 0)
             val buff = config.buffs[buffId] ?: return@mapNotNull null
@@ -521,9 +608,9 @@ class TagService(
     }
 
     fun groupLevel(player: Player, groupId: String): String {
-        val tag = equippedTag(player) ?: return "0"
-        if (groupId !in effectiveGroups(tag)) return "0"
-        val progress = data(player).tagProgress[tag.id] ?: return "0"
+        val titleId = equippedTitleId(player) ?: return "0"
+        if (groupId !in titleGroups(player, titleId)) return "0"
+        val progress = data(player).tagProgress[titleId] ?: return "0"
         val group = config.upgradeGroups[groupId] ?: return "0"
         var score = 0
         group.buffs.forEach { score += progress.buffLevels.getOrDefault(it, 0) }
@@ -536,20 +623,23 @@ class TagService(
     fun trackLevel(player: Player, trackId: String): String = groupLevel(player, trackId)
 
     fun canUpgrade(player: Player): Boolean {
-        val tag = equippedTag(player) ?: return false
-        val progress = data(player).tagProgress[tag.id]
+        val titleId = equippedTitleId(player) ?: return false
+        val progress = data(player).tagProgress[titleId]
+        val buffIds = allowedBuffIds(player, titleId)
+        val particleIds = allowedParticleIds(player, titleId)
         if (progress == null) {
-            return allowedBuffIds(tag).isNotEmpty() || allowedParticleIds(tag).isNotEmpty()
+            return buffIds.isNotEmpty() || particleIds.isNotEmpty()
         }
-        if (allowedBuffIds(tag).any { buffId ->
+        if (buffIds.any { buffId ->
                 val buff = config.buffs[buffId] ?: return@any false
                 progress.buffLevels.getOrDefault(buffId, 0) < buff.maxLevel
             }
         ) return true
-        return allowedParticleIds(tag).any { it !in progress.ownedParticles }
+        return particleIds.any { it !in progress.ownedParticles }
     }
 
     fun points(player: Player): Double = economyBridge.balance(player, CurrencyType.POINTS)
+
 
     fun titleCoins(player: Player): Double = economyBridge.balance(player, CurrencyType.TITLE_COIN)
 

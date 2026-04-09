@@ -35,6 +35,10 @@ object Support {
 
     fun noItalicLines(lines: List<String>): List<String> = TextRenderer.noItalicLines(lines)
 
+    fun renderPaletteText(text: String?, palette: List<String>): String = TextRenderer.renderPaletteText(text, palette)
+
+    fun normalizeHex(value: String?): String? = TextRenderer.normalizeHex(value)
+
     fun joinDisplay(values: Collection<String>, delimiter: String = ", "): String = Formatters.joinDisplay(values, delimiter)
 
     fun boolText(value: Boolean): String = Formatters.boolText(value)

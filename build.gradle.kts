@@ -28,8 +28,13 @@ dependencies {
     compileOnly("org.spigotmc:spigot-api:1.20.6-R0.1-SNAPSHOT")
     compileOnly("me.clip:placeholderapi:2.11.6")
     compileOnly("com.github.MilkBowl:VaultAPI:1.7.1")
+    implementation("com.mysql:mysql-connector-j:8.4.0")
     implementation("org.postgresql:postgresql:42.7.4")
     implementation("redis.clients:jedis:5.2.0")
+
+    testImplementation(kotlin("test"))
+    testImplementation("org.spigotmc:spigot-api:1.20.6-R0.1-SNAPSHOT")
+    testImplementation("io.mockk:mockk:1.13.12")
 }
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
@@ -58,4 +63,8 @@ tasks.shadowJar {
 
 tasks.build {
     dependsOn(tasks.shadowJar)
+}
+
+tasks.test {
+    useJUnitPlatform()
 }

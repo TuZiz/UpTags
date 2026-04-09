@@ -111,6 +111,7 @@ data class ShopProductDefinition(
 data class CustomTitleSettings(
     val defaultTitleCoinBalance: Double,
     val sessionTimeoutSeconds: Long,
+    val currencyCosts: Map<CurrencyType, Double>,
     val presets: Map<String, CustomTitlePreset>,
 )
 
@@ -126,6 +127,7 @@ data class CustomTitlePreset(
     val blockedWords: Set<String>,
     val blockedPatterns: List<String>,
     val palettes: List<List<String>>,
+    val randomColorPool: List<String>,
     val previewTemplate: String,
     val equipAfterConfirm: Boolean,
 )

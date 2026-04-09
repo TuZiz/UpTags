@@ -2,6 +2,7 @@ package cn.aing.uptags.repository.store
 
 import cn.aing.uptags.model.runtime.CustomTitleData
 import cn.aing.uptags.model.runtime.PlayerTagData
+import cn.aing.uptags.model.runtime.TagColorProfile
 import cn.aing.uptags.model.runtime.TagProgress
 import java.util.UUID
 
@@ -16,6 +17,13 @@ object PlayerDataCodec {
                 progress.buffLevels.entries.joinToString(",") { "${encode(it.key)}:${it.value}" },
             ).joinToString("|")
         }
+        val colorOverrideParts = data.tagColorOverrides.values.joinToString(";;") { override ->
+            listOf(
+                encode(override.tagId),
+                override.palette.joinToString(",") { encode(it) },
+                override.updatedAt.toString(),
+            ).joinToString("|")
+        }
         val customParts = data.customTitles.values.joinToString(";;") { custom ->
             listOf(
                 encode(custom.id),
@@ -25,6 +33,7 @@ object PlayerDataCodec {
                 custom.randomSchemes.joinToString("~~") { scheme -> scheme.joinToString(",") { encode(it) } },
                 custom.selectedSchemeIndex.toString(),
                 custom.createdAt.toString(),
+                encode(custom.groupId ?: ""),
             ).joinToString("|")
         }
         return listOf(
@@ -35,6 +44,7 @@ object PlayerDataCodec {
             if (data.titleCoinInitialized) "1" else "0",
             customParts,
             encode(data.equippedCustomTitleId ?: ""),
+            colorOverrideParts,
         ).joinToString("###")
     }
 
@@ -75,6 +85,7 @@ object PlayerDataCodec {
                     id = id,
                     rawText = entryParts.getOrNull(1)?.let(::decode) ?: "",
                     presetId = entryParts.getOrNull(2)?.let(::decode) ?: "default",
+                    groupId = entryParts.getOrNull(7)?.ifBlank { null }?.let(::decode),
                     manualColors = entryParts.getOrNull(3)?.takeIf { it.isNotBlank() }?.split(',')?.filter { it.isNotBlank() }?.map(::decode)?.toMutableList() ?: mutableListOf(),
                     randomSchemes = entryParts.getOrNull(4)?.takeIf { it.isNotBlank() }?.split("~~")?.map { scheme ->
                         scheme.split(',').filter { it.isNotBlank() }.map(::decode).toMutableList()
@@ -85,6 +96,18 @@ object PlayerDataCodec {
                 data.customTitles[id] = custom
             }
         data.equippedCustomTitleId = parts.getOrNull(6)?.ifBlank { null }?.let(::decode)
+        parts.getOrNull(7)
+            ?.takeIf { it.isNotBlank() }
+            ?.split(";;")
+            ?.forEach { entry ->
+                val entryParts = entry.split('|')
+                val tagId = entryParts.getOrNull(0)?.takeIf { it.isNotBlank() }?.let(::decode) ?: return@forEach
+                data.tagColorOverrides[tagId] = TagColorProfile(
+                    tagId = tagId,
+                    palette = entryParts.getOrNull(1)?.takeIf { it.isNotBlank() }?.split(',')?.filter { it.isNotBlank() }?.map(::decode)?.toMutableList() ?: mutableListOf(),
+                    updatedAt = entryParts.getOrNull(2)?.toLongOrNull() ?: System.currentTimeMillis(),
+                )
+            }
         return data
     }
 
