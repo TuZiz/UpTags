@@ -11,6 +11,8 @@ interface PlayerDataStore {
 
     fun save(snapshot: PlayerDataSnapshot, expectedVersion: Long?): SaveResult
 
+    fun loadAll(): List<PlayerDataSnapshot> = emptyList()
+
     fun loadVersions(uniqueIds: Collection<UUID>): Map<UUID, Long> = emptyMap()
 
     fun shutdown() {}

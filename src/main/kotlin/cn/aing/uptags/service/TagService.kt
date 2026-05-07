@@ -10,17 +10,21 @@ import cn.aing.uptags.model.config.ParticleDefinition
 import cn.aing.uptags.model.config.TagDefinition
 import cn.aing.uptags.model.runtime.CustomTitleData
 import cn.aing.uptags.model.runtime.PlayerTagData
+import cn.aing.uptags.model.runtime.ScrollKind
 import cn.aing.uptags.model.runtime.TagProgress
 import cn.aing.uptags.model.runtime.TitleEntry
 import cn.aing.uptags.model.runtime.TitleKind
 import cn.aing.uptags.repository.PlayerDataRepository
-import org.bukkit.Bukkit
 import org.bukkit.OfflinePlayer
 import org.bukkit.entity.Player
-import java.util.LinkedHashSet
-import java.util.Locale
+import org.bukkit.inventory.ItemStack
 import java.util.UUID
-import java.util.regex.Pattern
+
+data class AdminActionResult(
+    val success: Boolean,
+    val messageKey: String,
+    val args: List<Any?> = emptyList(),
+)
 
 class TagService(
     private val plugin: UpTagsPlugin,
@@ -29,8 +33,39 @@ class TagService(
     private val economyBridge: EconomyBridge,
     private val messageService: MessageService,
 ) {
-    private val conditionPattern = Pattern.compile("(.+?)(==|!=|>=|<=|>|<)(.+)")
     private val legacyCustomTagPrefix = "custom-"
+    private var scrollFactory: ((String, Int) -> ItemStack)? = null
+    private val conditionChecker = TagConditionChecker()
+    private val readModel = TagReadModel(
+        config = config,
+        repository = repository,
+        preparePlayer = ::preparePlayer,
+    )
+    private val catalogEditor = TagCatalogEditor(
+        config = config,
+        repository = repository,
+        enforceDefaultTag = ::enforceDefaultTag,
+    )
+    private val adminActions = TagAdminActions(
+        config = config,
+        repository = repository,
+        createDetachScroll = ::createDetachScroll,
+        hasInventorySpace = ::hasInventorySpace,
+    )
+    private val upgradeActions = TagUpgradeActions(
+        config = config,
+        repository = repository,
+        economyBridge = economyBridge,
+        messageService = messageService,
+        conditionChecker = conditionChecker,
+        preparePlayer = ::preparePlayer,
+        createDetachScroll = ::createDetachScroll,
+        hasInventorySpace = ::hasInventorySpace,
+    )
+
+    fun attachScrollFactory(factory: (String, Int) -> ItemStack) {
+        scrollFactory = factory
+    }
 
     fun preparePlayer(player: Player, announce: Boolean) {
         val data = repository.get(player.uniqueId)
@@ -83,7 +118,9 @@ class TagService(
         val forcedTag = config.tags[settings.forcedTagId] ?: return
         data.ownedTags += forcedTag.id
         ensureProgress(forcedTag, data)
-        if (data.equippedCustomTitleId == null && data.equippedTagId != forcedTag.id) {
+        val equippedTagId = data.equippedTagId
+        val equippedTagValid = equippedTagId != null && equippedTagId in data.ownedTags && equippedTagId in config.tags
+        if (data.equippedCustomTitleId == null && !equippedTagValid) {
             data.equippedTagId = forcedTag.id
         }
     }
@@ -122,104 +159,44 @@ class TagService(
         return data(player).customTitles[id]
     }
 
-    private fun equippedTitleId(player: Player): String? = data(player).equippedCustomTitleId ?: data(player).equippedTagId
+    fun currentTagId(player: Player): String = readModel.currentTagId(player)
 
-    fun currentTagId(player: Player): String = equippedTitleId(player) ?: ""
+    fun currentTagId(uniqueId: UUID): String = readModel.currentTagId(uniqueId)
 
-    fun currentTagDisplay(player: Player): String {
-        equippedCustomTitle(player)?.let { return renderCustomTitle(it) }
-        return equippedTag(player)?.let { renderedTagDisplay(player, it.id) } ?: "无"
-    }
+    fun currentTagDisplay(player: Player): String = readModel.currentTagDisplay(player)
 
-    fun renderedTagDisplay(player: Player, tagId: String): String {
-        val tag = config.tags[tagId] ?: return tagId
-        return Support.color(tag.display)
-    }
+    fun currentTagDisplay(uniqueId: UUID): String = readModel.currentTagDisplay(uniqueId)
 
-    fun renderCustomTitle(customTitle: CustomTitleData): String {
-        val colors = if (customTitle.manualColors.isNotEmpty()) {
-            customTitle.manualColors
-        } else {
-            customTitle.randomSchemes.getOrNull(customTitle.selectedSchemeIndex).orEmpty()
-        }
-        if (customTitle.rawText.isBlank()) {
-            return "无"
-        }
-        return Support.renderPaletteText(customTitle.rawText, colors)
-    }
+    fun renderedTagDisplay(player: Player, tagId: String): String = readModel.renderedTagDisplay(player, tagId)
 
-    fun resolveTag(input: String?): TagDefinition? {
-        if (input.isNullOrBlank()) {
-            return null
-        }
-        config.tags[input]?.let { return it }
-        val normalized = Support.stripColor(input).trim()
-        return config.tags.values.firstOrNull { Support.stripColor(it.display).equals(normalized, ignoreCase = true) }
-    }
+    fun renderCustomTitle(customTitle: CustomTitleData): String = readModel.renderCustomTitle(customTitle)
 
-    fun resolveTitleId(player: Player, input: String?): String? {
-        if (input.isNullOrBlank()) {
-            return null
-        }
-        config.tags[input]?.let { return it.id }
-        data(player).customTitles[input]?.let { return it.id }
-        val normalized = Support.stripColor(input).trim()
-        config.tags.values.firstOrNull { Support.stripColor(it.display).equals(normalized, ignoreCase = true) }?.let { return it.id }
-        return data(player).customTitles.values.firstOrNull { custom ->
-            custom.id.equals(normalized, ignoreCase = true) ||
-                custom.rawText.equals(normalized, ignoreCase = true) ||
-                Support.stripColor(renderCustomTitle(custom)).equals(normalized, ignoreCase = true)
-        }?.id
-    }
+    fun resolveTag(input: String?): TagDefinition? = readModel.resolveTag(input)
 
-    fun titleExists(player: Player, titleId: String): Boolean = titleId in config.tags || titleId in data(player).customTitles
+    fun resolveTitleId(player: Player, input: String?): String? = readModel.resolveTitleId(player, input)
 
-    fun tagName(tagId: String): String = config.tags[tagId]?.let { Support.stripColor(it.display) } ?: tagId
+    fun titleExists(player: Player, titleId: String): Boolean = readModel.titleExists(player, titleId)
 
-    fun titleName(player: Player, titleId: String): String {
-        return data(player).customTitles[titleId]?.let { Support.stripColor(renderCustomTitle(it)) } ?: tagName(titleId)
-    }
+    fun tagName(tagId: String): String = readModel.tagName(tagId)
 
-    fun visibleTags(player: Player): List<TagDefinition> {
-        preparePlayer(player, false)
-        return config.tags.values.toList()
-    }
+    fun titleName(player: Player, titleId: String): String = readModel.titleName(player, titleId)
 
-    fun visibleTitles(player: Player): List<TitleEntry> {
-        preparePlayer(player, false)
-        val data = data(player)
-        val entries = ArrayList<TitleEntry>(config.tags.size + data.customTitles.size)
-        config.tags.values.forEach { tag ->
-            entries += TitleEntry(
-                id = tag.id,
-                display = renderedTagDisplay(player, tag.id),
-                description = tag.description,
-                rarityDisplay = rarityDisplay(tag.rarity),
-                owned = tag.id in data.ownedTags,
-                kind = TitleKind.TAG,
-            )
-        }
-        data.customTitles.values.sortedBy { it.createdAt }.forEach { custom ->
-            val groupName = custom.groupId?.let { config.upgradeGroups[it]?.display }?.let(Support::color) ?: Support.color("&#94A3B8未绑定")
-            entries += TitleEntry(
-                id = custom.id,
-                display = renderCustomTitle(custom),
-                description = listOf(
-                    "&#E2E8F0玩家自定义称号",
-                    "&#E2E8F0鍘熷鏂囨湰: &#F8FAFC${custom.rawText}",
-                    "&#E2E8F0升级组: $groupName",
-                ),
-                rarityDisplay = Support.color("&#FF8FD8自定义"),
-                owned = true,
-                kind = TitleKind.CUSTOM,
-            )
-        }
-        return entries
-    }
+    fun titleName(uniqueId: UUID, titleId: String): String = readModel.titleName(uniqueId, titleId)
+
+    fun visibleTags(player: Player): List<TagDefinition> = readModel.visibleTags(player)
+
+    fun visibleTitles(player: Player): List<TitleEntry> = readModel.visibleTitles(player)
+
+    fun visibleTitles(uniqueId: UUID): List<TitleEntry> = readModel.visibleTitles(uniqueId)
 
     fun isOwned(player: Player, tagId: String): Boolean {
         preparePlayer(player, false)
         val data = data(player)
+        return tagId in data.ownedTags || tagId in data.customTitles
+    }
+
+    fun isOwned(uniqueId: UUID, tagId: String): Boolean {
+        val data = data(uniqueId)
         return tagId in data.ownedTags || tagId in data.customTitles
     }
 
@@ -295,441 +272,217 @@ class TagService(
         return removed
     }
 
-    fun buffLevel(player: Player, tagId: String, buffId: String): Int = data(player).tagProgress[tagId]?.buffLevels?.getOrDefault(buffId, 0) ?: 0
+    fun adminEquipTitle(uniqueId: UUID, titleId: String): AdminActionResult = adminActions.equipTitle(uniqueId, titleId)
 
-    fun isBuffEnabled(player: Player, tagId: String, buffId: String): Boolean {
-        val progress = data(player).tagProgress[tagId] ?: return false
-        return buffId in progress.activeBuffs && progress.buffLevels.getOrDefault(buffId, 0) > 0
+    fun adminUnequipTitle(uniqueId: UUID): AdminActionResult = adminActions.unequipTitle(uniqueId)
+
+    fun adminSetBuffLevel(uniqueId: UUID, titleId: String, buffId: String, level: Int): AdminActionResult =
+        adminActions.setBuffLevel(uniqueId, titleId, buffId, level)
+
+    fun adminSetBuffEnabled(uniqueId: UUID, titleId: String, buffId: String, enabled: Boolean): AdminActionResult =
+        adminActions.setBuffEnabled(uniqueId, titleId, buffId, enabled)
+
+    fun adminDetachBuff(uniqueId: UUID, titleId: String, buffId: String, receiver: Player): AdminActionResult =
+        adminActions.detachBuff(uniqueId, titleId, buffId, receiver)
+
+    fun adminGiveParticle(uniqueId: UUID, titleId: String, particleId: String): AdminActionResult =
+        adminActions.giveParticle(uniqueId, titleId, particleId)
+
+    fun adminTakeParticle(uniqueId: UUID, titleId: String, particleId: String): AdminActionResult =
+        adminActions.takeParticle(uniqueId, titleId, particleId)
+
+    fun adminSelectParticle(uniqueId: UUID, titleId: String, particleId: String): AdminActionResult =
+        adminActions.selectParticle(uniqueId, titleId, particleId)
+
+    fun adminClearParticle(uniqueId: UUID, titleId: String): AdminActionResult =
+        adminActions.clearParticle(uniqueId, titleId)
+
+    fun adminDetachParticle(uniqueId: UUID, titleId: String, particleId: String, receiver: Player): AdminActionResult =
+        adminActions.detachParticle(uniqueId, titleId, particleId, receiver)
+
+    fun adminEquipCustomTitle(uniqueId: UUID, customId: String): AdminActionResult =
+        adminActions.equipCustomTitle(uniqueId, customId)
+
+    fun adminDeleteCustomTitle(uniqueId: UUID, customId: String): AdminActionResult =
+        adminActions.deleteCustomTitle(uniqueId, customId)
+
+    fun buffLevel(player: Player, tagId: String, buffId: String): Int = readModel.buffLevel(player, tagId, buffId)
+
+    fun buffLevel(uniqueId: UUID, tagId: String, buffId: String): Int = readModel.buffLevel(uniqueId, tagId, buffId)
+
+    fun isBuffEnabled(player: Player, tagId: String, buffId: String): Boolean = readModel.isBuffEnabled(player, tagId, buffId)
+
+    fun isBuffEnabled(uniqueId: UUID, tagId: String, buffId: String): Boolean = readModel.isBuffEnabled(uniqueId, tagId, buffId)
+
+    fun isParticleOwned(player: Player, tagId: String, particleId: String): Boolean = readModel.isParticleOwned(player, tagId, particleId)
+
+    fun isParticleOwned(uniqueId: UUID, tagId: String, particleId: String): Boolean = readModel.isParticleOwned(uniqueId, tagId, particleId)
+
+    fun isParticleSelected(player: Player, tagId: String, particleId: String): Boolean = readModel.isParticleSelected(player, tagId, particleId)
+
+    fun isParticleSelected(uniqueId: UUID, tagId: String, particleId: String): Boolean = readModel.isParticleSelected(uniqueId, tagId, particleId)
+
+    fun allowedBuffIds(tag: TagDefinition): List<String> = readModel.allowedBuffIds(tag)
+
+    fun allowedParticleIds(tag: TagDefinition): List<String> = readModel.allowedParticleIds(tag)
+
+    fun allowedBuffIds(player: Player, titleId: String): List<String> = readModel.allowedBuffIds(player, titleId)
+
+    fun allowedParticleIds(player: Player, titleId: String): List<String> = readModel.allowedParticleIds(player, titleId)
+
+    fun allowedBuffIds(uniqueId: UUID, titleId: String): List<String> = readModel.allowedBuffIds(uniqueId, titleId)
+
+    fun allowedParticleIds(uniqueId: UUID, titleId: String): List<String> = readModel.allowedParticleIds(uniqueId, titleId)
+
+    fun upgradeBuff(player: Player, tagId: String, buffId: String): Boolean =
+        upgradeActions.upgradeBuff(player, tagId, buffId)
+
+    fun canUpgradeBuff(tagId: String, buffId: String, player: Player, levels: Int = 1): Boolean =
+        upgradeActions.canUpgradeBuff(tagId, buffId, player, levels)
+
+    fun grantBuffUpgrade(player: Player, tagId: String, buffId: String, levels: Int = 1): Boolean =
+        upgradeActions.grantBuffUpgrade(player, tagId, buffId, levels)
+
+    fun toggleBuff(player: Player, tagId: String, buffId: String): Boolean =
+        upgradeActions.toggleBuff(player, tagId, buffId)
+
+    fun buyParticle(player: Player, tagId: String, particleId: String): Boolean =
+        upgradeActions.buyParticle(player, tagId, particleId)
+
+    fun canUnlockParticle(tagId: String, particleId: String, player: Player): Boolean =
+        upgradeActions.canUnlockParticle(tagId, particleId, player)
+
+    fun grantParticle(player: Player, tagId: String, particleId: String): Boolean =
+        upgradeActions.grantParticle(player, tagId, particleId)
+
+    fun detachBuff(player: Player, tagId: String, buffId: String, currency: CurrencyType): Boolean =
+        upgradeActions.detachBuff(player, tagId, buffId, currency)
+
+    fun detachParticle(player: Player, tagId: String, particleId: String, currency: CurrencyType): Boolean =
+        upgradeActions.detachParticle(player, tagId, particleId, currency)
+
+    fun selectParticle(player: Player, tagId: String, particleId: String): Boolean =
+        upgradeActions.selectParticle(player, tagId, particleId)
+
+    private fun createDetachScroll(kind: ScrollKind, targetId: String, level: Int): ItemStack? {
+        val scrollKey = config.scrolls.values.firstOrNull { definition ->
+            definition.kind == kind && definition.targetId == targetId
+        }?.key
+        if (scrollKey == null) {
+            return null
+        }
+        val factory = scrollFactory
+        if (factory == null) {
+            return null
+        }
+        return factory(scrollKey, level.coerceAtLeast(1))
     }
 
-    fun isParticleOwned(player: Player, tagId: String, particleId: String): Boolean = particleId in (data(player).tagProgress[tagId]?.ownedParticles ?: emptySet())
-
-    fun isParticleSelected(player: Player, tagId: String, particleId: String): Boolean = data(player).tagProgress[tagId]?.selectedParticleId == particleId
-
-    fun allowedBuffIds(tag: TagDefinition): List<String> = allowedBuffIds(effectiveGroups(tag))
-
-    fun allowedParticleIds(tag: TagDefinition): List<String> = allowedParticleIds(effectiveGroups(tag))
-
-    fun allowedBuffIds(player: Player, titleId: String): List<String> = allowedBuffIds(titleGroups(player, titleId))
-
-    fun allowedParticleIds(player: Player, titleId: String): List<String> = allowedParticleIds(titleGroups(player, titleId))
-
-    private fun allowedBuffIds(groups: List<String>): List<String> {
-        val ids = LinkedHashSet<String>()
-        for (groupId in groups) {
-            config.upgradeGroups[groupId]?.let { ids += it.buffs }
-        }
-        return ids.toList()
-    }
-
-    private fun allowedParticleIds(groups: List<String>): List<String> {
-        val ids = LinkedHashSet<String>()
-        for (groupId in groups) {
-            config.upgradeGroups[groupId]?.let { ids += it.particles }
-        }
-        return ids.toList()
-    }
-
-    private fun effectiveGroups(tag: TagDefinition): List<String> = if (tag.upgradeGroups.isNotEmpty()) tag.upgradeGroups else config.defaultGroupsForRarity(tag.rarity)
-
-    private fun titleGroups(player: Player, titleId: String): List<String> {
-        config.tags[titleId]?.let { return effectiveGroups(it) }
-        return data(player).customTitles[titleId]?.groupId?.takeIf(config::hasUpgradeGroup)?.let(::listOf).orEmpty()
-    }
-
-    fun upgradeBuff(player: Player, tagId: String, buffId: String): Boolean {
-        val buff = config.buffs[buffId]
-        if (buff == null || !isOwned(player, tagId)) {
-            messageService.send(player, "not-owned")
-            return false
-        }
-        if (buffId !in allowedBuffIds(player, tagId)) {
-            messageService.send(player, "condition-failed")
-            return false
-        }
-        val data = data(player)
-        val progress = ensureProgress(tagId, data)
-        val currentLevel = progress.buffLevels.getOrDefault(buffId, 0)
-        if (currentLevel >= buff.maxLevel) {
-            return false
-        }
-        val nextLevel = currentLevel + 1
-        val cost = buff.cost
-        val price = cost.priceForLevel(nextLevel)
-        if (!checkConditions(player, cost.conditions)) {
-            messageService.send(player, "condition-failed")
-            return false
-        }
-        if (!economyBridge.isAvailable(cost.type)) {
-            messageService.send(player, "economy-unavailable", economyBridge.displayName(cost.type))
-            return false
-        }
-        if (economyBridge.balance(player, cost.type) < price || !economyBridge.withdraw(player, cost.type, price)) {
-            messageService.send(player, "not-enough", Support.formatDouble(price), economyBridge.displayName(cost.type))
-            return false
-        }
-        progress.buffLevels[buffId] = nextLevel
-        progress.activeBuffs += buffId
-        repository.saveAsync(data)
-        messageService.send(player, "buff-upgraded", Support.stripColor(buff.display), Support.roman(nextLevel))
-        return true
-    }
-
-    fun canUpgradeBuff(tagId: String, buffId: String, player: Player): Boolean {
-        val buff = config.buffs[buffId] ?: return false
-        if (!isOwned(player, tagId) || buffId !in allowedBuffIds(player, tagId)) return false
-        return buffLevel(player, tagId, buffId) < buff.maxLevel
-    }
-
-    fun grantBuffUpgrade(player: Player, tagId: String, buffId: String): Boolean {
-        if (!canUpgradeBuff(tagId, buffId, player)) {
-            return false
-        }
-        val buff = config.buffs[buffId] ?: return false
-        val data = data(player)
-        val progress = ensureProgress(tagId, data)
-        val nextLevel = progress.buffLevels.getOrDefault(buffId, 0) + 1
-        progress.buffLevels[buffId] = nextLevel
-        progress.activeBuffs += buffId
-        repository.saveAsync(data)
-        messageService.send(player, "buff-upgraded", Support.stripColor(buff.display), Support.roman(nextLevel))
-        return true
-    }
-
-    fun toggleBuff(player: Player, tagId: String, buffId: String): Boolean {
-        val buff = config.buffs[buffId] ?: return false
-        val progress = data(player).tagProgress[tagId] ?: return false
-        if (progress.buffLevels.getOrDefault(buffId, 0) <= 0) {
-            return false
-        }
-        if (!progress.activeBuffs.add(buffId)) {
-            progress.activeBuffs.remove(buffId)
-            messageService.send(player, "buff-disabled", Support.stripColor(buff.display))
-        } else {
-            messageService.send(player, "buff-enabled", Support.stripColor(buff.display))
-        }
-        repository.saveAsync(data(player))
-        return true
-    }
-
-    fun buyParticle(player: Player, tagId: String, particleId: String): Boolean {
-        val particle = config.particles[particleId]
-        if (particle == null || !isOwned(player, tagId)) return false
-        if (particleId !in allowedParticleIds(player, tagId)) {
-            messageService.send(player, "condition-failed")
-            return false
-        }
-        val data = data(player)
-        val progress = ensureProgress(tagId, data)
-        if (particleId in progress.ownedParticles) {
-            return true
-        }
-        val cost = particle.cost
-        val price = cost.priceForLevel(1)
-        if (!checkConditions(player, cost.conditions)) {
-            messageService.send(player, "condition-failed")
-            return false
-        }
-        if (!economyBridge.isAvailable(cost.type)) {
-            messageService.send(player, "economy-unavailable", economyBridge.displayName(cost.type))
-            return false
-        }
-        if (economyBridge.balance(player, cost.type) < price || !economyBridge.withdraw(player, cost.type, price)) {
-            messageService.send(player, "not-enough", Support.formatDouble(price), economyBridge.displayName(cost.type))
-            return false
-        }
-        progress.ownedParticles += particleId
-        if (progress.selectedParticleId.isNullOrBlank()) {
-            progress.selectedParticleId = particleId
-        }
-        repository.saveAsync(data)
-        messageService.send(player, "particle-bought", Support.stripColor(particle.display))
-        return true
-    }
-
-    fun canUnlockParticle(tagId: String, particleId: String, player: Player): Boolean {
-        val particle = config.particles[particleId] ?: return false
-        if (!isOwned(player, tagId) || particle.id !in allowedParticleIds(player, tagId)) return false
-        return particle.id !in (data(player).tagProgress[tagId]?.ownedParticles ?: emptySet())
-    }
-
-    fun grantParticle(player: Player, tagId: String, particleId: String): Boolean {
-        if (!canUnlockParticle(tagId, particleId, player)) {
-            return false
-        }
-        val particle = config.particles[particleId] ?: return false
-        val data = data(player)
-        val progress = ensureProgress(tagId, data)
-        progress.ownedParticles += particleId
-        if (progress.selectedParticleId.isNullOrBlank()) {
-            progress.selectedParticleId = particleId
-        }
-        repository.saveAsync(data)
-        messageService.send(player, "particle-bought", Support.stripColor(particle.display))
-        return true
-    }
-
-    fun selectParticle(player: Player, tagId: String, particleId: String): Boolean {
-        val particle = config.particles[particleId] ?: return false
-        val progress = data(player).tagProgress[tagId] ?: return false
-        if (particleId !in progress.ownedParticles) {
-            return false
-        }
-        if (progress.selectedParticleId == particleId) {
-            progress.selectedParticleId = null
-            messageService.send(player, "particle-cleared")
-        } else {
-            progress.selectedParticleId = particleId
-            messageService.send(player, "particle-selected", Support.stripColor(particle.display))
-        }
-        repository.saveAsync(data(player))
-        return true
-    }
-
-    fun activeBuffs(player: Player): Collection<BuffDefinition> {
-        val titleId = equippedTitleId(player) ?: return emptyList()
-        val progress = data(player).tagProgress[titleId] ?: return emptyList()
-        return progress.activeBuffs.mapNotNull { buffId ->
-            val level = progress.buffLevels.getOrDefault(buffId, 0)
-            if (level <= 0) null else config.buffs[buffId]
-        }
-    }
-
-    fun activeBuffLevel(player: Player, buffId: String): Int {
-        val titleId = equippedTitleId(player) ?: return 0
-        val progress = data(player).tagProgress[titleId] ?: return 0
-        return if (buffId in progress.activeBuffs) progress.buffLevels.getOrDefault(buffId, 0) else 0
-    }
-
-    fun selectedParticle(player: Player): ParticleDefinition? {
-        val titleId = equippedTitleId(player) ?: return null
-        val progress = data(player).tagProgress[titleId] ?: return null
-        return progress.selectedParticleId?.let { config.particles[it] }
-    }
-
-    fun checkConditions(player: Player, conditions: List<String>): Boolean {
-        if (conditions.isEmpty()) return true
-        for (condition in conditions) {
-            val rendered = PlaceholderHook.apply(player, condition)
-            val matcher = conditionPattern.matcher(rendered)
-            if (!matcher.matches()) continue
-            val left = matcher.group(1).trim()
-            val operator = matcher.group(2)
-            val right = matcher.group(3).trim()
-            if (!compare(left, operator, right)) {
-                return false
+    private fun hasInventorySpace(player: Player, item: ItemStack): Boolean {
+        var remaining = item.amount.coerceAtLeast(1)
+        for (stored in player.inventory.storageContents) {
+            if (stored == null || stored.type.isAir) {
+                return true
+            }
+            if (stored.isSimilar(item)) {
+                remaining -= (stored.maxStackSize - stored.amount).coerceAtLeast(0)
+                if (remaining <= 0) {
+                    return true
+                }
             }
         }
-        return true
+        return false
     }
 
-    private fun compare(left: String, operator: String, right: String): Boolean {
-        return try {
-            val leftNumber = left.toDouble()
-            val rightNumber = right.toDouble()
-            when (operator) {
-                "==" -> leftNumber == rightNumber
-                "!=" -> leftNumber != rightNumber
-                ">=" -> leftNumber >= rightNumber
-                "<=" -> leftNumber <= rightNumber
-                ">" -> leftNumber > rightNumber
-                "<" -> leftNumber < rightNumber
-                else -> false
-            }
-        } catch (_: NumberFormatException) {
-            when (operator) {
-                "==" -> left.equals(right, ignoreCase = true)
-                "!=" -> !left.equals(right, ignoreCase = true)
-                else -> false
-            }
-        }
-    }
+    fun activeBuffs(player: Player): Collection<BuffDefinition> = readModel.activeBuffs(player)
 
-    fun activeBuffsDisplay(player: Player): String {
-        val titleId = equippedTitleId(player) ?: return "无"
-        val progress = data(player).tagProgress[titleId] ?: return "无"
-        val values = progress.activeBuffs.mapNotNull { buffId ->
-            val level = progress.buffLevels.getOrDefault(buffId, 0)
-            val buff = config.buffs[buffId] ?: return@mapNotNull null
-            if (level <= 0) null else Support.color(buff.display) + " " + Support.roman(level)
-        }
-        return Support.joinDisplay(values)
-    }
+    fun activeBuffLevel(player: Player, buffId: String): Int = readModel.activeBuffLevel(player, buffId)
 
-    fun particleDisplay(player: Player): String = selectedParticle(player)?.let { Support.color(it.display) } ?: "无"
+    fun selectedParticle(player: Player): ParticleDefinition? = readModel.selectedParticle(player)
 
-    fun particleId(player: Player): String = selectedParticle(player)?.id ?: ""
+    fun checkConditions(player: Player, conditions: List<String>): Boolean = conditionChecker.check(player, conditions)
 
-    fun collectedCount(player: Player): Int {
-        preparePlayer(player, false)
-        return data(player).ownedTags.size + data(player).customTitles.size
-    }
+    fun activeBuffsDisplay(player: Player): String = readModel.activeBuffsDisplay(player)
 
-    fun totalCount(): Int = config.tags.size
+    fun activeBuffsDisplay(uniqueId: UUID): String = readModel.activeBuffsDisplay(uniqueId)
 
-    fun progress(player: Player): String {
-        val total = maxOf(1, totalCount() + data(player).customTitles.size)
-        return Support.formatDouble(collectedCount(player) * 100.0 / total)
-    }
+    fun particleDisplay(player: Player): String = readModel.particleDisplay(player)
 
-    fun tagBuffsDisplay(player: Player, tagId: String): String {
-        val progress = data(player).tagProgress[tagId] ?: return "无"
-        val values = progress.buffLevels.entries.mapNotNull { (buffId, level) ->
-            if (level <= 0) return@mapNotNull null
-            val buff = config.buffs[buffId] ?: return@mapNotNull null
-            Support.color(buff.display) + " " + Support.roman(level)
-        }
-        return Support.joinDisplay(values)
-    }
+    fun particleDisplay(uniqueId: UUID): String = readModel.particleDisplay(uniqueId)
 
-    fun tagFirstBuff(player: Player, tagId: String): String {
-        val progress = data(player).tagProgress[tagId] ?: return "无"
-        for ((buffId, level) in progress.buffLevels) {
-            if (level <= 0) continue
-            val buff = config.buffs[buffId] ?: continue
-            return Support.color(buff.display) + " " + Support.roman(level)
-        }
-        return "无"
-    }
+    fun particleId(player: Player): String = readModel.particleId(player)
 
-    fun tagBuffCount(player: Player, tagId: String): Int = data(player).tagProgress[tagId]?.buffLevels?.values?.count { it > 0 } ?: 0
+    fun particleId(uniqueId: UUID): String = readModel.particleId(uniqueId)
 
-    fun tagParticlesDisplay(player: Player, tagId: String): String {
-        val progress = data(player).tagProgress[tagId] ?: return "无"
-        val values = progress.ownedParticles.mapNotNull { id -> config.particles[id]?.let { Support.color(it.display) } }
-        return Support.joinDisplay(values)
-    }
+    fun collectedCount(player: Player): Int = readModel.collectedCount(player)
 
-    fun tagParticleCount(player: Player, tagId: String): Int = data(player).tagProgress[tagId]?.ownedParticles?.size ?: 0
+    fun collectedCount(uniqueId: UUID): Int = readModel.collectedCount(uniqueId)
 
-    fun tagSelectedParticle(player: Player, tagId: String): String {
-        val id = data(player).tagProgress[tagId]?.selectedParticleId ?: return "无"
-        return config.particles[id]?.let { Support.color(it.display) } ?: "无"
-    }
+    fun totalCount(): Int = readModel.totalCount()
 
-    fun groupLevel(player: Player, groupId: String): String {
-        val titleId = equippedTitleId(player) ?: return "0"
-        if (groupId !in titleGroups(player, titleId)) return "0"
-        val progress = data(player).tagProgress[titleId] ?: return "0"
-        val group = config.upgradeGroups[groupId] ?: return "0"
-        var score = 0
-        group.buffs.forEach { score += progress.buffLevels.getOrDefault(it, 0) }
-        group.particles.forEach { if (it in progress.ownedParticles) score++ }
-        return score.toString()
-    }
+    fun progress(player: Player): String = readModel.progress(player)
 
-    fun groupName(groupId: String): String = config.upgradeGroups[groupId]?.let { Support.color(it.name) } ?: ""
+    fun progress(uniqueId: UUID): String = readModel.progress(uniqueId)
 
-    fun trackLevel(player: Player, trackId: String): String = groupLevel(player, trackId)
+    fun tagBuffsDisplay(player: Player, tagId: String): String = readModel.tagBuffsDisplay(player, tagId)
 
-    fun canUpgrade(player: Player): Boolean {
-        val titleId = equippedTitleId(player) ?: return false
-        val progress = data(player).tagProgress[titleId]
-        val buffIds = allowedBuffIds(player, titleId)
-        val particleIds = allowedParticleIds(player, titleId)
-        if (progress == null) {
-            return buffIds.isNotEmpty() || particleIds.isNotEmpty()
-        }
-        if (buffIds.any { buffId ->
-                val buff = config.buffs[buffId] ?: return@any false
-                progress.buffLevels.getOrDefault(buffId, 0) < buff.maxLevel
-            }
-        ) return true
-        return particleIds.any { it !in progress.ownedParticles }
-    }
+    fun tagBuffsDisplay(uniqueId: UUID, tagId: String): String = readModel.tagBuffsDisplay(uniqueId, tagId)
+
+    fun tagFirstBuff(player: Player, tagId: String): String = readModel.tagFirstBuff(player, tagId)
+
+    fun tagFirstBuff(uniqueId: UUID, tagId: String): String = readModel.tagFirstBuff(uniqueId, tagId)
+
+    fun tagBuffCount(player: Player, tagId: String): Int = readModel.tagBuffCount(player, tagId)
+
+    fun tagBuffCount(uniqueId: UUID, tagId: String): Int = readModel.tagBuffCount(uniqueId, tagId)
+
+    fun tagParticlesDisplay(player: Player, tagId: String): String = readModel.tagParticlesDisplay(player, tagId)
+
+    fun tagParticlesDisplay(uniqueId: UUID, tagId: String): String = readModel.tagParticlesDisplay(uniqueId, tagId)
+
+    fun tagParticleCount(player: Player, tagId: String): Int = readModel.tagParticleCount(player, tagId)
+
+    fun tagParticleCount(uniqueId: UUID, tagId: String): Int = readModel.tagParticleCount(uniqueId, tagId)
+
+    fun tagSelectedParticle(player: Player, tagId: String): String = readModel.tagSelectedParticle(player, tagId)
+
+    fun tagSelectedParticle(uniqueId: UUID, tagId: String): String = readModel.tagSelectedParticle(uniqueId, tagId)
+
+    fun groupLevel(player: Player, groupId: String): String = readModel.groupLevel(player, groupId)
+
+    fun groupLevel(uniqueId: UUID, groupId: String): String = readModel.groupLevel(uniqueId, groupId)
+
+    fun groupName(groupId: String): String = readModel.groupName(groupId)
+
+    fun trackLevel(player: Player, trackId: String): String = readModel.trackLevel(player, trackId)
+
+    fun trackLevel(uniqueId: UUID, trackId: String): String = readModel.trackLevel(uniqueId, trackId)
+
+    fun canUpgrade(player: Player): Boolean = readModel.canUpgrade(player)
+
+    fun canUpgrade(uniqueId: UUID): Boolean = readModel.canUpgrade(uniqueId)
 
     fun points(player: Player): Double = economyBridge.balance(player, CurrencyType.POINTS)
 
 
     fun titleCoins(player: Player): Double = economyBridge.balance(player, CurrencyType.TITLE_COIN)
 
-    fun rarityDisplay(rarity: String): String = Support.color(config.rarityDisplay(rarity))
+    fun titleCoins(uniqueId: UUID): Double = data(uniqueId).titleCoinBalance
 
-    fun updateTagDisplay(tagId: String, display: String): Boolean {
-        val definition = config.tags[tagId] ?: return false
-        definition.display = display
-        config.saveTags()
-        return true
-    }
+    fun rarityDisplay(rarity: String): String = readModel.rarityDisplay(rarity)
 
-    fun updateTagRarity(tagId: String, rarity: String): Boolean {
-        val definition = config.tags[tagId] ?: return false
-        val normalized = rarity.uppercase(Locale.ROOT)
-        if (normalized !in config.allRarities()) return false
-        definition.rarity = normalized
-        definition.upgradeGroups = config.defaultGroupsForRarity(normalized).toMutableList()
-        config.saveTags()
-        return true
-    }
+    fun updateTagDisplay(tagId: String, display: String): Boolean = catalogEditor.updateDisplay(tagId, display)
 
-    fun updateTagGroups(tagId: String, groups: List<String>): Boolean {
-        val definition = config.tags[tagId] ?: return false
-        val valid = groups.map { it.trim() }.filter { it.isNotEmpty() && config.upgradeGroups.containsKey(it) }.distinct()
-        if (valid.isEmpty()) return false
-        definition.upgradeGroups = valid.toMutableList()
-        config.saveTags()
-        return true
-    }
+    fun updateTagRarity(tagId: String, rarity: String): Boolean = catalogEditor.updateRarity(tagId, rarity)
 
-    fun updateTagDefaultUnlocked(tagId: String, value: Boolean): Boolean {
-        val definition = config.tags[tagId] ?: return false
-        definition.defaultUnlocked = value
-        config.saveTags()
-        return true
-    }
+    fun updateTagGroups(tagId: String, groups: List<String>): Boolean = catalogEditor.updateGroups(tagId, groups)
 
-    fun createTag(id: String): Boolean {
-        if (id.isBlank() || config.tags.containsKey(id)) return false
-        config.createTag(id)
-        return true
-    }
+    fun updateTagDefaultUnlocked(tagId: String, value: Boolean): Boolean = catalogEditor.updateDefaultUnlocked(tagId, value)
 
-    fun createTagQuick(tagId: String, permission: String, buffGroup: String, particleGroup: String): Boolean {
-        val normalizedId = tagId.trim()
-        val normalizedPermission = permission.trim()
-        if (normalizedId.isBlank() || normalizedPermission.isBlank()) return false
-        if (config.tags.containsKey(normalizedId)) return false
-        if (!config.hasUpgradeGroup(buffGroup) || !config.hasUpgradeGroup(particleGroup)) return false
+    fun createTag(id: String): Boolean = catalogEditor.create(id)
 
-        val created = config.createTag(normalizedId)
-        created.permission = normalizedPermission
-        created.display = "&#FFFFFF[&#AAAAAA$normalizedId&#FFFFFF]"
-        created.upgradeGroups = linkedSetOf(buffGroup, particleGroup).toMutableList()
-        config.saveTags()
-        return true
-    }
+    fun createTagQuick(tagId: String, permission: String, buffGroup: String, particleGroup: String): Boolean =
+        catalogEditor.createQuick(tagId, permission, buffGroup, particleGroup)
 
-    fun deleteTag(tagId: String): Boolean {
-        if (!config.tags.containsKey(tagId)) return false
-        config.deleteTag(tagId)
-        for (online in Bukkit.getOnlinePlayers()) {
-            val data = data(online)
-            data.ownedTags.remove(tagId)
-            data.tagProgress.remove(tagId)
-            if (data.equippedTagId == tagId) {
-                data.equippedTagId = null
-                enforceDefaultTag(online, data)
-            }
-            repository.saveAsync(data)
-        }
-        return true
-    }
-}
-
-private object PlaceholderHook {
-    private var available = true
-
-    fun apply(player: Player, text: String): String {
-        if (!available || Bukkit.getPluginManager().getPlugin("PlaceholderAPI")?.isEnabled != true) {
-            return text
-        }
-        return try {
-            val clazz = Class.forName("me.clip.placeholderapi.PlaceholderAPI")
-            val method = clazz.getMethod("setPlaceholders", org.bukkit.entity.Player::class.java, String::class.java)
-            method.invoke(null, player, text) as? String ?: text
-        } catch (_: Throwable) {
-            available = false
-            text
-        }
-    }
+    fun deleteTag(tagId: String): Boolean = catalogEditor.delete(tagId)
 }

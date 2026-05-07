@@ -13,11 +13,19 @@ storage:
     username: "root"
     password: "change-me"
     table: "uptags_player_data"
-  pg:
-    jdbc-url: "jdbc:postgresql://127.0.0.1:5432/minecraft"
-    username: "postgres"
-    password: "change-me"
-    table: "uptags_player_data"
+
+detach:
+  enabled: true
+  buff:
+    money:
+      amount: 100
+    points:
+      amount: 100
+  particle:
+    money:
+      amount: 100
+    points:
+      amount: 100
 
 sync:
   server-id: "server-1"

@@ -3,6 +3,7 @@ package cn.aing.uptags.listener
 import cn.aing.uptags.repository.PlayerDataRepository
 import cn.aing.uptags.service.CustomTitleService
 import cn.aing.uptags.service.EffectService
+import cn.aing.uptags.service.PlayerNameService
 import cn.aing.uptags.service.TagService
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
@@ -14,9 +15,11 @@ class PlayerListener(
     private val customTitleService: CustomTitleService,
     private val repository: PlayerDataRepository,
     private val effectService: EffectService,
+    private val playerNameService: PlayerNameService,
 ) : Listener {
     @EventHandler
     fun onJoin(event: PlayerJoinEvent) {
+        playerNameService.remember(event.player)
         tagService.preparePlayer(event.player, true)
         customTitleService.preparePlayer(event.player)
         effectService.startPlayer(event.player)

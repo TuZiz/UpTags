@@ -15,8 +15,141 @@ commands:
     aliases: [tag, uptags]
 permissions:
   uptags.use:
+    description: Allow players to use normal UpTags commands and menus.
     default: true
   uptags.admin:
+    description: Full access to all UpTags admin operations.
     default: op
+    children:
+      uptags.reload: true
+      uptags.create: true
+      uptags.admin.give: true
+      uptags.admin.take: true
+      uptags.admin.scroll.give: true
+      uptags.admin.tag.*: true
+      uptags.admin.manage: true
+      uptags.admin.info: true
+      uptags.admin.equip: true
+      uptags.admin.unequip: true
+      uptags.admin.coin.*: true
+      uptags.admin.buff.*: true
+      uptags.admin.particle.*: true
+      uptags.admin.custom.*: true
   uptags.reload:
+    description: Reload UpTags configuration.
     default: op
+  uptags.create:
+    description: Quickly create configured tags.
+    default: op
+  uptags.admin.give:
+    description: Give a configured tag to a player.
+    default: false
+  uptags.admin.take:
+    description: Take a configured tag from a player.
+    default: false
+  uptags.admin.scroll.give:
+    description: Give scroll items to online players.
+    default: false
+  uptags.admin.tag.*:
+    description: Manage configured tags.
+    default: false
+    children:
+      uptags.admin.tag.create: true
+      uptags.admin.tag.delete: true
+      uptags.admin.tag.edit: true
+      uptags.admin.tag.setdisplay: true
+      uptags.admin.tag.setrarity: true
+      uptags.admin.tag.setgroups: true
+      uptags.admin.tag.setdefault: true
+  uptags.admin.tag.create:
+    default: false
+  uptags.admin.tag.delete:
+    default: false
+  uptags.admin.tag.edit:
+    default: false
+    children:
+      uptags.admin.tag.setdisplay: true
+      uptags.admin.tag.setrarity: true
+      uptags.admin.tag.setgroups: true
+      uptags.admin.tag.setdefault: true
+  uptags.admin.tag.setdisplay:
+    default: false
+  uptags.admin.tag.setrarity:
+    default: false
+  uptags.admin.tag.setgroups:
+    default: false
+  uptags.admin.tag.setdefault:
+    default: false
+  uptags.admin.info:
+    description: View player UpTags data.
+    default: false
+  uptags.admin.manage:
+    description: Open the player title management GUI.
+    default: false
+  uptags.admin.equip:
+    description: Equip a title for a player.
+    default: false
+  uptags.admin.unequip:
+    description: Unequip a player title.
+    default: false
+  uptags.admin.coin.*:
+    description: Manage internal title coins.
+    default: false
+    children:
+      uptags.admin.coin.add: true
+      uptags.admin.coin.take: true
+      uptags.admin.coin.set: true
+  uptags.admin.coin.add:
+    default: false
+  uptags.admin.coin.take:
+    default: false
+  uptags.admin.coin.set:
+    default: false
+  uptags.admin.buff.*:
+    description: Manage player title buffs.
+    default: false
+    children:
+      uptags.admin.buff.set: true
+      uptags.admin.buff.enable: true
+      uptags.admin.buff.disable: true
+      uptags.admin.buff.detach: true
+  uptags.admin.buff.set:
+    default: false
+  uptags.admin.buff.enable:
+    default: false
+  uptags.admin.buff.disable:
+    default: false
+  uptags.admin.buff.detach:
+    default: false
+  uptags.admin.particle.*:
+    description: Manage player title particles.
+    default: false
+    children:
+      uptags.admin.particle.give: true
+      uptags.admin.particle.take: true
+      uptags.admin.particle.select: true
+      uptags.admin.particle.clear: true
+      uptags.admin.particle.detach: true
+  uptags.admin.particle.give:
+    default: false
+  uptags.admin.particle.take:
+    default: false
+  uptags.admin.particle.select:
+    default: false
+  uptags.admin.particle.clear:
+    default: false
+  uptags.admin.particle.detach:
+    default: false
+  uptags.admin.custom.*:
+    description: Manage player custom titles.
+    default: false
+    children:
+      uptags.admin.custom.list: true
+      uptags.admin.custom.equip: true
+      uptags.admin.custom.delete: true
+  uptags.admin.custom.list:
+    default: false
+  uptags.admin.custom.equip:
+    default: false
+  uptags.admin.custom.delete:
+    default: false

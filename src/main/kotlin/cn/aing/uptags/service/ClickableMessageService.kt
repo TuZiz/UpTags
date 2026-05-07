@@ -134,6 +134,7 @@ class ClickableMessageService {
         pageOffset: Int,
         targetCount: Int,
     ) {
+        val decoratedTitleText = Support.decorateCustomTitle(titleText)
         player.spigot().sendMessage(
             *legacyComponents("&#A7F3D0手动组合: &#E2E8F0已选 &#FDE047${selectedColors.size}&#64748B/&#FDE047$targetCount &#94A3B8| 第 &#FDE047${pageIndex + 1}&#64748B/&#FDE047$totalPages &#94A3B8页"),
         )
@@ -149,7 +150,7 @@ class ClickableMessageService {
         } else {
             val choices = pageColors.mapIndexedNotNull { index, color ->
                 val normalized = Support.normalizeHex(color) ?: return@mapIndexedNotNull null
-                val previewText = Support.renderPaletteText(titleText, selectedColors + normalized)
+                val previewText = Support.renderPaletteText(decoratedTitleText, selectedColors + normalized)
                 previewChoiceButton(
                     previewText,
                     "pick_${pageOffset + index}",

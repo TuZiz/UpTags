@@ -24,18 +24,22 @@ class ScrollService(
     private val scrollKeyKey = NamespacedKey(plugin, "scroll_key")
     private val scrollKindKey = NamespacedKey(plugin, "scroll_kind")
     private val scrollTargetKey = NamespacedKey(plugin, "scroll_target")
+    private val scrollLevelKey = NamespacedKey(plugin, "scroll_level")
 
-    fun createScroll(scrollKey: String, amount: Int): ItemStack {
+    fun createScroll(scrollKey: String, amount: Int, level: Int = 1): ItemStack {
         val definition = config.scrolls[scrollKey] ?: return ItemStack(Material.PAPER)
-        val item = ItemStack(Support.material(definition.material, if (definition.kind == ScrollKind.BUFF) Material.ENCHANTED_BOOK else Material.NETHER_STAR), amount.coerceAtLeast(1))
+        val scrollLevel = level.coerceAtLeast(1)
+        val fallbackMaterial = if (definition.kind == ScrollKind.BUFF) Material.ENCHANTED_BOOK else Material.NETHER_STAR
+        val item = ItemStack(Support.material(definition.material, fallbackMaterial), amount.coerceAtLeast(1))
         val meta = item.itemMeta ?: return item
         val targetName = displayName(definition.kind, definition.targetId)
-        meta.setDisplayName(Support.noItalic(Support.apply(definition.name, mapOf("target_name" to targetName, "target_id" to definition.targetId, "scroll_key" to definition.key))))
+        meta.setDisplayName(Support.noItalic(Support.apply(definition.name, scrollPlaceholders(definition, targetName, scrollLevel))))
         val lore = if (definition.lore.isEmpty()) defaultLore(definition.kind, targetName, definition.targetId) else definition.lore
-        meta.lore = Support.noItalicLines(replaceLore(lore, definition, targetName))
+        meta.lore = Support.noItalicLines(replaceLore(lore, definition, targetName, scrollLevel))
         meta.persistentDataContainer.set(scrollKeyKey, PersistentDataType.STRING, definition.key)
         meta.persistentDataContainer.set(scrollKindKey, PersistentDataType.STRING, definition.kind.name)
         meta.persistentDataContainer.set(scrollTargetKey, PersistentDataType.STRING, definition.targetId)
+        meta.persistentDataContainer.set(scrollLevelKey, PersistentDataType.INTEGER, scrollLevel)
         item.itemMeta = meta
         return item
     }
@@ -47,10 +51,11 @@ class ScrollService(
         val scrollKey = container.get(scrollKeyKey, PersistentDataType.STRING)
         val kind = ScrollKind.from(container.get(scrollKindKey, PersistentDataType.STRING))
         val targetId = container.get(scrollTargetKey, PersistentDataType.STRING)
+        val level = container.get(scrollLevelKey, PersistentDataType.INTEGER)?.coerceAtLeast(1) ?: 1
         if (scrollKey.isNullOrBlank() || kind == null || targetId.isNullOrBlank()) {
             return null
         }
-        return ScrollSelectionContext(scrollKey, kind, targetId, hand)
+        return ScrollSelectionContext(scrollKey, kind, targetId, hand, level)
     }
 
     fun isValidScrollKey(scrollKey: String): Boolean {
@@ -63,7 +68,7 @@ class ScrollService(
 
     fun eligibleTitles(player: Player, context: ScrollSelectionContext): List<TitleEntry> = tagService.visibleTitles(player).filter { title ->
         title.owned && when (context.kind) {
-            ScrollKind.BUFF -> tagService.canUpgradeBuff(title.id, context.targetId, player)
+            ScrollKind.BUFF -> tagService.canUpgradeBuff(title.id, context.targetId, player, context.level)
             ScrollKind.PARTICLE -> tagService.canUnlockParticle(title.id, context.targetId, player)
         }
     }
@@ -71,12 +76,17 @@ class ScrollService(
     fun apply(player: Player, context: ScrollSelectionContext, tagId: String): Boolean {
         val held = heldItem(player, context.hand)
         val latest = parse(held, context.hand)
-        if (latest == null || latest.kind != context.kind || latest.targetId != context.targetId) {
+        if (latest == null ||
+            latest.scrollKey != context.scrollKey ||
+            latest.kind != context.kind ||
+            latest.targetId != context.targetId ||
+            latest.level != context.level
+        ) {
             messageService.send(player, "scroll-item-missing")
             return false
         }
         val applied = when (context.kind) {
-            ScrollKind.BUFF -> tagService.grantBuffUpgrade(player, tagId, context.targetId)
+            ScrollKind.BUFF -> tagService.grantBuffUpgrade(player, tagId, context.targetId, context.level)
             ScrollKind.PARTICLE -> tagService.grantParticle(player, tagId, context.targetId)
         }
         if (!applied) {
@@ -104,19 +114,44 @@ class ScrollService(
         "&7目标类型: &f${if (kind == ScrollKind.BUFF) "Buff" else "粒子"}",
         "&7目标内容: &f$targetName &8($targetId)",
         "&7右键后选择要生效的称号",
-        "&8成功后会消耗 1 张升级卷",
+        "&8成功后会消耗 1 张卷轴",
     )
 
     private fun replaceLore(source: List<String>, definition: ScrollDefinition, targetName: String): List<String> = source.map { line ->
-        Support.apply(line, mapOf(
-            "target_name" to targetName,
-            "target_id" to definition.targetId,
-            "scroll_key" to definition.key,
-            "scroll_type" to if (definition.kind == ScrollKind.BUFF) "Buff" else "粒子",
-        ))
+        Support.apply(
+            line,
+            mapOf(
+                "target_name" to targetName,
+                "target_id" to definition.targetId,
+                "scroll_key" to definition.key,
+                "scroll_type" to if (definition.kind == ScrollKind.BUFF) "Buff" else "粒子",
+            ),
+        )
     }
 
-    private fun heldItem(player: Player, hand: EquipmentSlot): ItemStack? = if (hand == EquipmentSlot.OFF_HAND) player.inventory.itemInOffHand else player.inventory.itemInMainHand
+    private fun replaceLore(source: List<String>, definition: ScrollDefinition, targetName: String, level: Int): List<String> = source.map { line ->
+        Support.apply(line, scrollPlaceholders(definition, targetName, level))
+    }.let { rendered ->
+        if (source.any { it.contains("scroll_level", ignoreCase = true) }) {
+            rendered
+        } else {
+            rendered + Support.apply("&7卷轴等级: &f%scroll_level%", scrollPlaceholders(definition, targetName, level))
+        }
+    }
+
+    private fun scrollPlaceholders(definition: ScrollDefinition, targetName: String, level: Int): Map<String, String> = mapOf(
+        "target_name" to targetName,
+        "target_id" to definition.targetId,
+        "scroll_key" to definition.key,
+        "scroll_type" to if (definition.kind == ScrollKind.BUFF) "Buff" else "粒子",
+        "scroll_level" to level.coerceAtLeast(1).toString(),
+    )
+
+    private fun heldItem(player: Player, hand: EquipmentSlot): ItemStack? = if (hand == EquipmentSlot.OFF_HAND) {
+        player.inventory.itemInOffHand
+    } else {
+        player.inventory.itemInMainHand
+    }
 
     private fun consume(player: Player, hand: EquipmentSlot) {
         val inventory = player.inventory

@@ -46,6 +46,18 @@ class YamlPlayerDataStore(
         }
     }
 
+    override fun loadAll(): List<PlayerDataSnapshot> {
+        if (!rootDir.exists()) {
+            return emptyList()
+        }
+        return rootDir.listFiles { file -> file.isFile && file.extension.equals("yml", ignoreCase = true) }
+            .orEmpty()
+            .mapNotNull { file ->
+                val uniqueId = runCatching { UUID.fromString(file.nameWithoutExtension) }.getOrNull() ?: return@mapNotNull null
+                load(uniqueId)
+            }
+    }
+
     override fun loadVersions(uniqueIds: Collection<UUID>): Map<UUID, Long> {
         val versions = LinkedHashMap<UUID, Long>()
         uniqueIds.forEach { uniqueId ->

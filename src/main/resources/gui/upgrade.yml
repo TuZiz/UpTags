@@ -5,7 +5,7 @@ GuiPlain:
   - "#@@@@@@@#"
   - "#@@@@@@@#"
   - "#@@@@@@@#"
-  - "L###B###N"
+  - "L##D#B##N"
 GuiKey:
   "@":
     IconFunction: "item"
@@ -19,6 +19,16 @@ GuiKey:
     IconFunction: "back"
     Material: "BARRIER"
     Name: "&#F87171返回仓库"
+  "D":
+    IconFunction: "detach"
+    Material: "ANVIL"
+    Name: "&#FDE68A进入拆卸中心"
+    Lore:
+      - "&#E2E8F0可拆 Buff: &#FDE047%detach_buff_count%"
+      - "&#E2E8F0可拆粒子: &#FDE047%detach_particle_count%"
+      - "&#E2E8F0当前可拆总数: &#FDE047%detach_total_count%"
+      - ""
+      - "&#A7F3D0%detach_entry_hint%"
   "L":
     IconFunction: "last"
     has:
@@ -43,12 +53,13 @@ templates:
     lore:
       - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
       - " &#E2E8F0状态: &#F8FAFC%entry_status% &#64748B| &#F8FAFC%entry_equip_state%"
-      - " &#E2E8F0下一阶强化:"
+      - " &#E2E8F0下一阶段强化:"
       - " %entry_buffs%"
       - ""
       - " &#E2E8F0消耗: &#FDE047%entry_points% %entry_currency%"
       - " &#A7F3D0%entry_action%"
       - " &#FDBA74%entry_right_action%"
+      - " &#FDE68A%entry_detach_action%"
       - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
     lore-maxed:
       - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -57,6 +68,7 @@ templates:
       - " %entry_buffs%"
       - ""
       - " &#FDBA74%entry_right_action%"
+      - " &#FDE68A%entry_detach_action%"
       - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
 
   particle:
@@ -70,6 +82,7 @@ templates:
       - " &#E2E8F0消耗: &#FDE047%entry_points% %entry_currency%"
       - " &#A7F3D0%entry_action%"
       - " &#FDBA74%entry_right_action%"
+      - " &#FDE68A%entry_detach_action%"
       - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
     lore-maxed:
       - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -77,4 +90,43 @@ templates:
       - " &#E2E8F0粒子效果: &#F8FAFC%entry_display%"
       - ""
       - " &#FDBA74%entry_right_action%"
+      - " &#FDE68A%entry_detach_action%"
+      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
+
+  admin-buff:
+    material: "ENCHANTED_BOOK"
+    name: "&#60A5FA管理 Buff &#F8FAFC%entry_display% &#E2E8F0Lv.&#FDE047%entry_current%&#94A3B8/&#FDE047%entry_max%"
+    lore:
+      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
+      - " &#E2E8F0目标玩家: &#FDE047%target_name%"
+      - " &#E2E8F0状态: &#F8FAFC%entry_status% &#64748B| &#F8FAFC%entry_equip_state%"
+      - " &#E2E8F0当前效果: %entry_buffs%"
+      - ""
+      - " &#A7F3D0%entry_action%"
+      - " &#FDBA74%entry_right_action%"
+      - " &#FDE68A%entry_detach_action%"
+      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
+    lore-maxed:
+      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
+      - " &#E2E8F0目标玩家: &#FDE047%target_name%"
+      - " &#E2E8F0状态: &#F8FAFC%entry_status% &#64748B| &#F8FAFC%entry_equip_state%"
+      - " &#E2E8F0当前效果: %entry_buffs%"
+      - ""
+      - " &#A7F3D0%entry_action%"
+      - " &#FDBA74%entry_right_action%"
+      - " &#FDE68A%entry_detach_action%"
+      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
+
+  admin-particle:
+    material: "NETHER_STAR"
+    name: "&#60A5FA管理粒子 &#F8FAFC%entry_display%"
+    lore:
+      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
+      - " &#E2E8F0目标玩家: &#FDE047%target_name%"
+      - " &#E2E8F0状态: &#F8FAFC%entry_status% &#64748B| &#F8FAFC%entry_equip_state%"
+      - " &#E2E8F0粒子效果: &#F8FAFC%entry_display%"
+      - ""
+      - " &#A7F3D0%entry_action%"
+      - " &#FDBA74%entry_right_action%"
+      - " &#FDE68A%entry_detach_action%"
       - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"

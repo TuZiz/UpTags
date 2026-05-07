@@ -47,6 +47,23 @@ data class PluginSettings(
     val forcedTagId: String,
 )
 
+data class DetachSettings(
+    val enabled: Boolean,
+    val buff: DetachCostSettings,
+    val particle: DetachCostSettings,
+)
+
+data class DetachCostSettings(
+    val money: Double,
+    val points: Double,
+) {
+    fun amount(type: CurrencyType): Double? = when (type) {
+        CurrencyType.MONEY -> money
+        CurrencyType.POINTS -> points
+        CurrencyType.TITLE_COIN -> null
+    }
+}
+
 data class TagDefinition(
     val id: String,
     var display: String,

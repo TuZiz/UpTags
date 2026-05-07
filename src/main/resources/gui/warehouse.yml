@@ -46,28 +46,69 @@ GuiKey:
 templates:
   tag-owned:
     material: "NAME_TAG"
-    name: "&#C4B5FD✦ &#F8FAFC%tag_display% &#C4B5FD✦"
+    name: "&#C4B5FD已拥有 &#F8FAFC%tag_display%"
     lore:
       - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
       - "%tag_description%"
       - ""
-      - " &#93C5FD◆ &#E2E8F0稀有度: %tag_rarity%"
-      - " &#FDE047◆ &#E2E8F0已激活属性: &#FDE047%tag_buff_count%  &#A78BFA◆ &#E2E8F0已激活粒子: &#A78BFA%tag_particle_count%"
-      - " &#A7F3D0◆ &#E2E8F0Buff: &#A7F3D0%tag_buffs%"
-      - " &#C4B5FD◆ &#E2E8F0粒子: &#C4B5FD%tag_particles%"
+      - " &#93C5FD稀有度: &#F8FAFC%tag_rarity%"
+      - " &#FDE047Buff 数量: &#F8FAFC%tag_buff_count%"
+      - " &#A78BFA粒子数量: &#F8FAFC%tag_particle_count%"
+      - " &#A7F3D0Buff 列表: &#F8FAFC%tag_buffs%"
+      - " &#C4B5FD粒子列表: &#F8FAFC%tag_particles%"
       - ""
-      - " &#A7F3D0▶ 左键佩戴这个称号"
-      - " &#FDBA74▶ 右键打开强化 / 升级卷使用页"
+      - " &#A7F3D0左键佩戴这个称号"
+      - " &#FDBA74右键打开强化 / 卷轴使用页"
       - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
 
   tag-locked:
     material: "BARRIER"
-    name: "&#94A3B8✦ %tag_display% &#64748B(未解锁)"
+    name: "&#94A3B8未解锁 &#F8FAFC%tag_display%"
     lore:
       - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
       - "%tag_description%"
       - ""
-      - " &#E2E8F0◆ 稀有度: %tag_rarity%"
-      - " &#FECACA◆ 拥有状态: &#F87171未获得"
-      - " &#94A3B8◆ 获取后才能升级 Buff 与粒子"
+      - " &#E2E8F0稀有度: &#F8FAFC%tag_rarity%"
+      - " &#F87171当前状态: 未获得"
+      - " &#94A3B8获取后才能升级 Buff 与粒子"
       - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
+
+  admin-tag-owned:
+    material: "NAME_TAG"
+    name: "&#60A5FA管理 &#F8FAFC%tag_display%"
+    lore:
+      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
+      - " &#E2E8F0目标玩家: &#FDE047%target_name%"
+      - " &#E2E8F0当前状态: &#F8FAFC%tag_state%"
+      - "%tag_description%"
+      - ""
+      - " &#93C5FD稀有度: &#F8FAFC%tag_rarity%"
+      - " &#FDE047Buff 数量: &#F8FAFC%tag_buff_count%"
+      - " &#A78BFA粒子数量: &#F8FAFC%tag_particle_count%"
+      - " &#A7F3D0Buff 列表: &#F8FAFC%tag_buffs%"
+      - " &#C4B5FD粒子列表: &#F8FAFC%tag_particles%"
+      - ""
+      - " &#A7F3D0%admin_left_action%"
+      - " &#FDBA74%admin_right_action%"
+      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
+
+  admin-tag-locked:
+    material: "BARRIER"
+    name: "&#94A3B8未授予 &#F8FAFC%tag_display%"
+    lore:
+      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
+      - " &#E2E8F0目标玩家: &#FDE047%target_name%"
+      - "%tag_description%"
+      - ""
+      - " &#E2E8F0稀有度: &#F8FAFC%tag_rarity%"
+      - " &#F87171当前状态: %tag_state%"
+      - " &#A7F3D0%admin_left_action%"
+      - " &#94A3B8%admin_right_action%"
+      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
+
+  admin-unequip-button:
+    material: "SHEARS"
+    name: "&#FDE68A取消目标佩戴"
+    lore:
+      - "&#E2E8F0管理员模式下此按钮用于取消目标当前称号。"
+      - "&#A7F3D0点击后立即保存目标数据。"

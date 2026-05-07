@@ -1,8 +1,10 @@
 package cn.aing.uptags.listener
 
+import cn.aing.uptags.compat.PlatformScheduler
 import cn.aing.uptags.config.MessageService
 import cn.aing.uptags.gui.MenuService
 import cn.aing.uptags.service.ScrollService
+import org.bukkit.event.Event
 import org.bukkit.event.EventHandler
 import org.bukkit.event.EventPriority
 import org.bukkit.event.Listener
@@ -14,8 +16,9 @@ class ScrollListener(
     private val menuService: MenuService,
     private val scrollService: ScrollService,
     private val messageService: MessageService,
+    private val scheduler: PlatformScheduler,
 ) : Listener {
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST)
     fun onInteract(event: PlayerInteractEvent) {
         if (event.hand != EquipmentSlot.HAND) {
             return
@@ -23,12 +26,21 @@ class ScrollListener(
         if (event.action != Action.RIGHT_CLICK_AIR && event.action != Action.RIGHT_CLICK_BLOCK) {
             return
         }
-        val context = scrollService.parse(event.item, event.hand ?: EquipmentSlot.HAND) ?: return
+
+        val context = scrollService.parse(event.item ?: event.player.inventory.itemInMainHand, EquipmentSlot.HAND) ?: return
+        event.setUseInteractedBlock(Event.Result.DENY)
+        event.setUseItemInHand(Event.Result.DENY)
         event.isCancelled = true
+
         if (!scrollService.isValidScrollKey(context.scrollKey)) {
             messageService.send(event.player, "scroll-invalid-item")
             return
         }
-        menuService.openScrollSelection(event.player, context, 0)
+
+        scheduler.runPlayer(event.player) {
+            if (event.player.isOnline) {
+                menuService.openScrollSelection(event.player, context, 0)
+            }
+        }
     }
 }

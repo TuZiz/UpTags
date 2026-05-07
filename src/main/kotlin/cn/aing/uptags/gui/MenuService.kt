@@ -1,33 +1,33 @@
-﻿package cn.aing.uptags.gui
+package cn.aing.uptags.gui
 
 import cn.aing.uptags.Support
+import cn.aing.uptags.command.AdminAccess
 import cn.aing.uptags.config.ConfigRegistry
 import cn.aing.uptags.config.MessageService
 import cn.aing.uptags.model.config.CurrencyType
 import cn.aing.uptags.model.config.GuiLayout
 import cn.aing.uptags.model.config.GuiTemplate
-import cn.aing.uptags.model.config.TagDefinition
-import cn.aing.uptags.model.runtime.ScrollKind
+import cn.aing.uptags.model.config.ItemTemplate
+import cn.aing.uptags.model.runtime.TitleEntry
 import cn.aing.uptags.model.runtime.ScrollSelectionContext
 import cn.aing.uptags.model.runtime.TitleKind
+import cn.aing.uptags.service.AdminActionResult
 import cn.aing.uptags.service.ScrollService
 import cn.aing.uptags.service.ShopService
 import cn.aing.uptags.service.TagService
 import cn.aing.uptags.service.CustomTitleService
 import cn.aing.uptags.service.ClickableMessageService
-import cn.aing.uptags.service.CustomTitleStage
+import cn.aing.uptags.service.PlayerNameService
 import org.bukkit.Bukkit
 import org.bukkit.Material
+import org.bukkit.OfflinePlayer
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.inventory.InventoryClickEvent
-import org.bukkit.inventory.Inventory
-import org.bukkit.inventory.InventoryHolder
 import org.bukkit.inventory.ItemStack
 import org.bukkit.plugin.java.JavaPlugin
-import java.util.LinkedHashMap
-import java.util.LinkedHashSet
+import java.util.UUID
 
 class MenuService(
     private val plugin: JavaPlugin,
@@ -38,7 +38,43 @@ class MenuService(
     private val messageService: MessageService,
     private val customTitleService: CustomTitleService,
     private val clickableMessageService: ClickableMessageService,
+    private val playerNameService: PlayerNameService,
 ) : Listener {
+    private val entryFactory = MenuEntryFactory(config, tagService, ::currencyName)
+    private val customMenus = CustomTitleMenuService(
+        config,
+        shopService,
+        messageService,
+        customTitleService,
+        clickableMessageService,
+        ::currencyName,
+        ::openShop,
+    )
+    private val shopMenus = ShopMenuService(
+        config,
+        shopService,
+        ::currencyName,
+        ::normalizedPage,
+        ::createSession,
+        ::fillStatic,
+    )
+    private val effectMenus = EffectMenuService(
+        config,
+        tagService,
+        messageService,
+        entryFactory,
+        ::normalizedPage,
+        ::createSession,
+        ::fillStatic,
+    )
+    private val scrollSelectionMenus = ScrollSelectionMenuService(
+        config,
+        scrollService,
+        messageService,
+        ::normalizedPage,
+        ::createSession,
+        ::fillStatic,
+    )
 
     fun openWarehouse(player: Player, page: Int) {
         val layout = config.warehouseLayout
@@ -85,789 +121,113 @@ class MenuService(
         player.openInventory(session.inventory)
     }
 
-    fun openShop(player: Player, page: Int) {
-        val layout = config.shopLayout
-        val products = shopService.visibleProducts(player)
-        val session = createSession(MenuType.SHOP, layout, page, null, null)
-        fillStatic(player, layout, session, page, products.size)
-        val slots = layout.entrySlots()
-        val start = page * slots.size
-        for (offset in slots.indices) {
-            val index = start + offset
-            if (index >= products.size) continue
-            val product = products[index]
-            val template = layout.templates["product-available"]
-            val placeholders = mapOf(
-                "product_name" to product.icon.name,
-                "product_lore" to product.icon.lore.joinToString("\n"),
-                "product_price" to Support.formatDouble(product.cost.priceForLevel(1)),
-                "product_currency" to currencyName(product.cost.type),
-            )
-            val slot = slots[offset]
-            session.inventory.setItem(
-                slot,
-                if (template == null) ItemStack(Material.PAPER) else Support.createItem(product.icon.material, template.name, template.lore, placeholders, false),
-            )
-            session.actions[slot] = {
-                if (product.type.name == "CUSTOM") {
-                    if (shopService.startCustomFlow(player, product.id)) {
-                        player.closeInventory()
-                    }
-                } else if (shopService.buy(player, product.id)) {
-                    openShop(player, page)
-                }
-            }
-        }
-        player.openInventory(session.inventory)
+    fun openAdminWarehouse(admin: Player, target: OfflinePlayer, page: Int) {
+        openAdminWarehouse(admin, target.uniqueId, playerNameService.label(target), page)
     }
 
-    fun openUpgrade(player: Player, tagId: String, page: Int) {
-        val tag = upgradeViewTag(player, tagId) ?: run {
-            messageService.send(player, "tag-not-found", tagId)
-            return
-        }
-        val layout = config.upgradeLayout
-        val entries = buildUpgradeEntries(player, tag)
-        val session = createSession(MenuType.UPGRADE, layout, page, tagId, null)
-        fillStatic(player, layout, session, page, entries.size)
-        val slots = layout.entrySlots()
-        val start = page * slots.size
-        for (offset in slots.indices) {
-            val index = start + offset
-            if (index >= entries.size) continue
-            val entry = entries[index]
-            val slot = slots[offset]
-            session.inventory.setItem(slot, entry.item)
-            session.actions[slot] = { click ->
-                when (entry.kind) {
-                    EntryKind.BUFF -> {
-                        if (click.isLeftClick) tagService.upgradeBuff(player, tagId, entry.id) else if (click.isRightClick) tagService.toggleBuff(player, tagId, entry.id)
-                        openUpgrade(player, tagId, page)
-                    }
-                    EntryKind.PARTICLE -> {
-                        if (click.isLeftClick) tagService.buyParticle(player, tagId, entry.id) else if (click.isRightClick) tagService.selectParticle(player, tagId, entry.id)
-                        openUpgrade(player, tagId, page)
-                    }
-                }
-            }
-        }
-        player.openInventory(session.inventory)
-    }
-
-    fun openScrollSelection(player: Player, context: ScrollSelectionContext, page: Int) {
+    private fun openAdminWarehouse(admin: Player, targetId: UUID, targetName: String, page: Int) {
         val layout = config.warehouseLayout
-        val titles = scrollService.eligibleTitles(player, context)
-        if (titles.isEmpty()) {
-            messageService.send(player, "scroll-no-eligible-tags")
-            return
-        }
+        val titles = tagService.visibleTitles(targetId)
+        val currentPage = normalizedPage(layout, page, titles.size)
         val session = createSession(
-            MenuType.SCROLL_SELECT,
+            MenuType.WAREHOUSE,
             layout,
-            page,
+            currentPage,
             null,
-            context,
-            "&0鍗囩骇鍗?- 閫夋嫨绉板彿",
+            null,
+            title = "&#60A5FA$targetName &#C4B5FD称号管理",
+            adminTargetId = targetId,
+            adminTargetName = targetName,
         )
-        fillStatic(player, layout, session, page, titles.size)
+        fillStatic(admin, layout, session, currentPage, titles.size)
         val slots = layout.entrySlots()
-        val start = page * slots.size
+        val start = currentPage * slots.size
+        val currentTitleId = tagService.currentTagId(targetId)
         for (offset in slots.indices) {
             val index = start + offset
             if (index >= titles.size) continue
             val title = titles[index]
-            val tag = title
+            val owned = title.owned
+            val template = layout.templates[if (owned) "admin-tag-owned" else "admin-tag-locked"]
+                ?: defaultAdminWarehouseTemplate(owned)
+            val placeholders = adminTitlePlaceholders(targetId, targetName, title)
             val slot = slots[offset]
-            val targetName = scrollService.displayName(context.kind, context.targetId)
             session.inventory.setItem(
                 slot,
-                Support.createItem(
-                    "NAME_TAG",
-                    "&f${title.display}",
-                    listOf(
-                        "&7称号名称: &f${Support.stripColor(tag.display)}",
-                        "&7卷轴类型: &f${if (context.kind == ScrollKind.BUFF) "Buff 升级卷" else "粒子解锁卷"}",
-                        "&7目标内容: &f$targetName",
-                        "&e左键对这个称号使用升级卷",
-                    ),
-                ),
+                templateItem(template, placeholders, currentTitleId == title.id),
             )
-            session.actions[slot] = {
-                if (scrollService.apply(player, context, tag.id)) {
-                    player.closeInventory()
+            if (owned) {
+                session.actions[slot] = action@{ click ->
+                    if (click.isLeftClick) {
+                        if (!requireAdminAction(admin, AdminAccess.EQUIP)) return@action
+                        dispatchAdminResult(admin, tagService.adminEquipTitle(targetId, title.id))
+                        openAdminWarehouse(admin, targetId, targetName, currentPage)
+                    } else if (click.isRightClick) {
+                        openAdminUpgrade(admin, targetId, targetName, title.id, 0)
+                    }
+                }
+            } else if (title.kind == TitleKind.TAG) {
+                session.actions[slot] = action@{ click ->
+                    if (!click.isLeftClick) return@action
+                    if (!requireAdminAction(admin, AdminAccess.GIVE)) return@action
+                    val target = Bukkit.getOfflinePlayer(targetId)
+                    if (tagService.giveTag(target, title.id)) {
+                        messageService.send(admin, "tag-given", tagService.tagName(title.id))
+                    } else {
+                        messageService.send(admin, "tag-already-owned", tagService.tagName(title.id))
+                    }
+                    openAdminWarehouse(admin, targetId, targetName, currentPage)
                 }
             }
         }
-        player.openInventory(session.inventory)
+        admin.openInventory(session.inventory)
+    }
+
+    fun openShop(player: Player, page: Int) {
+        shopMenus.open(player, page)
+    }
+
+    fun openUpgrade(player: Player, tagId: String, page: Int) {
+        effectMenus.openUpgrade(player, tagId, page)
+    }
+
+    private fun openAdminUpgrade(admin: Player, targetId: UUID, targetName: String, tagId: String, page: Int) {
+        effectMenus.openAdminUpgrade(admin, targetId, targetName, tagId, page)
+    }
+
+    fun openDetach(player: Player, tagId: String, page: Int) {
+        effectMenus.openDetach(player, tagId, page)
+    }
+
+    private fun openAdminDetach(admin: Player, targetId: UUID, targetName: String, tagId: String, page: Int) {
+        effectMenus.openAdminDetach(admin, targetId, targetName, tagId, page)
+    }
+
+    fun openScrollSelection(player: Player, context: ScrollSelectionContext, page: Int) {
+        scrollSelectionMenus.open(player, context, page)
     }
 
     fun openCustomCurrencySelector(player: Player) {
-        val layout = config.customTitleCurrencyLayout
-        val holder = MenuHolder()
-        val inventory = Bukkit.createInventory(holder, layout.size(), Support.color(layout.title))
-        val session = MenuSession(MenuType.CUSTOM_CURRENCY, inventory, 0, null, null)
-        holder.session = session
-        val optionSlots = mutableListOf<Int>()
-        var backSlot: Int? = null
-
-        layout.plain.forEachIndexed { row, line ->
-            line.forEachIndexed { column, token ->
-                val slot = row * 9 + column
-                when (token) {
-                    '#', 'X' -> {
-                        val key = layout.keys[token] ?: return@forEachIndexed
-                        val template = key.base ?: return@forEachIndexed
-                        inventory.setItem(slot, Support.createItem(template.material, template.name, template.lore))
-                    }
-                    '@' -> optionSlots += slot
-                    'B' -> {
-                        backSlot = slot
-                        val key = layout.keys[token]
-                        val template = key?.base
-                        if (template != null) {
-                            inventory.setItem(slot, Support.createItem(template.material, template.name, template.lore))
-                        }
-                    }
-                }
-            }
-        }
-
-        fun addOption(slot: Int, currency: CurrencyType, name: String, amount: Double) {
-            val template = layout.templates["currency"] ?: return
-            val placeholders = mapOf(
-                "currency_name" to currencyName(currency),
-                "currency_price" to Support.formatDouble(amount),
-                "currency_display" to name,
-            )
-            inventory.setItem(
-                slot,
-                Support.createItem(template.material, template.name, template.lore, placeholders),
-            )
-            session.actions[slot] = {
-                val keyword = when (currency) {
-                    CurrencyType.MONEY -> "money"
-                    CurrencyType.TITLE_COIN -> "title_coin"
-                    CurrencyType.POINTS -> "points"
-                }
-                val result = customTitleService.handleInput(player, keyword)
-                if (result.messageKey != null) {
-                    when (val args = result.args) {
-                        null -> messageService.send(player, result.messageKey)
-                        is Array<*> -> messageService.send(player, result.messageKey, *args)
-                        else -> messageService.send(player, result.messageKey, args)
-                    }
-                } else {
-                    player.closeInventory()
-                }
-            }
-        }
-
-        val dynamicChoices = customTitleService.currencyChoices()
-        if (dynamicChoices.isNotEmpty()) {
-            optionSlots.zip(dynamicChoices).forEach { (slot, choice) ->
-                val (currency, amount) = choice
-                addOption(slot, currency, "${currencyName(currency)} ${Support.formatDouble(amount)}", amount)
-            }
-
-            backSlot?.let { slot ->
-                session.actions[slot] = {
-                    customTitleService.cancelDraft(player, notify = false)
-                    openShop(player, 0)
-                }
-            }
-
-            player.openInventory(inventory)
-            return
-        }
-
-        optionSlots.zip(
-            listOf(
-                Triple(CurrencyType.MONEY, "閲戝竵 888888", 888888.0),
-                Triple(CurrencyType.TITLE_COIN, "绉板彿甯?100", 100.0),
-                Triple(CurrencyType.POINTS, "鐐瑰埜 35", 35.0),
-            ),
-        ).forEach { (slot, option) ->
-            addOption(slot, option.first, option.second, option.third)
-        }
-
-        backSlot?.let { slot ->
-            session.actions[slot] = {
-                customTitleService.cancelDraft(player, notify = false)
-                openShop(player, 0)
-            }
-        }
-
-        player.openInventory(inventory)
+        customMenus.openCurrencySelector(player)
     }
 
     fun openCustomTitleColorEditor(player: Player) {
-        val draft = customTitleService.activeDraft(player) ?: run {
-            messageService.send(player, "custom-title-no-session")
-            return
-        }
-        val targetColors = (customTitleService.manualPaletteTarget(player)
-            ?: customTitleService.currentPaletteLibrary(player)
-            ?: 1).coerceIn(1, 4)
-        val layout = config.customTitleColorLayout
-        val holder = MenuHolder()
-        val inventory = Bukkit.createInventory(holder, layout.size(), Support.color(layout.title))
-        val session = MenuSession(MenuType.CUSTOM_TITLE_COLOR, inventory, 0, null, null)
-        holder.session = session
-
-        val hexSlots = mutableListOf<Int>()
-        val opSlots = mutableListOf<Int>()
-        val previewSlots = mutableListOf<Int>()
-
-        layout.plain.forEachIndexed { row, line ->
-            line.forEachIndexed { column, token ->
-                val slot = row * 9 + column
-                when (token) {
-                    '#', 'X' -> {
-                        val key = layout.keys[token] ?: return@forEachIndexed
-                        val template = key.base
-                        if (template != null) {
-                            inventory.setItem(slot, Support.createItem(template.material, template.name, template.lore))
-                        }
-                    }
-                    'P' -> previewSlots += slot
-                    '@' -> {
-                        if (hexSlots.size < 16) {
-                            hexSlots += slot
-                        } else {
-                            opSlots += slot
-                        }
-                    }
-                }
-            }
-        }
-
-        val normalizedManual = draft.manualColors.mapNotNull(Support::normalizeHex).take(targetColors)
-        draft.manualColors.clear()
-        draft.manualColors.addAll(normalizedManual)
-        draft.manualColorTarget = targetColors
-
-        val currentHex = if (draft.hexBuffer.length == 6) Support.normalizeHex("#${draft.hexBuffer}") else null
-        val previewPalette = if (currentHex != null && normalizedManual.size < targetColors) {
-            normalizedManual + currentHex
-        } else {
-            normalizedManual
-        }
-        val previewText = Support.renderPaletteText(
-            draft.rawText,
-            previewPalette.ifEmpty { customTitleService.previewPalette(player) },
-        )
-        val previewPlaceholders = mapOf(
-            "title_text" to draft.rawText,
-            "title_preview" to previewText,
-            "title_color" to (currentHex ?: normalizedManual.lastOrNull() ?: "未选择"),
-            "title_input" to draft.hexBuffer.padEnd(6, '_'),
-            "title_palette" to if (normalizedManual.isEmpty()) "未选择" else normalizedManual.joinToString(", "),
-            "title_target_count" to targetColors.toString(),
-            "title_selected_count" to normalizedManual.size.toString(),
-            "title_remaining_count" to (targetColors - normalizedManual.size).coerceAtLeast(0).toString(),
-            "title_status" to if (normalizedManual.size == targetColors) "已选满，可直接确认" else "还需选择 ${(targetColors - normalizedManual.size).coerceAtLeast(0)} 个颜色",
-        )
-        layout.keys['P']?.base?.let { previewTemplate ->
-            previewSlots.forEach { slot ->
-                inventory.setItem(
-                    slot,
-                    Support.createItem(previewTemplate.material, previewTemplate.name, previewTemplate.lore, previewPlaceholders),
-                )
-            }
-        }
-
-        val hexTemplate = layout.templates["hex"]
-        val digits = "0123456789ABCDEF"
-        if (hexTemplate != null) {
-            hexSlots.forEachIndexed { index, slot ->
-                if (index >= digits.length) return@forEachIndexed
-                val digit = digits[index].toString()
-                inventory.setItem(
-                    slot,
-                    Support.createItem(
-                        hexDigitMaterial(digit.first()),
-                        hexTemplate.name,
-                        hexTemplate.lore,
-                        mapOf("title_digit" to digit, "title_input" to draft.hexBuffer.padEnd(6, '_')),
-                    ),
-                )
-                session.actions[slot] = action@{
-                    val current = customTitleService.activeDraft(player) ?: run {
-                        player.closeInventory()
-                        return@action
-                    }
-                    if (current.hexBuffer.length < 6) {
-                        current.hexBuffer += digit
-                    }
-                    openCustomTitleColorEditor(player)
-                }
-            }
-        }
-
-        val opNames = listOf("add", "replace", "remove", "backspace", "clear-input", "clear-palette", "confirm", "back")
-        opNames.zip(opSlots).forEach { (name, slot) ->
-            val template = layout.templates[name] ?: defaultManualEditorTemplate(name) ?: defaultEditorTemplate(name) ?: return@forEach
-            inventory.setItem(slot, Support.createItem(template.material, template.name, template.lore, previewPlaceholders))
-            session.actions[slot] = handler@{
-                val current = customTitleService.activeDraft(player)
-                if (current == null) {
-                    player.closeInventory()
-                    return@handler
-                }
-                when (name) {
-                    "add" -> {
-                        val normalized = Support.normalizeHex("#${current.hexBuffer}")
-                        if (current.hexBuffer.length != 6 || normalized == null) {
-                            messageService.send(player, "custom-title-invalid-color", current.hexBuffer.ifBlank { "------" })
-                        } else if (current.manualColors.size >= targetColors) {
-                            messageService.send(player, "custom-title-manual-limit", targetColors)
-                        } else {
-                            current.manualColors.add(normalized)
-                            current.hexBuffer = ""
-                            current.manualColorTarget = targetColors
-                        }
-                        openCustomTitleColorEditor(player)
-                    }
-                    "replace" -> {
-                        val normalized = Support.normalizeHex("#${current.hexBuffer}")
-                        if (current.hexBuffer.length != 6 || normalized == null) {
-                            messageService.send(player, "custom-title-invalid-color", current.hexBuffer.ifBlank { "------" })
-                        } else if (current.manualColors.isNotEmpty()) {
-                            current.manualColors[current.manualColors.lastIndex] = normalized
-                            current.hexBuffer = ""
-                        } else {
-                            current.manualColors.add(normalized)
-                            current.hexBuffer = ""
-                        }
-                        current.manualColorTarget = targetColors
-                        openCustomTitleColorEditor(player)
-                    }
-                    "remove" -> {
-                        if (current.manualColors.isNotEmpty()) {
-                            current.manualColors.removeAt(current.manualColors.lastIndex)
-                        }
-                        openCustomTitleColorEditor(player)
-                    }
-                    "backspace" -> {
-                        if (current.hexBuffer.isNotEmpty()) {
-                            current.hexBuffer = current.hexBuffer.dropLast(1)
-                        }
-                        openCustomTitleColorEditor(player)
-                    }
-                    "clear-input" -> {
-                        current.hexBuffer = ""
-                        openCustomTitleColorEditor(player)
-                    }
-                    "clear-palette" -> {
-                        current.hexBuffer = ""
-                        current.manualColors.clear()
-                        current.manualColorTarget = targetColors
-                        openCustomTitleColorEditor(player)
-                    }
-                    "confirm" -> {
-                        val finalPalette = current.manualColors.mapNotNull(Support::normalizeHex).toMutableList()
-                        val pendingColor = Support.normalizeHex("#${current.hexBuffer}")
-                        if (current.hexBuffer.isNotEmpty() && (current.hexBuffer.length != 6 || pendingColor == null)) {
-                            messageService.send(player, "custom-title-invalid-color", current.hexBuffer.ifBlank { "------" })
-                            openCustomTitleColorEditor(player)
-                            return@handler
-                        }
-                        if (pendingColor != null && finalPalette.size < targetColors) {
-                            finalPalette += pendingColor
-                        }
-                        if (finalPalette.size != targetColors) {
-                            messageService.send(player, "custom-title-manual-count-mismatch", targetColors, finalPalette.size)
-                            openCustomTitleColorEditor(player)
-                            return@handler
-                        }
-                        customTitleService.applyManualColors(current, finalPalette)
-                        val result = customTitleService.confirm(player)
-                        if (!dispatchValidationResult(player, result)) {
-                            openCustomTitleColorEditor(player)
-                        } else if (customTitleService.activeDraft(player)?.stage == CustomTitleStage.CHOOSE_GROUP) {
-                            openCustomTitleGroupSelector(player)
-                        } else {
-                            player.closeInventory()
-                        }
-                    }
-                    "back" -> {
-                        current.hexBuffer = ""
-                        current.manualColorTarget = null
-                        player.closeInventory()
-                        sendCustomPreview(player)
-                    }
-                }
-            }
-        }
-        opSlots.drop(opNames.size).forEach { slot ->
-            inventory.setItem(slot, Support.createItem("BLACK_STAINED_GLASS_PANE", " ", emptyList()))
-        }
-
-        player.openInventory(inventory)
-    }
-
-    private fun openCustomTitleColorEditorLegacy(player: Player) {
-        val draft = customTitleService.activeDraft(player) ?: run {
-            messageService.send(player, "custom-title-no-session")
-            return
-        }
-        val layout = config.customTitleColorLayout
-        val holder = MenuHolder()
-        val inventory = Bukkit.createInventory(holder, layout.size(), Support.color(layout.title))
-        val session = MenuSession(MenuType.CUSTOM_TITLE_COLOR, inventory, 0, null, null)
-        holder.session = session
-
-        val hexSlots = mutableListOf<Int>()
-        val opSlots = mutableListOf<Int>()
-        val previewSlots = mutableListOf<Int>()
-
-        layout.plain.forEachIndexed { row, line ->
-            line.forEachIndexed { column, token ->
-                val slot = row * 9 + column
-                when (token) {
-                    '#', 'X' -> {
-                        val key = layout.keys[token] ?: return@forEachIndexed
-                        val template = key.base
-                        if (template != null) {
-                            inventory.setItem(
-                                slot,
-                                Support.createItem(template.material, template.name, template.lore),
-                            )
-                        }
-                    }
-                    'P' -> {
-                        previewSlots += slot
-                    }
-                    '@' -> {
-                        if (hexSlots.size < 16) {
-                            hexSlots += slot
-                        } else {
-                            opSlots += slot
-                        }
-                    }
-                }
-            }
-        }
-
-        val currentHex = if (draft.hexBuffer.length == 6) Support.normalizeHex("#${draft.hexBuffer}") else null
-        val previewText = customTitleService.previewText(player) ?: ""
-        val previewPlaceholders = mapOf(
-            "title_text" to draft.rawText,
-            "title_preview" to previewText,
-            "title_color" to (currentHex ?: draft.manualColors.firstOrNull() ?: "鏈€夋嫨"),
-            "title_input" to draft.hexBuffer.padEnd(6, '_'),
-        )
-        val previewKey = layout.keys['P']
-        val previewTemplate = previewKey?.base
-        if (previewTemplate != null) {
-            previewSlots.forEach { slot ->
-                inventory.setItem(
-                    slot,
-                    Support.createItem(
-                        previewTemplate.material,
-                        previewTemplate.name,
-                        previewTemplate.lore,
-                        previewPlaceholders,
-                    ),
-                )
-            }
-        }
-
-        val hexTemplate = layout.templates["hex"]
-        val digits = "0123456789ABCDEF"
-        if (hexTemplate != null) {
-            hexSlots.forEachIndexed { index, slot ->
-                if (index >= digits.length) return@forEachIndexed
-                val digit = digits[index].toString()
-                val placeholders = mapOf(
-                    "title_digit" to digit,
-                    "title_input" to draft.hexBuffer.padEnd(6, '_'),
-                )
-                inventory.setItem(
-                    slot,
-                    Support.createItem(
-                        hexDigitMaterial(digit.first()),
-                        hexTemplate.name,
-                        hexTemplate.lore,
-                        placeholders,
-                    ),
-                )
-                session.actions[slot] = action@{
-                    val current = customTitleService.activeDraft(player) ?: run {
-                        player.closeInventory()
-                        return@action
-                    }
-                    if (current.hexBuffer.length < 6) {
-                        current.hexBuffer += digit
-                    }
-                    openCustomTitleColorEditor(player)
-                }
-            }
-        }
-
-        val opNames = listOf("backspace", "clear-input", "clear-palette", "confirm", "back")
-        opNames.zip(opSlots).forEach { (name, slot) ->
-            val template = layout.templates[name] ?: defaultEditorTemplate(name) ?: return@forEach
-            inventory.setItem(
-                slot,
-                Support.createItem(template.material, template.name, template.lore),
-            )
-            session.actions[slot] = handler@{
-                val current = customTitleService.activeDraft(player)
-                if (current == null) {
-                    player.closeInventory()
-                    return@handler
-                }
-                when (name) {
-                    "backspace" -> {
-                        if (current.hexBuffer.isNotEmpty()) {
-                            current.hexBuffer = current.hexBuffer.dropLast(1)
-                        }
-                        openCustomTitleColorEditor(player)
-                    }
-                    "clear-input" -> {
-                        current.hexBuffer = ""
-                        openCustomTitleColorEditor(player)
-                    }
-                    "clear-palette" -> {
-                        current.hexBuffer = ""
-                        current.manualColors.clear()
-                        openCustomTitleColorEditor(player)
-                    }
-                    "confirm" -> {
-                        val selectedColor = Support.normalizeHex("#${current.hexBuffer}") ?: current.manualColors.firstOrNull()
-                        if (selectedColor == null) {
-                            messageService.send(player, "custom-title-invalid-color", current.hexBuffer.ifBlank { "------" })
-                            openCustomTitleColorEditor(player)
-                        } else {
-                            customTitleService.applyManualColors(current, listOf(selectedColor))
-                            val result = customTitleService.confirm(player)
-                            if (!dispatchValidationResult(player, result)) {
-                                openCustomTitleColorEditor(player)
-                            } else if (customTitleService.activeDraft(player)?.stage == cn.aing.uptags.service.CustomTitleStage.CHOOSE_GROUP) {
-                                openCustomTitleGroupSelector(player)
-                            } else {
-                                player.closeInventory()
-                            }
-                        }
-                    }
-                    "back" -> {
-                        customTitleService.cancelDraft(player, notify = false)
-                        openShop(player, 0)
-                    }
-                }
-            }
-        }
-        opSlots.drop(opNames.size).forEach { slot ->
-            inventory.setItem(slot, Support.createItem("BLACK_STAINED_GLASS_PANE", " ", emptyList()))
-        }
-
-        player.openInventory(inventory)
+        customMenus.openColorEditor(player)
     }
 
     fun openCustomTitleGroupSelector(player: Player) {
-        val draft = customTitleService.activeDraft(player) ?: run {
-            messageService.send(player, "custom-title-no-session")
-            return
-        }
-        val layout = config.customTitleGroupLayout
-        val holder = MenuHolder()
-        val inventory = Bukkit.createInventory(holder, layout.size(), Support.color(layout.title))
-        val session = MenuSession(MenuType.CUSTOM_TITLE_GROUP, inventory, 0, null, null)
-        holder.session = session
-
-        val groups = config.upgradeGroups.values.toList()
-        var index = 0
-
-        layout.plain.forEachIndexed { row, line ->
-            line.forEachIndexed { column, token ->
-                val slot = row * 9 + column
-                when (token) {
-                    '#', 'X' -> {
-                        val key = layout.keys[token] ?: return@forEachIndexed
-                        val template = key.base
-                        if (template != null) {
-                            inventory.setItem(
-                                slot,
-                                Support.createItem(template.material, template.name, template.lore),
-                            )
-                        }
-                    }
-                    '@' -> {
-                        if (index >= groups.size) return@forEachIndexed
-                        val group = groups[index++]
-                        val template = layout.templates["group"] ?: return@forEachIndexed
-                        val placeholders = mapOf(
-                            "group_id" to group.id,
-                            "group_name" to group.name,
-                            "group_display" to group.display,
-                        )
-                        inventory.setItem(
-                            slot,
-                            Support.createItem(
-                                template.material,
-                                template.name,
-                                template.lore,
-                                placeholders,
-                            ),
-                        )
-                        session.actions[slot] = click@{
-                            val result = customTitleService.handleInput(player, group.id)
-                            if (!dispatchValidationResult(player, result)) {
-                                return@click
-                            }
-                            player.closeInventory()
-                        }
-                    }
-                    'B' -> {
-                        val key = layout.keys[token]
-                        val template = key?.base
-                        if (template != null) {
-                            inventory.setItem(
-                                slot,
-                                Support.createItem(template.material, template.name, template.lore),
-                            )
-                        }
-                        session.actions[slot] = {
-                            player.closeInventory()
-                            sendCustomPreview(player)
-                        }
-                    }
-                }
-            }
-        }
-
-        player.openInventory(inventory)
+        customMenus.openGroupSelector(player)
     }
 
     @EventHandler
     fun onInventoryClick(event: InventoryClickEvent) {
         val player = event.whoClicked as? Player ?: return
-        val holder = event.view.topInventory.holder as? MenuHolder ?: return
-        val session = holder.session
+        val holder = event.view.topInventory.holder as? ActionMenuHolder ?: return
         if (event.clickedInventory == null || event.clickedInventory != event.view.topInventory) {
             return
         }
         event.isCancelled = true
-        session.actions[event.slot]?.invoke(event)
-    }
-
-    private fun buildUpgradeEntries(player: Player, tag: TagDefinition): List<UpgradeEntry> {
-        val entries = ArrayList<UpgradeEntry>()
-        val progress = tagService.data(player).tagProgress[tag.id]
-        val visibleBuffIds = LinkedHashSet(tagService.allowedBuffIds(tag))
-        progress?.buffLevels?.keys?.forEach { visibleBuffIds += it }
-        for (buffId in visibleBuffIds) {
-            val buff = config.buffs[buffId] ?: continue
-            val level = tagService.buffLevel(player, tag.id, buffId)
-            val enabled = tagService.isBuffEnabled(player, tag.id, buffId)
-            val maxed = level >= buff.maxLevel
-            val price = buff.cost.priceForLevel(minOf(buff.maxLevel, level + 1))
-            val template = config.upgradeLayout.templates["buff"] ?: continue
-            val lore = if (maxed && template.loreMaxed.isNotEmpty()) template.loreMaxed else template.lore
-            val placeholders = mapOf(
-                "entry_display" to buff.display,
-                "entry_current" to level.toString(),
-                "entry_max" to buff.maxLevel.toString(),
-                "entry_status" to if (maxed) "已满级" else if (buffId in tagService.allowedBuffIds(tag)) "可升级" else "卷轴附加",
-                "entry_equip_state" to if (enabled) "已启用" else "未启用",
-                "entry_buffs" to Support.color(buff.display) + " " + Support.roman(maxOf(1, if (level == 0) 1 else level)),
-                "entry_points" to Support.formatDouble(price),
-                "entry_currency" to currencyName(buff.cost.type),
-                "entry_action" to if (maxed) "左键已无可升级项" else if (buffId in tagService.allowedBuffIds(tag)) "左键购买或用升级卷提升下一级" else "这条词条来自升级卷，仍可继续升级",
-                "entry_right_action" to "右键切换启用 / 停用",
-            )
-            entries += UpgradeEntry(
-                buffId,
-                EntryKind.BUFF,
-                Support.createItem(template.material, template.name, lore, placeholders, enabled),
-            )
-        }
-        val visibleParticleIds = LinkedHashSet(tagService.allowedParticleIds(tag))
-        progress?.ownedParticles?.forEach { visibleParticleIds += it }
-        for (particleId in visibleParticleIds) {
-            val particle = config.particles[particleId] ?: continue
-            val owned = tagService.isParticleOwned(player, tag.id, particleId)
-            val selected = tagService.isParticleSelected(player, tag.id, particleId)
-            val template = config.upgradeLayout.templates["particle"] ?: continue
-            val placeholders = mapOf(
-                "entry_display" to particle.display,
-                "entry_status" to if (owned) "已拥有" else if (particleId in tagService.allowedParticleIds(tag)) "未拥有" else "卷轴专属",
-                "entry_equip_state" to if (selected) "宸查€変腑" else "鏈€変腑",
-                "entry_points" to Support.formatDouble(particle.cost.priceForLevel(1)),
-                "entry_currency" to currencyName(particle.cost.type),
-                "entry_action" to if (owned) "左键已解锁" else if (particleId in tagService.allowedParticleIds(tag)) "左键购买或用升级卷解锁" else "该粒子可通过升级卷直接解锁",
-                "entry_right_action" to "右键设为当前粒子 / 取消",
-            )
-            entries += UpgradeEntry(
-                particleId,
-                EntryKind.PARTICLE,
-                Support.createItem(
-                    template.material,
-                    template.name,
-                    template.lore,
-                    placeholders,
-                    selected,
-                ),
-            )
-        }
-        return entries
-    }
-
-
-    private fun dispatchValidationResult(player: Player, result: cn.aing.uptags.service.ValidationResult): Boolean {
-        result.messageKey?.let { key ->
-            when (val args = result.args) {
-                null -> messageService.send(player, key)
-                is Array<*> -> messageService.send(player, key, *args)
-                else -> messageService.send(player, key, args)
-            }
-        }
-        return result.success
-    }
-
-    private fun sendCustomPreview(player: Player) {
-        clickableMessageService.sendPreviewControls(
-            player,
-            customTitleService.previewMessage(player),
-            customTitleService.previewPalette(player),
-            customTitleService.currentPaletteLibrary(player),
-            customTitleService.availablePaletteLibraries(player),
-            customTitleService.manualColorsAllowed(player),
-        )
-    }
-
-    private fun defaultManualEditorTemplate(name: String): GuiTemplate? {
-        return when (name) {
-            "add" -> GuiTemplate("EMERALD", "&#A7F3D0加入颜色", listOf("&#E2E8F0将当前 6 位 HEX 颜色加入方案"), emptyList())
-            "replace" -> GuiTemplate("LIME_DYE", "&#60A5FA替换尾色", listOf("&#E2E8F0用当前输入替换最后一个已选颜色"), emptyList())
-            "remove" -> GuiTemplate("RED_DYE", "&#F87171移除尾色", listOf("&#E2E8F0删除最后一个已选颜色"), emptyList())
-            "backspace" -> GuiTemplate("SHEARS", "&#FDE047退格", listOf("&#E2E8F0删除当前输入的最后一位"), emptyList())
-            "clear-input" -> GuiTemplate("PAPER", "&#94A3B8清空输入", listOf("&#E2E8F0清空当前 6 位 HEX 输入"), emptyList())
-            "clear-palette" -> GuiTemplate("BARRIER", "&#F87171清空重选", listOf("&#E2E8F0清空已选颜色并重新开始"), emptyList())
-            "confirm" -> GuiTemplate("NETHER_STAR", "&#A7F3D0确认选色", listOf("&#E2E8F0选满目标颜色数量后确认当前组合"), emptyList())
-            "back" -> GuiTemplate("ARROW", "&#F87171返回预览", listOf("&#E2E8F0返回聊天栏预览，不取消本次定制"), emptyList())
-            else -> null
-        }
-    }
-
-    private fun defaultEditorTemplate(name: String): GuiTemplate? {
-        return when (name) {
-            "prev-scheme" -> GuiTemplate("ARROW", "&#FDE047上一套", listOf("&#E2E8F0切换到上一套推荐配色"), emptyList())
-            "next-scheme" -> GuiTemplate("ARROW", "&#FDE047下一套", listOf("&#E2E8F0切换到下一套推荐配色"), emptyList())
-            "reroll-scheme" -> GuiTemplate("AMETHYST_SHARD", "&#60A5FA自动组合", listOf("&#E2E8F0重新生成一套参考配色"), emptyList())
-            else -> null
-        }
-    }
-
-    private fun hexDigitMaterial(digit: Char): String {
-        return when (digit.uppercaseChar()) {
-            '0', '1', '2', '3', '4', '5' -> "LIGHT_GRAY_WOOL"
-            '6', '7', '8', '9' -> "GRAY_WOOL"
-            'A', 'B', 'C' -> "PINK_WOOL"
-            'D', 'E', 'F' -> "MAGENTA_WOOL"
-            else -> "WHITE_WOOL"
-        }
+        holder.actions[event.slot]?.invoke(event)
     }
 
     private fun currencyName(type: CurrencyType): String = when (type) {
@@ -876,44 +236,92 @@ class MenuService(
         CurrencyType.TITLE_COIN -> "称号币"
     }
 
-    private fun customButtonPlaceholders(player: Player): Map<String, String> {
-        val customProducts = shopService.visibleCustomProducts(player)
-        val entryHint: String
-        val priceSummary: String
-        val flowSummary: String
-
-        when {
-            customProducts.size > 1 -> {
-                entryHint = "点击后请先从商店列表选择具体定制商品"
-                priceSummary = "当前上架 ${customProducts.size} 个自定义商品，价格以列表显示为准"
-                flowSummary = "选定商品后，将直接进入对应的定制流程"
-            }
-            customProducts.size == 1 -> {
-                val product = customProducts.first()
-                entryHint = "点击后将直接进入当前上架商品的定制流程"
-                priceSummary =
-                    "当前商品: ${Support.stripColor(product.icon.name)} / ${Support.formatDouble(product.cost.priceForLevel(1))} ${currencyName(product.cost.type)}"
-                flowSummary = "输入称号文本后，再继续编辑颜色并确认"
-            }
-            else -> {
-                val choices = customTitleService.currencyChoices()
-                val summary = if (choices.isEmpty()) {
-                    "当前没有可用支付方式"
-                } else {
-                    choices.joinToString(" / ") { (currency, amount) ->
-                        "${currencyName(currency)} ${Support.formatDouble(amount)}"
-                    }
-                }
-                entryHint = "点击后进入支付方式选择界面"
-                priceSummary = "可选: $summary"
-                flowSummary = "输入称号文本后，再继续编辑颜色并确认"
-            }
+    private fun adminTitlePlaceholders(targetId: UUID, targetName: String, title: TitleEntry): Map<String, String> {
+        val current = tagService.currentTagId(targetId) == title.id
+        val state = when {
+            current -> "当前佩戴"
+            title.owned -> "已拥有"
+            else -> "未获得"
         }
+        return linkedMapOf(
+            "target_name" to targetName,
+            "target_uuid" to targetId.toString(),
+            "tag_display" to title.display,
+            "tag_description" to title.description.joinToString("\n"),
+            "tag_rarity" to title.rarityDisplay,
+            "tag_state" to state,
+            "tag_buff_count" to tagService.tagBuffCount(targetId, title.id).toString(),
+            "tag_particle_count" to tagService.tagParticleCount(targetId, title.id).toString(),
+            "tag_buffs" to tagService.tagBuffsDisplay(targetId, title.id),
+            "tag_particles" to tagService.tagParticlesDisplay(targetId, title.id),
+            "admin_left_action" to if (title.owned) "左键为目标佩戴这个称号" else "左键授予目标这个称号",
+            "admin_right_action" to if (title.owned) "右键打开目标强化 / 拆卸管理" else "未拥有时不能打开强化页",
+        )
+    }
 
-        return mapOf(
-            "custom_entry_hint" to entryHint,
-            "custom_price_summary" to priceSummary,
-            "custom_flow_summary" to flowSummary,
+    private fun requireAdminAction(player: Player, permission: String, vararg inherited: String): Boolean {
+        if (AdminAccess.has(player, permission, *inherited)) {
+            return true
+        }
+        messageService.send(player, "no-permission")
+        return false
+    }
+
+    private fun dispatchAdminResult(player: Player, result: AdminActionResult) {
+        messageService.send(player, result.messageKey, *result.args.toTypedArray())
+    }
+
+    private fun defaultAdminWarehouseTemplate(owned: Boolean): GuiTemplate {
+        return if (owned) {
+            GuiTemplate(
+                "NAME_TAG",
+                "&#60A5FA管理 &#F8FAFC%tag_display%",
+                listOf(
+                    "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━",
+                    " &#E2E8F0目标玩家: &#FDE047%target_name%",
+                    " &#E2E8F0当前状态: &#F8FAFC%tag_state%",
+                    "%tag_description%",
+                    "",
+                    " &#93C5FD稀有度: &#F8FAFC%tag_rarity%",
+                    " &#FDE047Buff 数量: &#F8FAFC%tag_buff_count%",
+                    " &#A78BFA粒子数量: &#F8FAFC%tag_particle_count%",
+                    " &#A7F3D0Buff 列表: &#F8FAFC%tag_buffs%",
+                    " &#C4B5FD粒子列表: &#F8FAFC%tag_particles%",
+                    "",
+                    " &#A7F3D0%admin_left_action%",
+                    " &#FDBA74%admin_right_action%",
+                    "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━",
+                ),
+                emptyList(),
+            )
+        } else {
+            GuiTemplate(
+                "BARRIER",
+                "&#94A3B8未授予 &#F8FAFC%tag_display%",
+                listOf(
+                    "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━",
+                    " &#E2E8F0目标玩家: &#FDE047%target_name%",
+                    "%tag_description%",
+                    "",
+                    " &#E2E8F0稀有度: &#F8FAFC%tag_rarity%",
+                    " &#F87171当前状态: %tag_state%",
+                    " &#A7F3D0%admin_left_action%",
+                    " &#94A3B8%admin_right_action%",
+                    "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━",
+                ),
+                emptyList(),
+            )
+        }
+    }
+
+    private fun defaultAdminUnequipTemplate(): ItemTemplate {
+        return ItemTemplate(
+            "SHEARS",
+            "&#FDE68A取消目标佩戴",
+            listOf(
+                "&#E2E8F0管理员模式下此按钮用于取消目标当前称号。",
+                "&#A7F3D0点击后立即保存目标数据。",
+            ),
         )
     }
 
@@ -924,12 +332,20 @@ class MenuService(
         tagId: String?,
         scrollContext: ScrollSelectionContext?,
         title: String = layout.title,
+        adminTargetId: UUID? = null,
+        adminTargetName: String? = null,
     ): MenuSession {
         val holder = MenuHolder()
         val inventory = Bukkit.createInventory(holder, layout.size(), Support.color(title))
-        val session = MenuSession(type, inventory, page, tagId, scrollContext)
+        val session = MenuSession(type, inventory, page, tagId, scrollContext, adminTargetId, adminTargetName)
         holder.session = session
         return session
+    }
+
+    private fun normalizedPage(layout: GuiLayout, requestedPage: Int, entryCount: Int): Int {
+        val pageSize = layout.entrySlots().size.coerceAtLeast(1)
+        val maxPage = maxOf(0, kotlin.math.ceil(entryCount / pageSize.toDouble()).toInt() - 1)
+        return requestedPage.coerceIn(0, maxPage)
     }
 
     private fun fillStatic(
@@ -949,7 +365,8 @@ class MenuService(
                 val function = key.iconFunction
                 var template = key.base
                 val placeholders = when {
-                    function.equals("custom", true) -> customButtonPlaceholders(player)
+                    function.equals("custom", true) -> customMenus.customButtonPlaceholders(player)
+                    function.equals("detach", true) -> effectMenus.detachButtonPlaceholders(player, session)
                     else -> emptyMap()
                 }
                 when {
@@ -961,9 +378,34 @@ class MenuService(
                         template = if (page < maxPage && key.has != null) key.has else key.normal
                         if (page < maxPage) session.actions[slot] = { changePage(player, session, page + 1) }
                     }
-                    function.equals("shop", true) -> session.actions[slot] = { openShop(player, 0) }
+                    function.equals("shop", true) -> {
+                        val targetId = session.adminTargetId
+                        if (targetId != null) {
+                            template = defaultAdminUnequipTemplate()
+                            session.actions[slot] = action@{
+                                if (!requireAdminAction(player, AdminAccess.UNEQUIP)) return@action
+                                dispatchAdminResult(player, tagService.adminUnequipTitle(targetId))
+                                openAdminWarehouse(player, targetId, session.adminTargetName ?: targetId.toString(), 0)
+                            }
+                        } else {
+                            session.actions[slot] = { openShop(player, 0) }
+                        }
+                    }
                     function.equals("back", true) -> session.actions[slot] = { goBack(player, session) }
                     function.equals("custom", true) -> session.actions[slot] = { startCustomTitleFlow(player) }
+                    function.equals("detach", true) -> {
+                        val tagId = session.tagId
+                        if (tagId != null) {
+                            val targetId = session.adminTargetId
+                            session.actions[slot] = {
+                                if (targetId != null) {
+                                    openAdminDetach(player, targetId, session.adminTargetName ?: targetId.toString(), tagId, 0)
+                                } else {
+                                    openDetach(player, tagId, 0)
+                                }
+                            }
+                        }
+                    }
                 }
                 if (template != null) {
                     session.inventory.setItem(
@@ -976,31 +418,7 @@ class MenuService(
     }
 
     private fun startCustomTitleFlow(player: Player) {
-        val customProducts = shopService.visibleCustomProducts(player)
-        if (customProducts.size == 1) {
-            if (shopService.startCustomFlow(player, customProducts.first().id)) {
-                player.closeInventory()
-            }
-            return
-        }
-        if (customProducts.size > 1) {
-            messageService.send(player, "shop-custom-select-product")
-            return
-        }
-        val presets = config.customTitleSettings.presets
-        val presetId = presets.keys.firstOrNull()
-        if (presetId == null) {
-            messageService.send(player, "custom-title-invalid-preset")
-            return
-        }
-        customTitleService.cancelDraft(player, notify = false)
-        if (!customTitleService.startDraft(player, presetId)) {
-            messageService.send(player, "custom-title-invalid-preset")
-            return
-        }
-        player.closeInventory()
-        messageService.send(player, "shop-custom-start")
-        openCustomCurrencySelector(player)
+        customMenus.startFlow(player)
     }
 
     private fun templateItem(
@@ -1012,25 +430,30 @@ class MenuService(
         return Support.createItem(template.material, template.name, template.lore, placeholders, glow)
     }
 
-    private fun upgradeViewTag(player: Player, tagId: String): TagDefinition? {
-        config.tags[tagId]?.let { return it }
-        val custom = tagService.data(player).customTitles[tagId] ?: return null
-        return TagDefinition(
-            id = custom.id,
-            display = tagService.renderCustomTitle(custom),
-            description = listOf("&#E2E8F0玩家自定义称号"),
-            rarity = "CUSTOM",
-            defaultUnlocked = true,
-            upgradeGroups = custom.groupId?.let { mutableListOf(it) } ?: mutableListOf(),
-            permission = null,
-        )
-    }
-
     private fun changePage(player: Player, session: MenuSession, page: Int) {
+        val adminTargetId = session.adminTargetId
+        if (adminTargetId != null) {
+            val targetName = session.adminTargetName ?: adminTargetId.toString()
+            when (session.type) {
+                MenuType.WAREHOUSE -> openAdminWarehouse(player, adminTargetId, targetName, page)
+                MenuType.UPGRADE -> openAdminUpgrade(player, adminTargetId, targetName, session.tagId ?: return, page)
+                MenuType.DETACH -> openAdminDetach(player, adminTargetId, targetName, session.tagId ?: return, page)
+                MenuType.SHOP,
+                MenuType.SCROLL_SELECT,
+                MenuType.CUSTOM_CURRENCY,
+                MenuType.CUSTOM_TITLE_COLOR,
+                MenuType.CUSTOM_TITLE_GROUP,
+                -> {
+                    // these menus are not used for admin paging
+                }
+            }
+            return
+        }
         when (session.type) {
             MenuType.WAREHOUSE -> openWarehouse(player, page)
             MenuType.SHOP -> openShop(player, page)
             MenuType.UPGRADE -> openUpgrade(player, session.tagId ?: return, page)
+            MenuType.DETACH -> openDetach(player, session.tagId ?: return, page)
             MenuType.SCROLL_SELECT -> openScrollSelection(player, session.scrollContext ?: return, page)
             MenuType.CUSTOM_CURRENCY,
             MenuType.CUSTOM_TITLE_COLOR,
@@ -1042,48 +465,33 @@ class MenuService(
     }
 
     private fun goBack(player: Player, session: MenuSession) {
+        val adminTargetId = session.adminTargetId
+        if (adminTargetId != null) {
+            val targetName = session.adminTargetName ?: adminTargetId.toString()
+            when (session.type) {
+                MenuType.UPGRADE -> openAdminWarehouse(player, adminTargetId, targetName, 0)
+                MenuType.DETACH -> openAdminUpgrade(player, adminTargetId, targetName, session.tagId ?: return, 0)
+                MenuType.WAREHOUSE -> player.closeInventory()
+                MenuType.SHOP,
+                MenuType.SCROLL_SELECT,
+                MenuType.CUSTOM_CURRENCY,
+                MenuType.CUSTOM_TITLE_COLOR,
+                MenuType.CUSTOM_TITLE_GROUP,
+                -> player.closeInventory()
+            }
+            return
+        }
         when (session.type) {
             MenuType.UPGRADE,
-            MenuType.SCROLL_SELECT,
             MenuType.SHOP,
             MenuType.CUSTOM_CURRENCY,
             MenuType.CUSTOM_TITLE_COLOR,
             MenuType.CUSTOM_TITLE_GROUP,
             -> openWarehouse(player, 0)
+            MenuType.DETACH -> openUpgrade(player, session.tagId ?: return, 0)
+            MenuType.SCROLL_SELECT -> player.closeInventory()
             MenuType.WAREHOUSE -> player.closeInventory()
         }
     }
 
-    private enum class MenuType {
-        WAREHOUSE,
-        SHOP,
-        UPGRADE,
-        SCROLL_SELECT,
-        CUSTOM_CURRENCY,
-        CUSTOM_TITLE_COLOR,
-        CUSTOM_TITLE_GROUP,
-    }
-
-    private enum class EntryKind {
-        BUFF,
-        PARTICLE,
-    }
-
-    private data class UpgradeEntry(val id: String, val kind: EntryKind, val item: ItemStack)
-
-
-    private class MenuHolder : InventoryHolder {
-        lateinit var session: MenuSession
-        override fun getInventory(): Inventory = session.inventory
-    }
-
-    private class MenuSession(
-        val type: MenuType,
-        val inventory: Inventory,
-        val page: Int,
-        val tagId: String?,
-        val scrollContext: ScrollSelectionContext?,
-    ) {
-        val actions = LinkedHashMap<Int, (InventoryClickEvent) -> Unit>()
-    }
 }

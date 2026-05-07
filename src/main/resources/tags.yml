@@ -17,7 +17,7 @@ tag-template:
 
 tags:
   newbie:
-    display: '&#E2E8F0[&#7DD3FC萌新&#E2E8F0]'
+    display: '&#E2E8F0[&7萌新&#E2E8F0]'
     description:
       - '&#94A3B8加入服务器的第一个称号'
     rarity: COMMON

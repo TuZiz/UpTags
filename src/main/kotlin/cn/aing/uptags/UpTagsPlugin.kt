@@ -12,12 +12,12 @@ import cn.aing.uptags.listener.ScrollListener
 import cn.aing.uptags.repository.PlayerDataRepository
 import cn.aing.uptags.repository.store.MysqlPlayerDataStore
 import cn.aing.uptags.repository.store.PlayerDataStore
-import cn.aing.uptags.repository.store.PostgresPlayerDataStore
 import cn.aing.uptags.repository.store.YamlPlayerDataStore
 import cn.aing.uptags.service.ClickableMessageService
 import cn.aing.uptags.service.CustomTitleService
 import cn.aing.uptags.service.EconomyBridge
 import cn.aing.uptags.service.EffectService
+import cn.aing.uptags.service.PlayerNameService
 import cn.aing.uptags.service.ScrollService
 import cn.aing.uptags.service.ShopService
 import cn.aing.uptags.service.TagService
@@ -43,6 +43,7 @@ class UpTagsPlugin : JavaPlugin() {
     private lateinit var clickableMessageService: ClickableMessageService
     private lateinit var customTitleService: CustomTitleService
     private lateinit var shopService: ShopService
+    private lateinit var playerNameService: PlayerNameService
     private lateinit var menuService: MenuService
     private lateinit var effectService: EffectService
     private lateinit var playerSyncService: PlayerSyncService
@@ -69,6 +70,7 @@ class UpTagsPlugin : JavaPlugin() {
         config.load()
         messages = MessageService(this)
         messages.load()
+        playerNameService = PlayerNameService(this).also { it.load() }
 
         repository = PlayerDataRepository(this, scheduler, createStore())
         playerSyncService = PlayerSyncService(repository, scheduler)
@@ -87,16 +89,17 @@ class UpTagsPlugin : JavaPlugin() {
         )
         shopService = ShopService(config, tagService, customTitleService, economyBridge, messages)
         scrollService = ScrollService(this, config, tagService, messages)
-        menuService = MenuService(this, config, tagService, scrollService, shopService, messages, customTitleService, clickableMessageService)
+        tagService.attachScrollFactory { scrollKey, level -> scrollService.createScroll(scrollKey, 1, level) }
+        menuService = MenuService(this, config, tagService, scrollService, shopService, messages, customTitleService, clickableMessageService, playerNameService)
         effectService = EffectService(this, scheduler, config, tagService)
 
         server.pluginManager.registerEvents(menuService, this)
-        server.pluginManager.registerEvents(PlayerListener(tagService, customTitleService, repository, effectService), this)
-        server.pluginManager.registerEvents(ScrollListener(menuService, scrollService, messages), this)
+        server.pluginManager.registerEvents(PlayerListener(tagService, customTitleService, repository, effectService, playerNameService), this)
+        server.pluginManager.registerEvents(ScrollListener(menuService, scrollService, messages, scheduler), this)
         server.pluginManager.registerEvents(ChatInputListener(this, customTitleService, clickableMessageService, messages), this)
 
         getCommand("tags")?.let { command ->
-            val executor = TagsCommand(this, tagService, scrollService, shopService, customTitleService, clickableMessageService, menuService, messages)
+            val executor = TagsCommand(this, tagService, scrollService, shopService, customTitleService, clickableMessageService, menuService, messages, playerNameService)
             command.setExecutor(executor)
             command.tabCompleter = executor
         }
@@ -110,6 +113,7 @@ class UpTagsPlugin : JavaPlugin() {
 
         redisSyncService.start()
         server.onlinePlayers.forEach { player ->
+            playerNameService.remember(player)
             tagService.preparePlayer(player, false)
             customTitleService.preparePlayer(player)
             effectService.startPlayer(player)
@@ -119,19 +123,34 @@ class UpTagsPlugin : JavaPlugin() {
     private fun createStore(): PlayerDataStore {
         return when (config.storage.mode) {
             StorageMode.YML -> YamlPlayerDataStore(File(dataFolder, config.storage.yml.file))
-            StorageMode.MYSQL -> MysqlPlayerDataStore(
-                jdbcUrl = config.storage.mysql.jdbcUrl,
-                username = config.storage.mysql.username,
-                password = config.storage.mysql.password,
-                table = config.storage.mysql.table,
-            )
-            StorageMode.PG -> PostgresPlayerDataStore(
-                jdbcUrl = config.storage.pg.jdbcUrl,
-                username = config.storage.pg.username,
-                password = config.storage.pg.password,
-                table = config.storage.pg.table,
-            )
+            StorageMode.MYSQL -> createMysqlStore()
         }
+    }
+
+    private fun createMysqlStore(): MysqlPlayerDataStore {
+        val mysqlStore = MysqlPlayerDataStore(
+            jdbcUrl = config.storage.mysql.jdbcUrl,
+            username = config.storage.mysql.username,
+            password = config.storage.mysql.password,
+            table = config.storage.mysql.table,
+        )
+        importYamlData(mysqlStore)
+        return mysqlStore
+    }
+
+    private fun importYamlData(mysqlStore: MysqlPlayerDataStore) {
+        val yamlStore = YamlPlayerDataStore(File(dataFolder, config.storage.yml.file))
+        yamlStore.initialize()
+        mysqlStore.initialize()
+        val snapshots = yamlStore.loadAll()
+        if (snapshots.isEmpty()) {
+            logger.info("MySQL storage is enabled; no YML player data found to import.")
+            return
+        }
+        val summary = mysqlStore.importSnapshots(snapshots)
+        logger.info(
+            "Imported YML player data into MySQL: imported ${summary.imported}, skipped ${summary.skipped}, failed ${summary.failed}.",
+        )
     }
 
     private fun createRedisSyncService(): RedisSyncService {

@@ -38,6 +38,7 @@ data class ScrollSelectionContext(
     val kind: ScrollKind,
     val targetId: String,
     val hand: EquipmentSlot,
+    val level: Int = 1,
 )
 
 data class CustomTitleData(

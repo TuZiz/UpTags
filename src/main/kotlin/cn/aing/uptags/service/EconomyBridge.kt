@@ -30,8 +30,8 @@ class EconomyBridge(private val plugin: JavaPlugin) {
     }
 
     fun isAvailable(type: CurrencyType): Boolean = when (type) {
-        CurrencyType.MONEY -> vaultEconomy != null
-        CurrencyType.POINTS -> playerPointsApi != null
+        CurrencyType.MONEY -> ensureVaultHooked() != null
+        CurrencyType.POINTS -> ensurePlayerPointsHooked() != null
         CurrencyType.TITLE_COIN -> titleCoinAccessor != null && titleCoinWithdrawer != null && titleCoinDepositor != null
     }
 
@@ -68,54 +68,36 @@ class EconomyBridge(private val plugin: JavaPlugin) {
     }
 
     private fun hookVault() {
-        val vault = Bukkit.getPluginManager().getPlugin("Vault") ?: run {
-            vaultEconomy = null
-            return
-        }
-        try {
-            val economyClass = Class.forName("net.milkbowl.vault.economy.Economy")
-            val registration = Bukkit.getServicesManager().getRegistration(economyClass)
-            if (registration != null) {
-                val providerMethod = registration.javaClass.getMethod("getProvider")
-                vaultEconomy = providerMethod.invoke(registration)
-            }
-        } catch (_: Exception) {
-            vaultEconomy = null
-        }
+        vaultEconomy = resolveVaultEconomy()
     }
 
     private fun hookPlayerPoints() {
-        val playerPoints = Bukkit.getPluginManager().getPlugin("PlayerPoints") ?: run {
-            playerPointsApi = null
-            return
-        }
-        try {
-            val getApi = playerPoints.javaClass.getMethod("getAPI")
-            playerPointsApi = getApi.invoke(playerPoints)
-        } catch (_: Exception) {
-            playerPointsApi = null
-        }
+        playerPointsApi = resolvePlayerPointsApi()
     }
 
     private fun getVaultBalance(player: Player): Double {
-        val economy = vaultEconomy ?: return 0.0
+        val economy = ensureVaultHooked() ?: return 0.0
         return try {
-            val method = economy.javaClass.getMethod("getBalance", org.bukkit.OfflinePlayer::class.java)
-            (method.invoke(economy, player) as? Number)?.toDouble() ?: 0.0
+            invokeNumber(economy, "getBalance", player)
+                ?: invokeNumber(economy, "getBalance", player.name)
+                ?: 0.0
         } catch (_: Exception) {
             0.0
         }
     }
 
     private fun takeVault(player: Player, amount: Double): Boolean {
-        val economy = vaultEconomy ?: return false
+        val economy = ensureVaultHooked() ?: return false
         return try {
-            val has = economy.javaClass.getMethod("has", org.bukkit.OfflinePlayer::class.java, Double::class.javaPrimitiveType)
-            if (!(has.invoke(economy, player, amount) as Boolean)) {
+            val hasEnough = invokeBoolean(economy, "has", player, amount)
+                ?: invokeBoolean(economy, "has", player.name, amount)
+                ?: false
+            if (!hasEnough) {
                 return false
             }
-            val withdraw = economy.javaClass.getMethod("withdrawPlayer", org.bukkit.OfflinePlayer::class.java, Double::class.javaPrimitiveType)
-            val response = withdraw.invoke(economy, player, amount)
+            val response = invokeObject(economy, "withdrawPlayer", player, amount)
+                ?: invokeObject(economy, "withdrawPlayer", player.name, amount)
+                ?: return false
             val success = response.javaClass.getMethod("transactionSuccess")
             success.invoke(response) as Boolean
         } catch (_: Exception) {
@@ -124,18 +106,72 @@ class EconomyBridge(private val plugin: JavaPlugin) {
     }
 
     private fun getPlayerPoints(player: Player): Double {
-        val api = playerPointsApi ?: return 0.0
+        val api = ensurePlayerPointsHooked() ?: return 0.0
         return invokeNumber(api, "look", player.uniqueId) ?: invokeNumber(api, "look", player) ?: 0.0
     }
 
     private fun takePlayerPoints(player: Player, amount: Int): Boolean {
-        val api = playerPointsApi ?: return false
+        val api = ensurePlayerPointsHooked() ?: return false
         if (getPlayerPoints(player) < amount) {
             return false
         }
         return invokeBoolean(api, "take", player.uniqueId, amount)
             ?: invokeBoolean(api, "take", player, amount)
             ?: false
+    }
+
+    private fun ensureVaultHooked(): Any? {
+        val current = vaultEconomy
+        if (current != null) {
+            return current
+        }
+        vaultEconomy = resolveVaultEconomy()
+        return vaultEconomy
+    }
+
+    private fun ensurePlayerPointsHooked(): Any? {
+        val current = playerPointsApi
+        if (current != null) {
+            return current
+        }
+        playerPointsApi = resolvePlayerPointsApi()
+        return playerPointsApi
+    }
+
+    private fun resolveVaultEconomy(): Any? {
+        val vault = Bukkit.getPluginManager().getPlugin("Vault")
+        if (vault == null || !vault.isEnabled) {
+            return null
+        }
+        return try {
+            val economyClass = Class.forName("net.milkbowl.vault.economy.Economy")
+            val servicesManager = Bukkit.getServicesManager()
+            val loadMethod = servicesManager.javaClass.getMethod("load", Class::class.java)
+            val provider = loadMethod.invoke(servicesManager, economyClass)
+            if (provider != null) {
+                provider
+            } else {
+                val registration = servicesManager.javaClass.getMethod("getRegistration", Class::class.java)
+                    .invoke(servicesManager, economyClass)
+                    ?: return null
+                registration.javaClass.getMethod("getProvider").invoke(registration)
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun resolvePlayerPointsApi(): Any? {
+        val playerPoints = Bukkit.getPluginManager().getPlugin("PlayerPoints")
+        if (playerPoints == null || !playerPoints.isEnabled) {
+            return null
+        }
+        return try {
+            val getApi = playerPoints.javaClass.getMethod("getAPI")
+            getApi.invoke(playerPoints)
+        } catch (_: Exception) {
+            null
+        }
     }
 
     private fun invokeNumber(target: Any, methodName: String, vararg args: Any): Double? {
@@ -156,6 +192,17 @@ class EconomyBridge(private val plugin: JavaPlugin) {
             }
             val result = method.invoke(target, *args)
             if (result is Boolean) result else true
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun invokeObject(target: Any, methodName: String, vararg args: Any): Any? {
+        return try {
+            val method: Method = target.javaClass.methods.first { candidate ->
+                candidate.name == methodName && candidate.parameterTypes.size == args.size
+            }
+            method.invoke(target, *args)
         } catch (_: Exception) {
             null
         }

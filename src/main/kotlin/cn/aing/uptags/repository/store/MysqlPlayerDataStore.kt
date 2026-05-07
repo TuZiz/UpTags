@@ -7,6 +7,12 @@ import java.sql.DriverManager
 import java.util.LinkedHashMap
 import java.util.UUID
 
+data class MysqlImportSummary(
+    val imported: Int,
+    val skipped: Int,
+    val failed: Int,
+)
+
 class MysqlPlayerDataStore(
     private val jdbcUrl: String,
     private val username: String,
@@ -101,6 +107,32 @@ class MysqlPlayerDataStore(
             }
         }
         return versions
+    }
+
+    fun importSnapshots(snapshots: Collection<PlayerDataSnapshot>): MysqlImportSummary {
+        if (snapshots.isEmpty()) {
+            return MysqlImportSummary(imported = 0, skipped = 0, failed = 0)
+        }
+        val existingVersions = LinkedHashMap<UUID, Long>()
+        snapshots.map { it.data.uniqueId }.chunked(500).forEach { chunk ->
+            existingVersions.putAll(loadVersions(chunk))
+        }
+        var imported = 0
+        var skipped = 0
+        var failed = 0
+        snapshots.forEach { snapshot ->
+            val existingVersion = existingVersions[snapshot.data.uniqueId]
+            if (existingVersion != null && existingVersion >= snapshot.version) {
+                skipped++
+                return@forEach
+            }
+            when (save(snapshot, existingVersion)) {
+                is SaveResult.Success -> imported++
+                is SaveResult.Conflict -> skipped++
+                is SaveResult.Failure -> failed++
+            }
+        }
+        return MysqlImportSummary(imported, skipped, failed)
     }
 
     private fun bindSnapshot(statement: java.sql.PreparedStatement, snapshot: PlayerDataSnapshot) {

@@ -6,6 +6,8 @@ import cn.aing.uptags.model.config.CostDefinition
 import cn.aing.uptags.model.config.CurrencyType
 import cn.aing.uptags.model.config.CustomTitlePreset
 import cn.aing.uptags.model.config.CustomTitleSettings
+import cn.aing.uptags.model.config.DetachCostSettings
+import cn.aing.uptags.model.config.DetachSettings
 import cn.aing.uptags.model.config.GuiKey
 import cn.aing.uptags.model.config.GuiLayout
 import cn.aing.uptags.model.config.GuiTemplate
@@ -45,6 +47,10 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
         private set
     lateinit var upgradeLayout: GuiLayout
         private set
+    lateinit var detachLayout: GuiLayout
+        private set
+    lateinit var scrollSelectLayout: GuiLayout
+        private set
     lateinit var shopLayout: GuiLayout
         private set
     lateinit var customTitleCurrencyLayout: GuiLayout
@@ -56,6 +62,8 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
     lateinit var storage: StorageSettings
         private set
     lateinit var sync: SyncSettings
+        private set
+    lateinit var detach: DetachSettings
         private set
 
     lateinit var customTitleSettings: CustomTitleSettings
@@ -74,6 +82,8 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
         saveDefaultIfAbsent("custom-title.yml")
         saveDefaultIfAbsent("gui/warehouse.yml")
         saveDefaultIfAbsent("gui/upgrade.yml")
+        saveDefaultIfAbsent("gui/detach.yml")
+        saveDefaultIfAbsent("gui/scroll-select.yml")
         saveDefaultIfAbsent("gui/shop.yml")
         saveDefaultIfAbsent("gui/custom-title-currency.yml")
         saveDefaultIfAbsent("gui/custom-title-color.yml")
@@ -85,6 +95,8 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
         loadCustomTitleSettings()
         warehouseLayout = loadGuiLayout("gui/warehouse.yml")
         upgradeLayout = loadGuiLayout("gui/upgrade.yml")
+        detachLayout = loadGuiLayout("gui/detach.yml")
+        scrollSelectLayout = loadGuiLayout("gui/scroll-select.yml")
         shopLayout = loadGuiLayout("gui/shop.yml")
         customTitleCurrencyLayout = loadGuiLayout("gui/custom-title-currency.yml")
         customTitleColorLayout = loadGuiLayout("gui/custom-title-color.yml")
@@ -114,7 +126,7 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
         try {
             yaml.save(file)
         } catch (ex: IOException) {
-            plugin.logger.warning("保存 tags.yml 失败: ${ex.message}")
+            plugin.logger.warning("Failed to save tags.yml: ${ex.message}")
         }
     }
 
@@ -123,7 +135,7 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
         val definition = TagDefinition(
             id = normalized,
             display = "&#FFFFFF[&#AAAAAA$normalized&#FFFFFF]",
-            description = listOf("&7新的称号"),
+            description = listOf("&7\u65b0\u7684\u79f0\u53f7"),
             rarity = defaultTagRarity,
             defaultUnlocked = defaultTagUnlocked,
             upgradeGroups = defaultGroupsForRarity(defaultTagRarity).toMutableList(),
@@ -178,11 +190,16 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
                 password = yaml.getString("storage.mysql.password", "") ?: "",
                 table = yaml.getString("storage.mysql.table", "uptags_player_data") ?: "uptags_player_data",
             ),
-            pg = PostgresSettings(
-                jdbcUrl = yaml.getString("storage.pg.jdbc-url", "jdbc:postgresql://127.0.0.1:5432/minecraft") ?: "",
-                username = yaml.getString("storage.pg.username", "postgres") ?: "postgres",
-                password = yaml.getString("storage.pg.password", "") ?: "",
-                table = yaml.getString("storage.pg.table", "uptags_player_data") ?: "uptags_player_data",
+        )
+        detach = DetachSettings(
+            enabled = yaml.getBoolean("detach.enabled", true),
+            buff = DetachCostSettings(
+                money = yaml.getDouble("detach.buff.money.amount", 100.0).coerceAtLeast(0.0),
+                points = yaml.getDouble("detach.buff.points.amount", 100.0).coerceAtLeast(0.0),
+            ),
+            particle = DetachCostSettings(
+                money = yaml.getDouble("detach.particle.money.amount", 100.0).coerceAtLeast(0.0),
+                points = yaml.getDouble("detach.particle.points.amount", 100.0).coerceAtLeast(0.0),
             ),
         )
         sync = SyncSettings(
@@ -244,7 +261,7 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
             val section = yaml.getConfigurationSection("buffs.$buffId") ?: return@forEach
             val type = resolvePotionEffectType(section.getString("type", "") ?: "")
             if (type == null) {
-                plugin.logger.warning("未知 Buff 类型: $buffId")
+                plugin.logger.warning("Unknown buff type: $buffId")
                 return@forEach
             }
             buffs[buffId] = BuffDefinition(
@@ -468,4 +485,5 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
         }
         return Registry.EFFECT.get(NamespacedKey.minecraft(key))
     }
+
 }

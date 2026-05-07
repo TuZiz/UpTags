@@ -1,5 +1,6 @@
 package cn.aing.uptags.service
 
+import cn.aing.uptags.Support
 import cn.aing.uptags.config.ConfigRegistry
 import cn.aing.uptags.config.MessageService
 import cn.aing.uptags.model.config.CurrencyType
@@ -123,6 +124,41 @@ class CustomTitleServiceTest {
         assertEquals(1, draft.selectedPaletteLibrary)
         assertEquals(listOf("#ABCDEF"), draft.randomSchemes[0])
         assertEquals(listOf("#ABCDEF"), service.previewPalette(player))
+        assertEquals("[Hero]", Support.stripColor(service.previewText(player)))
+    }
+
+    @Test
+    fun confirmedCustomTitleIsRenderedWithBrackets() {
+        val playerId = UUID.randomUUID()
+        val player = mockk<Player>()
+        val config = mockk<ConfigRegistry>()
+        val repository = mockk<PlayerDataRepository>(relaxed = true)
+        val economy = mockk<EconomyBridge>(relaxed = true)
+        val messages = mockk<MessageService>(relaxed = true)
+        val data = PlayerTagData(playerId)
+
+        every { player.uniqueId } returns playerId
+        every { repository.get(playerId) } returns data
+        every { config.customTitleSettings } returns CustomTitleSettings(
+            defaultTitleCoinBalance = 0.0,
+            sessionTimeoutSeconds = 120,
+            currencyCosts = linkedMapOf(CurrencyType.TITLE_COIN to 100.0),
+            presets = mapOf("basic" to preset()),
+        )
+        every { config.allUpgradeGroups() } returns listOf("starter")
+        every { config.hasUpgradeGroup("starter") } returns true
+        every { economy.isAvailable(CurrencyType.TITLE_COIN) } returns true
+        every { economy.balance(player, CurrencyType.TITLE_COIN) } returns 100.0
+        every { economy.withdraw(player, CurrencyType.TITLE_COIN, 5.0) } returns true
+
+        val service = CustomTitleService(config, repository, economy, messages)
+        assertTrue(service.startProductDraft(player, "basic", CurrencyType.TITLE_COIN, 5.0, "custom_basic"))
+        assertTrue(service.handleInput(player, "Hero").success)
+        assertTrue(service.confirm(player).success)
+
+        val custom = data.customTitles.values.firstOrNull()
+        assertNotNull(custom)
+        assertEquals("[Hero]", Support.stripColor(service.renderCustomTitle(custom)))
     }
 
     @Test

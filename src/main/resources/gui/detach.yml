@@ -1,0 +1,90 @@
+Title: "&#FDE68A称号拆卸中心"
+GuiPlain:
+  - "X#######X"
+  - "#@@@@@@@#"
+  - "#@@@@@@@#"
+  - "#@@@@@@@#"
+  - "#@@@@@@@#"
+  - "L###B###N"
+GuiKey:
+  "@":
+    IconFunction: "item"
+  "#":
+    Material: "BLACK_STAINED_GLASS_PANE"
+    Name: " "
+  "X":
+    Material: "GRAY_STAINED_GLASS_PANE"
+    Name: " "
+  "B":
+    IconFunction: "back"
+    Material: "ARROW"
+    Name: "&#F87171返回强化"
+  "L":
+    IconFunction: "last"
+    has:
+      Material: "ARROW"
+      Name: "&#FDE047上一页"
+    normal:
+      Material: "GRAY_STAINED_GLASS_PANE"
+      Name: "&#94A3B8已经是第一页"
+  "N":
+    IconFunction: "next"
+    has:
+      Material: "ARROW"
+      Name: "&#FDE047下一页"
+    normal:
+      Material: "GRAY_STAINED_GLASS_PANE"
+      Name: "&#94A3B8已经是最后一页"
+
+templates:
+  buff:
+    material: "ENCHANTED_BOOK"
+    name: "&#93C5FD%entry_display% &#E2E8F0Lv.&#FDE047%entry_current%&#94A3B8/&#FDE047%entry_max%"
+    lore:
+      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
+      - " &#E2E8F0状态: &#F8FAFC%entry_status%"
+      - " &#E2E8F0当前效果: %entry_buffs%"
+      - ""
+      - " &#A7F3D0%entry_left_action%"
+      - " &#FDBA74%entry_right_action%"
+      - " &#94A3B8拆卸费用: &#FDE047%entry_detach_money% 金币 &#64748B/ &#FDE047%entry_detach_points% 点券"
+      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
+
+  particle:
+    material: "NETHER_STAR"
+    name: "&#C4B5FD%entry_display%"
+    lore:
+      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
+      - " &#E2E8F0状态: &#F8FAFC%entry_status%"
+      - " &#E2E8F0当前状态: &#F8FAFC%entry_equip_state%"
+      - ""
+      - " &#A7F3D0%entry_left_action%"
+      - " &#FDBA74%entry_right_action%"
+      - " &#94A3B8拆卸费用: &#FDE047%entry_detach_money% 金币 &#64748B/ &#FDE047%entry_detach_points% 点券"
+      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
+
+  admin-buff:
+    material: "ENCHANTED_BOOK"
+    name: "&#60A5FA拆卸 Buff &#F8FAFC%entry_display% &#E2E8F0Lv.&#FDE047%entry_current%&#94A3B8/&#FDE047%entry_max%"
+    lore:
+      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
+      - " &#E2E8F0目标玩家: &#FDE047%target_name%"
+      - " &#E2E8F0状态: &#F8FAFC%entry_status%"
+      - " &#E2E8F0当前效果: %entry_buffs%"
+      - ""
+      - " &#A7F3D0%entry_left_action%"
+      - " &#94A3B8不扣除目标费用，卷轴返还给执行管理员。"
+      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
+
+  admin-particle:
+    material: "NETHER_STAR"
+    name: "&#60A5FA拆卸粒子 &#F8FAFC%entry_display%"
+    lore:
+      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
+      - " &#E2E8F0目标玩家: &#FDE047%target_name%"
+      - " &#E2E8F0状态: &#F8FAFC%entry_status%"
+      - " &#E2E8F0当前状态: &#F8FAFC%entry_equip_state%"
+      - ""
+      - " &#A7F3D0%entry_left_action%"
+      - " &#94A3B8不扣除目标费用，卷轴返还给执行管理员。"
+      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"

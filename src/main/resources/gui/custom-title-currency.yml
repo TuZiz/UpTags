@@ -1,4 +1,4 @@
-Title: "&#FF8FD8✦ 自定义称号 &8| &#E2E8F0选择支付方式"
+Title: "&#FF8FD8自定义称号 &8| &#E2E8F0选择支付方式"
 GuiPlain:
   - "X#######X"
   - "##@#@#@##"
@@ -8,36 +8,36 @@ GuiKey:
     IconFunction: "item"
   "#":
     Material: "BLACK_STAINED_GLASS_PANE"
-    Name: "&f" # 留空，避免显示默认的物品名称
+    Name: " "
   "X":
-    Material: "PINK_STAINED_GLASS_PANE" # 将四角换为粉色玻璃，呼应标题的粉色，增加整体边框的层次感
-    Name: "&f"
+    Material: "PINK_STAINED_GLASS_PANE"
+    Name: " "
   "B":
-    Material: "ARROW" # 将屏障 (BARRIER) 替换为箭 (ARROW) 或深色橡木门，视觉上更符合“返回”的直觉，不会显得像报错
-    Name: "&#F87171&l[✖] 返回主界面"
+    Material: "ARROW"
+    Name: "&#F87171返回主界面"
     Lore:
       - "&#475569&m━━━━━━━━━━━━━━━━━━━━━━━━━━"
       - ""
-      - " &#94A3B8放弃当前的自定义称号进度，"
-      - " &#94A3B8并安全返回到称号商店。"
+      - " &#94A3B8放弃当前的自定义称号进度"
+      - " &#94A3B8并安全返回到称号商店"
       - ""
-      - " &#F87171▶ 点击返回"
+      - " &#F87171点击返回"
       - "&#475569&m━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 templates:
   currency:
     material: "EMERALD"
-    name: "&#FDE047✦ %currency_name% &#E2E8F0- &#A7F3D0%currency_price%"
+    name: "&#FDE047%currency_name% &#E2E8F0- &#A7F3D0%currency_price%"
     lore:
       - "&#475569&m━━━━━━━━━━━━━━━━━━━━━━━━━━"
       - ""
       - " &#94A3B8结算信息:"
-      - "  &#E2E8F0▪ 支付方式: &#F8FAFC%currency_name%"
-      - "  &#E2E8F0▪ 所需花费: &#FDE047%currency_price%"
+      - "  &#E2E8F0支付方式: &#F8FAFC%currency_name%"
+      - "  &#E2E8F0所需花费: &#FDE047%currency_price%"
       - ""
       - " &#94A3B8温馨提示:"
       - "  &#64748B选择后将进入聊天框输入流程"
       - "  &#64748B最终确认生成时才会执行扣费"
       - ""
-      - " &#34D399&l✔ 点击选择该支付方式"
+      - " &#34D399点击选择该支付方式"
       - "&#475569&m━━━━━━━━━━━━━━━━━━━━━━━━━━"

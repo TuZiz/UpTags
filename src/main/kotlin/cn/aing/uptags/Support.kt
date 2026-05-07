@@ -37,6 +37,18 @@ object Support {
 
     fun renderPaletteText(text: String?, palette: List<String>): String = TextRenderer.renderPaletteText(text, palette)
 
+    fun decorateCustomTitle(text: String?): String {
+        val visible = text?.trim().orEmpty()
+        if (visible.isBlank()) {
+            return ""
+        }
+        return if (visible.startsWith("[") && visible.endsWith("]")) {
+            visible
+        } else {
+            "[$visible]"
+        }
+    }
+
     fun normalizeHex(value: String?): String? = TextRenderer.normalizeHex(value)
 
     fun joinDisplay(values: Collection<String>, delimiter: String = ", "): String = Formatters.joinDisplay(values, delimiter)
