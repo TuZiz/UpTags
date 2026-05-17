@@ -1,12 +1,17 @@
 package cn.aing.uptags.repository.store
 
+import cn.aing.uptags.model.config.CurrencyType
 import cn.aing.uptags.model.runtime.CustomTitleData
+import cn.aing.uptags.model.runtime.CustomTitleOrderStatus
+import cn.aing.uptags.model.runtime.CustomTitlePurchaseOrderData
 import cn.aing.uptags.model.runtime.PlayerTagData
 import cn.aing.uptags.model.runtime.TagColorProfile
 import cn.aing.uptags.model.runtime.TagProgress
 import java.util.UUID
 
 object PlayerDataCodec {
+    private const val schemaVersion = "schema_version=2"
+
     fun serialize(data: PlayerTagData): String {
         val tagParts = data.tagProgress.entries.joinToString(";;") { (tagId, progress) ->
             listOf(
@@ -36,7 +41,25 @@ object PlayerDataCodec {
                 encode(custom.groupId ?: ""),
             ).joinToString("|")
         }
+        val orderParts = data.customTitleOrders.values.joinToString(";;") { order ->
+            listOf(
+                encode(order.orderId),
+                encode(order.titleId),
+                encode(order.rawText),
+                encode(order.presetId),
+                encode(order.groupId ?: ""),
+                encode(order.currencyType.name),
+                order.currencyAmount.toString(),
+                encode(order.status.name),
+                order.createdAt.toString(),
+                order.updatedAt.toString(),
+                encode(order.failureReason ?: ""),
+                encode(order.previousEquippedTagId ?: ""),
+                encode(order.previousEquippedCustomTitleId ?: ""),
+            ).joinToString("|")
+        }
         return listOf(
+            schemaVersion,
             data.ownedTags.joinToString(",") { encode(it) },
             encode(data.equippedTagId ?: ""),
             tagParts,
@@ -45,17 +68,20 @@ object PlayerDataCodec {
             customParts,
             encode(data.equippedCustomTitleId ?: ""),
             colorOverrideParts,
+            orderParts,
         ).joinToString("###")
     }
 
     fun deserialize(uniqueId: UUID, raw: String): PlayerTagData {
         val data = PlayerTagData(uniqueId)
         val parts = raw.split("###")
-        if (parts.isNotEmpty() && parts[0].isNotBlank()) {
-            data.ownedTags += parts[0].split(',').filter { it.isNotBlank() }.map(::decode)
+        val offset = if (parts.firstOrNull() == schemaVersion) 1 else 0
+        fun part(index: Int): String? = parts.getOrNull(index + offset)
+        if (part(0)?.isNotBlank() == true) {
+            data.ownedTags += part(0).orEmpty().split(',').filter { it.isNotBlank() }.map(::decode)
         }
-        data.equippedTagId = parts.getOrNull(1)?.ifBlank { null }?.let(::decode)
-        parts.getOrNull(2)
+        data.equippedTagId = part(1)?.ifBlank { null }?.let(::decode)
+        part(2)
             ?.takeIf { it.isNotBlank() }
             ?.split(";;")
             ?.forEach { entry ->
@@ -73,9 +99,9 @@ object PlayerDataCodec {
                 }
                 data.tagProgress[tagId] = progress
             }
-        data.titleCoinBalance = parts.getOrNull(3)?.toDoubleOrNull() ?: 0.0
-        data.titleCoinInitialized = parts.getOrNull(4) == "1"
-        parts.getOrNull(5)
+        data.titleCoinBalance = part(3)?.toDoubleOrNull() ?: 0.0
+        data.titleCoinInitialized = part(4) == "1"
+        part(5)
             ?.takeIf { it.isNotBlank() }
             ?.split(";;")
             ?.forEach { entry ->
@@ -95,8 +121,8 @@ object PlayerDataCodec {
                 )
                 data.customTitles[id] = custom
             }
-        data.equippedCustomTitleId = parts.getOrNull(6)?.ifBlank { null }?.let(::decode)
-        parts.getOrNull(7)
+        data.equippedCustomTitleId = part(6)?.ifBlank { null }?.let(::decode)
+        part(7)
             ?.takeIf { it.isNotBlank() }
             ?.split(";;")
             ?.forEach { entry ->
@@ -106,6 +132,29 @@ object PlayerDataCodec {
                     tagId = tagId,
                     palette = entryParts.getOrNull(1)?.takeIf { it.isNotBlank() }?.split(',')?.filter { it.isNotBlank() }?.map(::decode)?.toMutableList() ?: mutableListOf(),
                     updatedAt = entryParts.getOrNull(2)?.toLongOrNull() ?: System.currentTimeMillis(),
+                )
+            }
+        part(8)
+            ?.takeIf { it.isNotBlank() }
+            ?.split(";;")
+            ?.forEach { entry ->
+                val entryParts = entry.split('|')
+                val orderId = entryParts.getOrNull(0)?.takeIf { it.isNotBlank() }?.let(::decode) ?: return@forEach
+                val titleId = entryParts.getOrNull(1)?.takeIf { it.isNotBlank() }?.let(::decode) ?: return@forEach
+                data.customTitleOrders[orderId] = CustomTitlePurchaseOrderData(
+                    orderId = orderId,
+                    titleId = titleId,
+                    rawText = entryParts.getOrNull(2)?.let(::decode) ?: "",
+                    presetId = entryParts.getOrNull(3)?.let(::decode) ?: "default",
+                    groupId = entryParts.getOrNull(4)?.ifBlank { null }?.let(::decode),
+                    currencyType = CurrencyType.from(entryParts.getOrNull(5)?.let(::decode)),
+                    currencyAmount = entryParts.getOrNull(6)?.toDoubleOrNull() ?: 0.0,
+                    status = CustomTitleOrderStatus.from(entryParts.getOrNull(7)?.let(::decode)),
+                    createdAt = entryParts.getOrNull(8)?.toLongOrNull() ?: System.currentTimeMillis(),
+                    updatedAt = entryParts.getOrNull(9)?.toLongOrNull() ?: System.currentTimeMillis(),
+                    failureReason = entryParts.getOrNull(10)?.ifBlank { null }?.let(::decode),
+                    previousEquippedTagId = entryParts.getOrNull(11)?.ifBlank { null }?.let(::decode),
+                    previousEquippedCustomTitleId = entryParts.getOrNull(12)?.ifBlank { null }?.let(::decode),
                 )
             }
         return data

@@ -81,7 +81,7 @@ class UpTagsPlugin : JavaPlugin() {
         economyBridge.hook()
         tagService = TagService(this, config, repository, economyBridge, messages)
         clickableMessageService = ClickableMessageService()
-        customTitleService = CustomTitleService(config, repository, economyBridge, messages)
+        customTitleService = CustomTitleService(config, repository, economyBridge, messages, scheduler)
         economyBridge.attachTitleCoinAccessors(
             balanceAccessor = { customTitleService.titleCoins(it) },
             withdrawAccessor = { player, amount -> customTitleService.takeTitleCoins(player, amount) },
@@ -96,7 +96,7 @@ class UpTagsPlugin : JavaPlugin() {
         server.pluginManager.registerEvents(menuService, this)
         server.pluginManager.registerEvents(PlayerListener(tagService, customTitleService, repository, effectService, playerNameService), this)
         server.pluginManager.registerEvents(ScrollListener(menuService, scrollService, messages, scheduler), this)
-        server.pluginManager.registerEvents(ChatInputListener(this, customTitleService, clickableMessageService, messages), this)
+        server.pluginManager.registerEvents(ChatInputListener(scheduler, customTitleService, clickableMessageService, messages), this)
 
         getCommand("tags")?.let { command ->
             val executor = TagsCommand(this, tagService, scrollService, shopService, customTitleService, clickableMessageService, menuService, messages, playerNameService)

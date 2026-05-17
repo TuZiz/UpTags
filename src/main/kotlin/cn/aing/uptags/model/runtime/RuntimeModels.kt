@@ -1,5 +1,6 @@
 package cn.aing.uptags.model.runtime
 
+import cn.aing.uptags.model.config.CurrencyType
 import java.util.LinkedHashMap
 import java.util.LinkedHashSet
 import java.util.UUID
@@ -63,6 +64,41 @@ data class CustomTitleData(
     )
 }
 
+enum class CustomTitleOrderStatus {
+    PENDING,
+    COMPLETED,
+    FAILED,
+    REFUND_PENDING,
+    REFUNDED;
+
+    companion object {
+        fun from(raw: String?): CustomTitleOrderStatus {
+            if (raw.isNullOrBlank()) {
+                return PENDING
+            }
+            return entries.firstOrNull { it.name.equals(raw.trim(), ignoreCase = true) } ?: PENDING
+        }
+    }
+}
+
+data class CustomTitlePurchaseOrderData(
+    val orderId: String,
+    val titleId: String,
+    var rawText: String,
+    var presetId: String,
+    var groupId: String?,
+    var currencyType: CurrencyType,
+    var currencyAmount: Double,
+    var status: CustomTitleOrderStatus,
+    var createdAt: Long = System.currentTimeMillis(),
+    var updatedAt: Long = createdAt,
+    var failureReason: String? = null,
+    var previousEquippedTagId: String? = null,
+    var previousEquippedCustomTitleId: String? = null,
+) {
+    fun copyDeep(): CustomTitlePurchaseOrderData = copy()
+}
+
 data class TagColorProfile(
     val tagId: String,
     var palette: MutableList<String> = mutableListOf(),
@@ -99,6 +135,7 @@ class PlayerTagData(val uniqueId: UUID) {
     var titleCoinBalance: Double = 0.0
     var titleCoinInitialized: Boolean = false
     val customTitles: MutableMap<String, CustomTitleData> = LinkedHashMap()
+    val customTitleOrders: MutableMap<String, CustomTitlePurchaseOrderData> = LinkedHashMap()
     var equippedCustomTitleId: String? = null
 
     fun copyDeep(): PlayerTagData {
@@ -111,6 +148,7 @@ class PlayerTagData(val uniqueId: UUID) {
         tagProgress.forEach { (key, value) -> copy.tagProgress[key] = value.copyDeep() }
         tagColorOverrides.forEach { (key, value) -> copy.tagColorOverrides[key] = value.copyDeep() }
         customTitles.forEach { (key, value) -> copy.customTitles[key] = value.copyDeep() }
+        customTitleOrders.forEach { (key, value) -> copy.customTitleOrders[key] = value.copyDeep() }
         return copy
     }
 }

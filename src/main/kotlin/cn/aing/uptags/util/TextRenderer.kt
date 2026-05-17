@@ -21,25 +21,31 @@ object TextRenderer {
     fun noItalicLines(lines: List<String>): List<String> = lines.map(::noItalic)
 
     fun renderPaletteText(text: String?, palette: List<String>): String {
-        val visible = stripColor(text).trim()
+        val visible = stripLegacyColor(text).trim()
         if (visible.isEmpty()) {
             return ""
         }
+        val clusters = UnicodeText.graphemeClusters(visible)
+        if (clusters.isEmpty()) {
+            return ""
+        }
         val normalizedPalette = palette.mapNotNull(::normalizeHex).ifEmpty { listOf("#FFFFFF") }
-        if (normalizedPalette.size == 1 || visible.length == 1) {
-            return color(buildString {
-                visible.forEach { char ->
-                    append('&').append(normalizedPalette.first()).append(char)
+        if (normalizedPalette.size == 1 || clusters.size == 1) {
+            return buildString {
+                val color = legacyColor(normalizedPalette.first())
+                clusters.forEach { cluster ->
+                    append(color).append(cluster)
                 }
-            })
+            }
         }
 
         val stops = normalizedPalette.mapNotNull(::hexToRgb)
         val builder = StringBuilder()
-        visible.forEachIndexed { index, char ->
-            builder.append('&').append(interpolatedHex(stops, index, visible.lastIndex)).append(char)
+        val lastIndex = clusters.lastIndex
+        clusters.forEachIndexed { index, cluster ->
+            builder.append(legacyColor(interpolatedHex(stops, index, lastIndex))).append(cluster)
         }
-        return color(builder.toString())
+        return builder.toString()
     }
 
     fun normalizeHex(value: String?): String? {
@@ -76,6 +82,10 @@ object TextRenderer {
             blue = normalized.substring(4, 6).toInt(16),
         )
     }
+
+    private fun stripLegacyColor(value: String?): String = ChatColor.stripColor(value ?: "") ?: ""
+
+    private fun legacyColor(hex: String): String = BungeeChatColor.of(hex).toString()
 
     private fun translate(value: String?, forceNonItalic: Boolean): String {
         if (value.isNullOrEmpty()) {

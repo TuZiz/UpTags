@@ -5,12 +5,18 @@ import cn.aing.uptags.repository.SaveResult
 import org.bukkit.configuration.file.YamlConfiguration
 import java.io.File
 import java.io.IOException
+import java.nio.file.AtomicMoveNotSupportedException
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import java.util.LinkedHashMap
 import java.util.UUID
+import java.util.logging.Logger
 
 class YamlPlayerDataStore(
     private val rootDir: File,
 ) : PlayerDataStore {
+    private val logger = Logger.getLogger(YamlPlayerDataStore::class.java.name)
+
     override fun initialize() {
         if (!rootDir.exists()) {
             rootDir.mkdirs()
@@ -35,14 +41,15 @@ class YamlPlayerDataStore(
         if (expectedVersion != null && expectedVersion != 0L && currentVersion != expectedVersion) {
             return SaveResult.Conflict(load(snapshot.data.uniqueId))
         }
+        yaml.set("schema_version", 2)
         yaml.set("data_json", PlayerDataCodec.serialize(snapshot.data))
         yaml.set("version", snapshot.version)
         yaml.set("updated_at", snapshot.updatedAt)
         return try {
-            yaml.save(file)
+            atomicSave(file, yaml)
             SaveResult.Success(snapshot.version, snapshot.updatedAt)
         } catch (ex: IOException) {
-            SaveResult.Failure("YML 保存失败: ${ex.message}", ex)
+            SaveResult.Failure("YML save failed: ${ex.message}", ex)
         }
     }
 
@@ -70,4 +77,21 @@ class YamlPlayerDataStore(
     }
 
     private fun file(uniqueId: UUID): File = File(rootDir, "$uniqueId.yml")
+
+    private fun atomicSave(file: File, yaml: YamlConfiguration) {
+        Files.createDirectories(file.parentFile.toPath())
+        val target = file.toPath()
+        val temp = Files.createTempFile(file.parentFile.toPath(), "${file.name}.", ".tmp")
+        try {
+            Files.writeString(temp, yaml.saveToString(), Charsets.UTF_8)
+            try {
+                Files.move(temp, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
+            } catch (ex: AtomicMoveNotSupportedException) {
+                logger.warning("Atomic move is not supported for ${file.absolutePath}; falling back to replace move.")
+                Files.move(temp, target, StandardCopyOption.REPLACE_EXISTING)
+            }
+        } finally {
+            Files.deleteIfExists(temp)
+        }
+    }
 }

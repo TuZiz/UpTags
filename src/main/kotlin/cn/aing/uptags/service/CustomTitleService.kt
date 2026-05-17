@@ -1,29 +1,37 @@
 package cn.aing.uptags.service
 
 import cn.aing.uptags.Support
+import cn.aing.uptags.compat.PlatformScheduler
 import cn.aing.uptags.config.ConfigRegistry
 import cn.aing.uptags.config.MessageService
 import cn.aing.uptags.model.config.CurrencyType
 import cn.aing.uptags.model.config.CustomTitlePreset
 import cn.aing.uptags.model.runtime.CustomTitleData
+import cn.aing.uptags.model.runtime.CustomTitleOrderStatus
+import cn.aing.uptags.model.runtime.CustomTitlePurchaseOrderData
 import cn.aing.uptags.model.runtime.TagProgress
 import cn.aing.uptags.repository.PlayerDataRepository
+import cn.aing.uptags.repository.SaveResult
+import cn.aing.uptags.util.UnicodeText
 import org.bukkit.entity.Player
 import java.util.Locale
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import java.util.logging.Logger
 
 class CustomTitleService(
     private val config: ConfigRegistry,
     private val repository: PlayerDataRepository,
     private val economyBridge: EconomyBridge,
     private val messageService: MessageService,
+    private val scheduler: PlatformScheduler? = null,
 ) {
     private val drafts = ConcurrentHashMap<UUID, CustomTitleDraft>()
     private val customTagPrefix = "custom-"
     private val palettes = CustomTitlePaletteService()
     private val manualPalettes = CustomTitleManualPaletteService(economyBridge, palettes)
     private val titleCoins = TitleCoinService(config, repository)
+    private val logger = Logger.getLogger(CustomTitleService::class.java.name)
 
     fun startDraft(player: Player, presetId: String): Boolean {
         val preset = config.customTitleSettings.presets[presetId] ?: return false
@@ -62,6 +70,16 @@ class CustomTitleService(
             return null
         }
         return draft
+    }
+
+    fun hasActiveDraft(uniqueId: UUID): Boolean {
+        val draft = drafts[uniqueId] ?: return false
+        val timeout = config.customTitleSettings.sessionTimeoutSeconds * 1000
+        if (System.currentTimeMillis() - draft.updatedAt > timeout) {
+            drafts.remove(uniqueId)
+            return false
+        }
+        return true
     }
 
     fun currencyChoices(): List<Pair<CurrencyType, Double>> {
@@ -126,17 +144,25 @@ class CustomTitleService(
     }
 
     private fun handleNameInput(draft: CustomTitleDraft, preset: CustomTitlePreset, input: String): ValidationResult {
-        val visible = Support.stripColor(input).trim()
+        val visible = UnicodeText.sanitizePlayerTitleInput(input)
         if (visible.isBlank()) return ValidationResult(false, "custom-title-empty")
-        if (!preset.allowSpaces && visible.contains(' ')) return ValidationResult(false, "custom-title-no-spaces")
-        if (visible.length < preset.minLength) return ValidationResult(false, "custom-title-too-short", preset.minLength)
-        if (visible.length > preset.maxLength) return ValidationResult(false, "custom-title-too-long", preset.maxLength)
+        if (UnicodeText.containsForbiddenCodePoint(visible)) {
+            return ValidationResult(false, "custom-title-invalid-pattern")
+        }
+        if (!preset.allowSpaces && visible.any { it.isWhitespace() || it == '\u3000' }) {
+            return ValidationResult(false, "custom-title-no-spaces")
+        }
+        val visibleLength = UnicodeText.visibleCharacterCount(visible)
+        if (visibleLength < preset.minLength) return ValidationResult(false, "custom-title-too-short", preset.minLength)
+        if (visibleLength > preset.maxLength) return ValidationResult(false, "custom-title-too-long", preset.maxLength)
         preset.allowedPattern?.toRegex()?.let { regex ->
             if (!regex.matches(visible)) return ValidationResult(false, "custom-title-invalid-pattern")
         }
-        val lower = visible.lowercase(Locale.ROOT)
-        if (preset.blockedWords.any { it in lower }) return ValidationResult(false, "custom-title-blocked-word")
-        if (preset.blockedPatterns.any { runCatching { Regex(it).containsMatchIn(visible) }.getOrDefault(false) }) {
+        val riskText = UnicodeText.riskText(visible)
+        if (preset.blockedWords.any { it.isNotBlank() && UnicodeText.riskText(it) in riskText }) {
+            return ValidationResult(false, "custom-title-blocked-word")
+        }
+        if (preset.blockedPatterns.any { runCatching { Regex(it).containsMatchIn(riskText) }.getOrDefault(false) }) {
             return ValidationResult(false, "custom-title-blocked-word")
         }
         draft.rawText = visible
@@ -318,7 +344,7 @@ class CustomTitleService(
         if (!economyBridge.isAvailable(currencyType)) {
             return ValidationResult(false, "economy-unavailable", economyBridge.displayName(currencyType))
         }
-        if (economyBridge.balance(player, currencyType) < currencyAmount || !economyBridge.withdraw(player, currencyType, currencyAmount)) {
+        if (economyBridge.balance(player, currencyType) < currencyAmount) {
             return ValidationResult(
                 false,
                 "not-enough",
@@ -333,26 +359,199 @@ class CustomTitleService(
         } else {
             draft.randomSchemes.map { scheme -> scheme.mapNotNull(Support::normalizeHex).toMutableList() }.toMutableList()
         }
+        val orderId = "order-${UUID.randomUUID().toString().replace("-", "")}"
+        val now = System.currentTimeMillis()
 
         val data = repository.get(player.uniqueId)
-        data.customTitles[titleId] = CustomTitleData(
-            id = titleId,
+        val context = PendingCustomTitlePurchase(
+            orderId = orderId,
+            titleId = titleId,
             rawText = draft.rawText,
             presetId = draft.presetId,
             groupId = groupId,
+            currencyType = currencyType,
+            currencyAmount = currencyAmount,
             manualColors = draft.manualColors.mapNotNull(Support::normalizeHex).toMutableList(),
             randomSchemes = randomSchemes,
             selectedSchemeIndex = draft.selectedSchemeIndex.coerceAtLeast(0),
-            createdAt = System.currentTimeMillis(),
+            createdAt = now,
+            equipAfterConfirm = preset.equipAfterConfirm,
+            previewText = previewTextFromDraft(draft),
+            previousEquippedTagId = data.equippedTagId,
+            previousEquippedCustomTitleId = data.equippedCustomTitleId,
         )
-        data.tagProgress.putIfAbsent(titleId, TagProgress())
-        if (preset.equipAfterConfirm) {
-            data.equippedCustomTitleId = titleId
+        data.customTitleOrders[orderId] = CustomTitlePurchaseOrderData(
+            orderId = orderId,
+            titleId = titleId,
+            rawText = context.rawText,
+            presetId = context.presetId,
+            groupId = context.groupId,
+            currencyType = context.currencyType,
+            currencyAmount = context.currencyAmount,
+            status = CustomTitleOrderStatus.PENDING,
+            createdAt = now,
+            updatedAt = now,
+            previousEquippedTagId = context.previousEquippedTagId,
+            previousEquippedCustomTitleId = context.previousEquippedCustomTitleId,
+        )
+        drafts.remove(player.uniqueId)
+        repository.saveAsync(data) { result ->
+            runForPlayer(player) {
+                handlePendingOrderSaved(player, context, result)
+            }
+        }
+        return ValidationResult(true, "custom-title-purchase-pending")
+    }
+
+    private fun handlePendingOrderSaved(
+        player: Player,
+        context: PendingCustomTitlePurchase,
+        result: SaveResult,
+    ) {
+        if (result !is SaveResult.Success) {
+            val reason = "Pending custom title order save failed: ${describeSaveResult(result)}"
+            logger.warning("${reason}; player=${player.uniqueId}; order=${context.orderId}")
+            markOrderFailed(player, context, reason)
+            messageService.send(player, "custom-title-save-failed")
+            return
+        }
+        if (!economyBridge.isAvailable(context.currencyType)) {
+            val reason = "Economy unavailable before custom title withdraw: ${context.currencyType}"
+            logger.warning("${reason}; player=${player.uniqueId}; order=${context.orderId}")
+            markOrderFailed(player, context, reason)
+            messageService.send(player, "economy-unavailable", economyBridge.displayName(context.currencyType))
+            return
+        }
+        if (economyBridge.balance(player, context.currencyType) < context.currencyAmount ||
+            !economyBridge.withdraw(player, context.currencyType, context.currencyAmount)
+        ) {
+            val reason = "Withdraw failed for custom title order"
+            logger.warning("${reason}; player=${player.uniqueId}; order=${context.orderId}; currency=${context.currencyType}; amount=${context.currencyAmount}")
+            markOrderFailed(player, context, reason)
+            messageService.send(
+                player,
+                "not-enough",
+                Support.formatDouble(context.currencyAmount),
+                economyBridge.displayName(context.currencyType),
+            )
+            return
+        }
+        saveCompletedOrder(player, context)
+    }
+
+    private fun saveCompletedOrder(player: Player, context: PendingCustomTitlePurchase) {
+        val data = repository.get(player.uniqueId)
+        data.customTitles[context.titleId] = CustomTitleData(
+            id = context.titleId,
+            rawText = context.rawText,
+            presetId = context.presetId,
+            groupId = context.groupId,
+            manualColors = context.manualColors.toMutableList(),
+            randomSchemes = context.randomSchemes.map { it.toMutableList() }.toMutableList(),
+            selectedSchemeIndex = context.selectedSchemeIndex,
+            createdAt = context.createdAt,
+        )
+        data.tagProgress.putIfAbsent(context.titleId, TagProgress())
+        if (context.equipAfterConfirm) {
+            data.equippedCustomTitleId = context.titleId
             data.equippedTagId = null
         }
-        repository.saveAsync(data)
-        drafts.remove(player.uniqueId)
-        return ValidationResult(true, "custom-title-confirmed", previewTextFromDraft(draft))
+        data.customTitleOrders[context.orderId]?.let { order ->
+            order.status = CustomTitleOrderStatus.COMPLETED
+            order.updatedAt = System.currentTimeMillis()
+            order.failureReason = null
+        }
+        repository.saveAsync(data) { result ->
+            runForPlayer(player) {
+                handleCompletedOrderSaved(player, context, result)
+            }
+        }
+    }
+
+    private fun handleCompletedOrderSaved(
+        player: Player,
+        context: PendingCustomTitlePurchase,
+        result: SaveResult,
+    ) {
+        if (result is SaveResult.Success) {
+            messageService.send(player, "custom-title-confirmed", context.previewText)
+            return
+        }
+        val reason = "Completed custom title save failed after withdraw: ${describeSaveResult(result)}"
+        logger.warning("${reason}; player=${player.uniqueId}; order=${context.orderId}")
+        val data = repository.get(player.uniqueId)
+        data.customTitles.remove(context.titleId)
+        data.tagProgress.remove(context.titleId)
+        if (data.equippedCustomTitleId == context.titleId) {
+            data.equippedCustomTitleId = context.previousEquippedCustomTitleId
+            data.equippedTagId = context.previousEquippedTagId
+        }
+        val order = data.customTitleOrders[context.orderId]
+        if (context.currencyType == CurrencyType.TITLE_COIN) {
+            order?.status = CustomTitleOrderStatus.REFUNDED
+            order?.failureReason = reason
+            order?.updatedAt = System.currentTimeMillis()
+            economyBridge.refund(player, context.currencyType, context.currencyAmount)
+            messageService.send(player, "custom-title-refunded")
+            return
+        }
+        order?.status = CustomTitleOrderStatus.REFUND_PENDING
+        order?.failureReason = reason
+        order?.updatedAt = System.currentTimeMillis()
+        repository.saveAsync(data) { saveResult ->
+            if (saveResult !is SaveResult.Success) {
+                logger.warning(
+                    "Failed to record refund-pending custom title order; player=${player.uniqueId}; order=${context.orderId}; result=${describeSaveResult(saveResult)}",
+                )
+            }
+        }
+        messageService.send(player, "custom-title-refund-pending")
+    }
+
+    private fun markOrderFailed(player: Player, context: PendingCustomTitlePurchase, reason: String) {
+        val data = repository.get(player.uniqueId)
+        val now = System.currentTimeMillis()
+        val order = data.customTitleOrders[context.orderId] ?: CustomTitlePurchaseOrderData(
+            orderId = context.orderId,
+            titleId = context.titleId,
+            rawText = context.rawText,
+            presetId = context.presetId,
+            groupId = context.groupId,
+            currencyType = context.currencyType,
+            currencyAmount = context.currencyAmount,
+            status = CustomTitleOrderStatus.FAILED,
+            createdAt = context.createdAt,
+            updatedAt = now,
+            previousEquippedTagId = context.previousEquippedTagId,
+            previousEquippedCustomTitleId = context.previousEquippedCustomTitleId,
+        ).also { data.customTitleOrders[context.orderId] = it }
+        order.status = CustomTitleOrderStatus.FAILED
+        order.failureReason = reason
+        order.updatedAt = now
+        repository.saveAsync(data) { saveResult ->
+            if (saveResult !is SaveResult.Success) {
+                logger.warning(
+                    "Failed to record failed custom title order; player=${player.uniqueId}; order=${context.orderId}; result=${describeSaveResult(saveResult)}",
+                )
+            }
+        }
+    }
+
+    private fun runForPlayer(player: Player, task: () -> Unit) {
+        val platformScheduler = scheduler
+        if (platformScheduler == null) {
+            task()
+        } else {
+            platformScheduler.runPlayer(player, task)
+        }
+    }
+
+    private fun describeSaveResult(result: SaveResult): String {
+        return when (result) {
+            is SaveResult.Success -> "success(version=${result.version})"
+            is SaveResult.Conflict -> "conflict"
+            is SaveResult.Failure -> result.message
+        }
     }
 
     fun applyManualColors(draft: CustomTitleDraft, colors: List<String>) {
@@ -470,6 +669,24 @@ data class CustomTitleDraft(
     var productId: String? = null,
     var hexBuffer: String = "",
     var updatedAt: Long = System.currentTimeMillis(),
+)
+
+private data class PendingCustomTitlePurchase(
+    val orderId: String,
+    val titleId: String,
+    val rawText: String,
+    val presetId: String,
+    val groupId: String?,
+    val currencyType: CurrencyType,
+    val currencyAmount: Double,
+    val manualColors: MutableList<String>,
+    val randomSchemes: MutableList<MutableList<String>>,
+    val selectedSchemeIndex: Int,
+    val createdAt: Long,
+    val equipAfterConfirm: Boolean,
+    val previewText: String,
+    val previousEquippedTagId: String?,
+    val previousEquippedCustomTitleId: String?,
 )
 
 data class ValidationResult(

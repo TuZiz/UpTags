@@ -20,6 +20,7 @@ import cn.aing.uptags.model.config.ShopProductType
 import cn.aing.uptags.model.config.TagDefinition
 import cn.aing.uptags.model.config.UpgradeGroupDefinition
 import cn.aing.uptags.model.runtime.ScrollKind
+import cn.aing.uptags.util.UnicodeText
 import org.bukkit.NamespacedKey
 import org.bukkit.Registry
 import org.bukkit.configuration.ConfigurationSection
@@ -348,7 +349,7 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
                 allowManualColors = section.getBoolean("allow-manual-colors", true),
                 allowSpaces = section.getBoolean("allow-spaces", true),
                 allowedPattern = section.getString("allowed-pattern")?.takeIf { it.isNotBlank() },
-                blockedWords = section.getStringList("blocked-words").map { it.lowercase() }.toSet(),
+                blockedWords = section.getStringList("blocked-words").map { UnicodeText.riskText(it) }.toSet(),
                 blockedPatterns = section.getStringList("blocked-patterns"),
                 palettes = palettes,
                 randomColorPool = randomColorPool,

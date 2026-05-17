@@ -14,11 +14,12 @@ presets:
     colors-per-scheme: 2
     allow-manual-colors: true
     allow-spaces: true
-    allowed-pattern: '^[A-Za-z0-9_\u4e00-\u9fa5 ]+$'
+    allowed-pattern: '^[\p{L}\p{M}\p{N}\p{P}\p{S} _　]+$'
     blocked-words:
       - admin
       - gm
       - op
+      - owner
     blocked-patterns:
       - '(?i)owner'
 

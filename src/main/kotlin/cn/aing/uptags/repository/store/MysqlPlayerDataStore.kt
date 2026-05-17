@@ -2,8 +2,10 @@ package cn.aing.uptags.repository.store
 
 import cn.aing.uptags.repository.PlayerDataSnapshot
 import cn.aing.uptags.repository.SaveResult
+import com.zaxxer.hikari.HikariConfig
+import com.zaxxer.hikari.HikariDataSource
 import java.sql.Connection
-import java.sql.DriverManager
+import java.sql.PreparedStatement
 import java.util.LinkedHashMap
 import java.util.UUID
 
@@ -19,9 +21,29 @@ class MysqlPlayerDataStore(
     private val password: String,
     private val table: String,
 ) : PlayerDataStore {
+    private var dataSource: HikariDataSource? = null
+
     override fun initialize() {
+        validateTableName()
+        if (dataSource != null) {
+            return
+        }
         ensureDriverLoaded()
         try {
+            dataSource = HikariDataSource(
+                HikariConfig().apply {
+                    this.jdbcUrl = this@MysqlPlayerDataStore.jdbcUrl
+                    this.username = this@MysqlPlayerDataStore.username
+                    this.password = this@MysqlPlayerDataStore.password
+                    poolName = "UpTags-MySQL"
+                    maximumPoolSize = 10
+                    minimumIdle = 1
+                    connectionTimeout = 10_000
+                    validationTimeout = 5_000
+                    idleTimeout = 60_000
+                    maxLifetime = 1_800_000
+                },
+            )
             connection().use { connection ->
                 connection.createStatement().use { statement ->
                     statement.execute(
@@ -37,8 +59,10 @@ class MysqlPlayerDataStore(
                 }
             }
         } catch (ex: Exception) {
+            dataSource?.close()
+            dataSource = null
             throw IllegalStateException(
-                "MySQL 初始化失败，请检查 storage.mysql.jdbc-url / username / password / table 配置。原始错误: ${ex.message}",
+                "MySQL initialization failed. Check storage.mysql.jdbc-url / username / password / table. Cause: ${ex.message}",
                 ex,
             )
         }
@@ -65,7 +89,8 @@ class MysqlPlayerDataStore(
             connection().use { connection ->
                 if (expectedVersion == null || expectedVersion == 0L) {
                     connection.prepareStatement(
-                        "INSERT INTO $table (uuid, data_json, version, updated_at) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE data_json = VALUES(data_json), version = VALUES(version), updated_at = VALUES(updated_at)",
+                        "INSERT INTO $table (uuid, data_json, version, updated_at) VALUES (?, ?, ?, ?) " +
+                            "ON DUPLICATE KEY UPDATE data_json = VALUES(data_json), version = VALUES(version), updated_at = VALUES(updated_at)",
                     ).use { statement ->
                         bindSnapshot(statement, snapshot)
                         statement.executeUpdate()
@@ -88,7 +113,7 @@ class MysqlPlayerDataStore(
             }
             SaveResult.Success(snapshot.version, snapshot.updatedAt)
         } catch (ex: Exception) {
-            SaveResult.Failure("MySQL 保存失败: ${ex.message}", ex)
+            SaveResult.Failure("MySQL save failed: ${ex.message}", ex)
         }
     }
 
@@ -135,7 +160,12 @@ class MysqlPlayerDataStore(
         return MysqlImportSummary(imported, skipped, failed)
     }
 
-    private fun bindSnapshot(statement: java.sql.PreparedStatement, snapshot: PlayerDataSnapshot) {
+    override fun shutdown() {
+        dataSource?.close()
+        dataSource = null
+    }
+
+    private fun bindSnapshot(statement: PreparedStatement, snapshot: PlayerDataSnapshot) {
         statement.setString(1, snapshot.data.uniqueId.toString())
         statement.setString(2, PlayerDataCodec.serialize(snapshot.data))
         statement.setLong(3, snapshot.version)
@@ -146,15 +176,18 @@ class MysqlPlayerDataStore(
         Class.forName("com.mysql.cj.jdbc.Driver")
     }
 
-    private fun connection(): Connection {
-        ensureDriverLoaded()
-        return try {
-            DriverManager.getConnection(jdbcUrl, username, password)
-        } catch (ex: Exception) {
-            throw IllegalStateException(
-                "无法连接 MySQL: $jdbcUrl，请检查数据库地址、用户名和密码。原始错误: ${ex.message}",
-                ex,
-            )
+    private fun validateTableName() {
+        require(table.matches(tableNamePattern)) {
+            "Invalid storage.mysql.table '$table'. Only letters, numbers, and underscores are allowed."
         }
+    }
+
+    private fun connection(): Connection {
+        val source = dataSource ?: throw IllegalStateException("MySQL connection pool is not initialized.")
+        return source.connection
+    }
+
+    companion object {
+        private val tableNamePattern = Regex("^[A-Za-z0-9_]+$")
     }
 }

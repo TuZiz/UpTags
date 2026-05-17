@@ -7,6 +7,7 @@ import cn.aing.uptags.model.config.CurrencyType
 import cn.aing.uptags.model.config.CustomTitlePreset
 import cn.aing.uptags.model.config.CustomTitleSettings
 import cn.aing.uptags.repository.PlayerDataRepository
+import cn.aing.uptags.repository.SaveResult
 import cn.aing.uptags.model.runtime.PlayerTagData
 import io.mockk.every
 import io.mockk.mockk
@@ -77,6 +78,9 @@ class CustomTitleServiceTest {
         every { economy.isAvailable(CurrencyType.TITLE_COIN) } returns true
         every { economy.balance(player, CurrencyType.TITLE_COIN) } returns 100.0
         every { economy.withdraw(player, CurrencyType.TITLE_COIN, 5.0) } returns true
+        every { repository.saveAsync(data, any()) } answers {
+            secondArg<(SaveResult) -> Unit>().invoke(SaveResult.Success(1L, System.currentTimeMillis()))
+        }
 
         val service = CustomTitleService(config, repository, economy, messages)
         assertTrue(service.startProductDraft(player, "basic", CurrencyType.TITLE_COIN, 5.0, "custom_basic"))
@@ -90,7 +94,7 @@ class CustomTitleServiceTest {
         assertNotNull(custom)
         assertEquals("starter", custom.groupId)
         assertEquals(custom.id, data.equippedCustomTitleId)
-        verify(exactly = 1) { repository.saveAsync(data) }
+        verify(exactly = 2) { repository.saveAsync(data, any()) }
         verify(exactly = 1) { economy.withdraw(player, CurrencyType.TITLE_COIN, 5.0) }
         verify(exactly = 0) { config.saveTags() }
     }
@@ -150,6 +154,9 @@ class CustomTitleServiceTest {
         every { economy.isAvailable(CurrencyType.TITLE_COIN) } returns true
         every { economy.balance(player, CurrencyType.TITLE_COIN) } returns 100.0
         every { economy.withdraw(player, CurrencyType.TITLE_COIN, 5.0) } returns true
+        every { repository.saveAsync(data, any()) } answers {
+            secondArg<(SaveResult) -> Unit>().invoke(SaveResult.Success(1L, System.currentTimeMillis()))
+        }
 
         val service = CustomTitleService(config, repository, economy, messages)
         assertTrue(service.startProductDraft(player, "basic", CurrencyType.TITLE_COIN, 5.0, "custom_basic"))

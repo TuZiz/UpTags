@@ -16,7 +16,7 @@ class PlayerDataRepository(
 ) {
     private val cache = ConcurrentHashMap<UUID, PlayerCacheEntry>()
     private val dirty = ConcurrentHashMap.newKeySet<UUID>()
-    private val pendingSaves = ConcurrentHashMap<UUID, PlayerTagData>()
+    private val pendingSaves = ConcurrentHashMap<UUID, PendingSave>()
     private val savingNow = ConcurrentHashMap.newKeySet<UUID>()
     private var redisSyncService: RedisSyncService? = null
     private var serverId: String = "local"
@@ -69,8 +69,26 @@ class PlayerDataRepository(
     }
 
     fun saveAsync(data: PlayerTagData) {
+        saveAsync(data, retryOnFailure = true, callback = null)
+    }
+
+    fun saveAsync(data: PlayerTagData, callback: (SaveResult) -> Unit) {
+        saveAsync(data, retryOnFailure = false, callback = callback)
+    }
+
+    private fun saveAsync(data: PlayerTagData, retryOnFailure: Boolean, callback: ((SaveResult) -> Unit)?) {
         markDirty(data)
-        pendingSaves[data.uniqueId] = data.copyDeep()
+        pendingSaves.compute(data.uniqueId) { _, existing ->
+            val callbacks = existing?.callbacks ?: mutableListOf()
+            if (callback != null) {
+                callbacks += callback
+            }
+            PendingSave(
+                data = data.copyDeep(),
+                retryOnFailure = existing?.retryOnFailure == true || retryOnFailure,
+                callbacks = callbacks,
+            )
+        }
         if (!savingNow.add(data.uniqueId)) {
             return
         }
@@ -128,7 +146,8 @@ class PlayerDataRepository(
 
     private fun drainSaveQueue(uniqueId: UUID) {
         while (true) {
-            val nextData = pendingSaves.remove(uniqueId) ?: break
+            val request = pendingSaves.remove(uniqueId) ?: break
+            val nextData = request.data
             val currentEntry = loadEntry(uniqueId)
             val expectedVersion = currentEntry.version
             val snapshot = PlayerDataSnapshot(
@@ -148,18 +167,31 @@ class PlayerDataRepository(
                     }
                     publishInvalidation(uniqueId, result.version, result.updatedAt)
                     dirty.remove(uniqueId)
+                    completeCallbacks(request, result)
                 }
                 is SaveResult.Conflict -> {
                     result.latest?.let(::replace)
+                    completeCallbacks(request, result)
                     plugin.logger.fine("玩家数据保存遇到版本冲突，已回源刷新: $uniqueId")
                 }
                 is SaveResult.Failure -> {
                     plugin.logger.warning(result.message)
-                    pendingSaves.putIfAbsent(uniqueId, nextData)
+                    completeCallbacks(request, result)
+                    if (request.retryOnFailure) {
+                        pendingSaves.putIfAbsent(uniqueId, request.withoutCallbacks())
+                    }
                     break
                 }
             }
         }
+    }
+
+    private fun completeCallbacks(request: PendingSave, result: SaveResult) {
+        request.callbacks.forEach { callback ->
+            runCatching { callback(result) }
+                .onFailure { plugin.logger.warning("Player data save callback failed: ${it.message}") }
+        }
+        request.callbacks.clear()
     }
 
     private fun publishInvalidation(uniqueId: UUID, version: Long, updatedAt: Long) {
@@ -181,5 +213,13 @@ class PlayerDataRepository(
             stale = false,
             lastSyncAt = snapshot.updatedAt,
         )
+    }
+
+    private data class PendingSave(
+        val data: PlayerTagData,
+        val retryOnFailure: Boolean,
+        val callbacks: MutableList<(SaveResult) -> Unit>,
+    ) {
+        fun withoutCallbacks(): PendingSave = copy(callbacks = mutableListOf())
     }
 }
