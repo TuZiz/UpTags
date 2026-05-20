@@ -6,7 +6,12 @@ buffs:
     duration: 280
     cost:
       type: POINTS
-      levels: { '1': 20, '2': 35, '3': 55, '4': 80, '5': 110 }
+      levels:
+        '1': 20
+        '2': 35
+        '3': 55
+        '4': 80
+        '5': 110
       conditions: []
   speed:
     type: SPEED
@@ -15,7 +20,12 @@ buffs:
     duration: 280
     cost:
       type: POINTS
-      levels: { '1': 20, '2': 35, '3': 55, '4': 80, '5': 110 }
+      levels:
+        '1': 20
+        '2': 35
+        '3': 55
+        '4': 80
+        '5': 110
       conditions: []
   haste:
     type: FAST_DIGGING
@@ -24,7 +34,12 @@ buffs:
     duration: 280
     cost:
       type: POINTS
-      levels: { '1': 20, '2': 35, '3': 55, '4': 80, '5': 110 }
+      levels:
+        '1': 20
+        '2': 35
+        '3': 55
+        '4': 80
+        '5': 110
       conditions: []
   regeneration:
     type: REGENERATION
@@ -33,7 +48,12 @@ buffs:
     duration: 280
     cost:
       type: POINTS
-      levels: { '1': 25, '2': 40, '3': 60, '4': 85, '5': 115 }
+      levels:
+        '1': 25
+        '2': 40
+        '3': 60
+        '4': 85
+        '5': 115
       conditions: []
   jump_boost:
     type: JUMP
@@ -42,7 +62,12 @@ buffs:
     duration: 280
     cost:
       type: POINTS
-      levels: { '1': 15, '2': 30, '3': 45, '4': 70, '5': 95 }
+      levels:
+        '1': 15
+        '2': 30
+        '3': 45
+        '4': 70
+        '5': 95
       conditions: []
   fire_resistance:
     type: FIRE_RESISTANCE
@@ -51,7 +76,12 @@ buffs:
     duration: 280
     cost:
       type: POINTS
-      levels: { '1': 15, '2': 30, '3': 45, '4': 70, '5': 95 }
+      levels:
+        '1': 15
+        '2': 30
+        '3': 45
+        '4': 70
+        '5': 95
       conditions: []
   water_breathing:
     type: WATER_BREATHING
@@ -60,7 +90,12 @@ buffs:
     duration: 280
     cost:
       type: POINTS
-      levels: { '1': 15, '2': 30, '3': 45, '4': 70, '5': 95 }
+      levels:
+        '1': 15
+        '2': 30
+        '3': 45
+        '4': 70
+        '5': 95
       conditions: []
   health_boost:
     type: HEALTH_BOOST
@@ -69,7 +104,12 @@ buffs:
     duration: 280
     cost:
       type: POINTS
-      levels: { '1': 30, '2': 45, '3': 65, '4': 90, '5': 120 }
+      levels:
+        '1': 30
+        '2': 45
+        '3': 65
+        '4': 90
+        '5': 120
       conditions: []
   absorption:
     type: ABSORPTION
@@ -78,7 +118,12 @@ buffs:
     duration: 280
     cost:
       type: POINTS
-      levels: { '1': 25, '2': 40, '3': 60, '4': 85, '5': 115 }
+      levels:
+        '1': 25
+        '2': 40
+        '3': 60
+        '4': 85
+        '5': 115
       conditions: []
   night_vision:
     type: NIGHT_VISION
@@ -87,7 +132,12 @@ buffs:
     duration: 280
     cost:
       type: POINTS
-      levels: { '1': 15, '2': 25, '3': 40, '4': 60, '5': 85 }
+      levels:
+        '1': 15
+        '2': 25
+        '3': 40
+        '4': 60
+        '5': 85
       conditions: []
   slow_falling:
     type: SLOW_FALLING
@@ -96,7 +146,8 @@ buffs:
     duration: 160
     cost:
       type: POINTS
-      levels: { '1': 35 }
+      levels:
+        '1': 35
       conditions: []
   luck:
     type: LUCK
@@ -105,7 +156,12 @@ buffs:
     duration: 280
     cost:
       type: POINTS
-      levels: { '1': 20, '2': 35, '3': 55, '4': 80, '5': 110 }
+      levels:
+        '1': 20
+        '2': 35
+        '3': 55
+        '4': 80
+        '5': 110
       conditions: []
   resistance:
     type: DAMAGE_RESISTANCE
@@ -114,7 +170,9 @@ buffs:
     duration: 280
     cost:
       type: POINTS
-      levels: { '1': 40, '2': 70 }
+      levels:
+        '1': 40
+        '2': 70
       conditions: []
   instant_health:
     type: HEAL
@@ -123,137 +181,270 @@ buffs:
     duration: 1
     cost:
       type: POINTS
-      levels: { '1': 35, '2': 60 }
+      levels:
+        '1': 35
+        '2': 60
       conditions: []
-
 groups:
   COMMON:
-    name: '普通组'
+    name: 普通组
     display: '&#7DD3FCCOMMON'
-    buffs: [strength, speed, haste]
-    particles: [pulse, feet, halo]
+    buffs:
+    - strength
+    - speed
+    - haste
+    particles:
+    - pulse
+    - feet
+    - halo
   LIMITED:
-    name: '限定组'
+    name: 限定组
     display: '&#FF8FD8LIMITED'
-    buffs: [strength, speed, haste, regeneration, jump_boost, fire_resistance, water_breathing, night_vision]
-    particles: [pulse, aura, helix, ring, comet]
+    buffs:
+    - strength
+    - speed
+    - haste
+    - regeneration
+    - jump_boost
+    - fire_resistance
+    - water_breathing
+    - night_vision
+    particles:
+    - pulse
+    - aura
+    - helix
+    - ring
+    - comet
   EPIC:
-    name: '史诗组'
+    name: 史诗组
     display: '&#C084FCEPIC'
-    buffs: [strength, speed, haste, regeneration, jump_boost, fire_resistance, water_breathing, health_boost, absorption, night_vision, luck, resistance, instant_health]
-    particles: [halo, aura, helix, spiral, ring, crown, orbit, pulse, wings, feet, flame, totem, spark, comet, rain, shield]
+    buffs:
+    - strength
+    - speed
+    - haste
+    - regeneration
+    - jump_boost
+    - fire_resistance
+    - water_breathing
+    - health_boost
+    - absorption
+    - night_vision
+    - luck
+    - resistance
+    - instant_health
+    particles:
+    - halo
+    - aura
+    - helix
+    - spiral
+    - ring
+    - crown
+    - orbit
+    - pulse
+    - wings
+    - feet
+    - flame
+    - totem
+    - spark
+    - comet
+    - rain
+    - shield
   ADVENTURE:
-    name: '探险弱增益'
+    name: 探险弱增益
     display: '&#A7F3D0ADVENTURE'
-    buffs: [speed, night_vision]
-    particles: [feet, pulse, halo]
+    buffs:
+    - speed
+    - night_vision
+    particles:
+    - feet
+    - pulse
+    - halo
   MINING:
-    name: '矿脉弱增益'
+    name: 矿脉弱增益
     display: '&#60A5FAMINING'
-    buffs: [haste, night_vision]
-    particles: [spark, feet]
+    buffs:
+    - haste
+    - night_vision
+    particles:
+    - spark
+    - feet
   NETHER:
-    name: '下界弱增益'
+    name: 下界弱增益
     display: '&#F97316NETHER'
-    buffs: [fire_resistance, speed]
-    particles: [flame, comet]
+    buffs:
+    - fire_resistance
+    - speed
+    particles:
+    - flame
+    - comet
   END:
-    name: '末地弱增益'
+    name: 末地弱增益
     display: '&#C084FCEND'
-    buffs: [slow_falling, jump_boost]
-    particles: [orbit, wings, spiral]
+    buffs:
+    - slow_falling
+    - jump_boost
+    particles:
+    - orbit
+    - wings
+    - spiral
   OCEAN:
-    name: '海洋弱增益'
+    name: 海洋弱增益
     display: '&#22D3EEOCEAN'
-    buffs: [water_breathing, luck]
-    particles: [rain, aura]
+    buffs:
+    - water_breathing
+    - luck
+    particles:
+    - rain
+    - aura
   REDSTONE:
-    name: '红石弱增益'
+    name: 红石弱增益
     display: '&#F87171REDSTONE'
-    buffs: [haste, speed]
-    particles: [pulse, ring]
+    buffs:
+    - haste
+    - speed
+    particles:
+    - pulse
+    - ring
   BUILDING:
-    name: '建筑弱增益'
+    name: 建筑弱增益
     display: '&#FDE68ABUILDING'
-    buffs: [jump_boost, slow_falling]
-    particles: [shield, halo]
+    buffs:
+    - jump_boost
+    - slow_falling
+    particles:
+    - shield
+    - halo
   SEASONAL:
-    name: '季节弱增益'
+    name: 季节弱增益
     display: '&#BFDBFESEASONAL'
-    buffs: [speed, luck]
-    particles: [rain, spark]
+    buffs:
+    - speed
+    - luck
+    particles:
+    - rain
+    - spark
   PRESTIGE:
-    name: '声望弱增益'
+    name: 声望弱增益
     display: '&#FDE047PRESTIGE'
-    buffs: [luck, night_vision]
-    particles: [crown, shield]
-
+    buffs:
+    - luck
+    - night_vision
+    particles:
+    - crown
+    - shield
 particles:
   halo:
     display: '&#FDE68A圣洁光环'
     pattern: halo
-    cost: { type: POINTS, amount: 35, conditions: [] }
+    cost:
+      type: POINTS
+      amount: 35
+      conditions: []
   aura:
     display: '&#86EFAC自然灵气'
     pattern: aura
-    cost: { type: POINTS, amount: 45, conditions: [] }
+    cost:
+      type: POINTS
+      amount: 45
+      conditions: []
   helix:
     display: '&#7DD3FC双螺旋'
     pattern: helix
-    cost: { type: POINTS, amount: 50, conditions: [] }
+    cost:
+      type: POINTS
+      amount: 50
+      conditions: []
   spiral:
     display: '&#C084FC星轨旋纹'
     pattern: spiral
-    cost: { type: POINTS, amount: 55, conditions: [] }
+    cost:
+      type: POINTS
+      amount: 55
+      conditions: []
   ring:
     display: '&#93C5FD守护星环'
     pattern: ring
-    cost: { type: POINTS, amount: 55, conditions: [] }
+    cost:
+      type: POINTS
+      amount: 55
+      conditions: []
   crown:
     display: '&#FDE68A王者冠冕'
     pattern: crown
-    cost: { type: POINTS, amount: 70, conditions: [] }
+    cost:
+      type: POINTS
+      amount: 70
+      conditions: []
   orbit:
     display: '&#7EE7C4双星环绕'
     pattern: orbit
-    cost: { type: POINTS, amount: 65, conditions: [] }
+    cost:
+      type: POINTS
+      amount: 65
+      conditions: []
   pulse:
     display: '&#FF8FD8能量脉冲'
     pattern: pulse
-    cost: { type: POINTS, amount: 45, conditions: [] }
+    cost:
+      type: POINTS
+      amount: 45
+      conditions: []
   wings:
     display: '&#F8FAFC光翼'
     pattern: wings
-    cost: { type: POINTS, amount: 85, conditions: [] }
+    cost:
+      type: POINTS
+      amount: 85
+      conditions: []
   feet:
     display: '&#CBD5E1行者足迹'
     pattern: feet
-    cost: { type: POINTS, amount: 30, conditions: [] }
+    cost:
+      type: POINTS
+      amount: 30
+      conditions: []
   flame:
     display: '&#FF9E7A烈焰之心'
     pattern: flame
-    cost: { type: POINTS, amount: 50, conditions: [] }
+    cost:
+      type: POINTS
+      amount: 50
+      conditions: []
   totem:
     display: '&#86EFAC图腾庇佑'
     pattern: totem
-    cost: { type: POINTS, amount: 80, conditions: [] }
+    cost:
+      type: POINTS
+      amount: 80
+      conditions: []
   spark:
     display: '&#FDE68A星火飞散'
     pattern: spark
-    cost: { type: POINTS, amount: 55, conditions: [] }
+    cost:
+      type: POINTS
+      amount: 55
+      conditions: []
   comet:
     display: '&#93C5FD彗星拖尾'
     pattern: comet
-    cost: { type: POINTS, amount: 65, conditions: [] }
+    cost:
+      type: POINTS
+      amount: 65
+      conditions: []
   rain:
     display: '&#7EE7C4灵雨落辉'
     pattern: rain
-    cost: { type: POINTS, amount: 50, conditions: [] }
+    cost:
+      type: POINTS
+      amount: 50
+      conditions: []
   shield:
     display: '&#C084FC护盾环阵'
     pattern: shield
-    cost: { type: POINTS, amount: 75, conditions: [] }
-
+    cost:
+      type: POINTS
+      amount: 75
+      conditions: []
 scrolls:
   strength_scroll:
     type: BUFF
