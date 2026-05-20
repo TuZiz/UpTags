@@ -17,7 +17,9 @@ import cn.aing.uptags.model.config.PluginSettings
 import cn.aing.uptags.model.config.ScrollDefinition
 import cn.aing.uptags.model.config.ShopProductDefinition
 import cn.aing.uptags.model.config.ShopProductType
+import cn.aing.uptags.model.config.SubmitItemDefinition
 import cn.aing.uptags.model.config.TagDefinition
+import cn.aing.uptags.model.config.TagShopDefinition
 import cn.aing.uptags.model.config.UpgradeGroupDefinition
 import cn.aing.uptags.model.runtime.ScrollKind
 import cn.aing.uptags.util.UnicodeText
@@ -123,6 +125,29 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
             yaml.set("$path.default-unlocked", definition.defaultUnlocked)
             yaml.set("$path.upgrade-groups", definition.upgradeGroups)
             yaml.set("$path.permission", definition.permission)
+            definition.shop?.let { shop ->
+                yaml.set("$path.shop.enabled", shop.enabled)
+                yaml.set("$path.shop.permission", shop.permission)
+                yaml.set("$path.shop.conditions", shop.conditions)
+                yaml.set("$path.shop.cost.type", shop.cost.type.name)
+                yaml.set("$path.shop.cost.amount", shop.cost.amount)
+                if (shop.cost.levelAmounts.isNotEmpty()) {
+                    shop.cost.levelAmounts.forEach { (level, amount) ->
+                        yaml.set("$path.shop.cost.levels.$level", amount)
+                    }
+                }
+                yaml.set("$path.shop.cost.conditions", shop.cost.conditions)
+                shop.submitItems.forEachIndexed { index, item ->
+                    yaml.set("$path.shop.submit-items.$index.material", item.material)
+                    yaml.set("$path.shop.submit-items.$index.amount", item.amount)
+                    yaml.set("$path.shop.submit-items.$index.name", item.name)
+                }
+                shop.icon?.let { icon ->
+                    yaml.set("$path.shop.icon.material", icon.material)
+                    yaml.set("$path.shop.icon.name", icon.name)
+                    yaml.set("$path.shop.icon.lore", icon.lore)
+                }
+            }
         }
         try {
             yaml.save(file)
@@ -245,6 +270,7 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
                 defaultUnlocked = section.getBoolean("default-unlocked", defaultTagUnlocked),
                 upgradeGroups = groups.toMutableList(),
                 permission = section.getString("permission")?.takeIf { it.isNotBlank() },
+                shop = parseTagShop(section.getConfigurationSection("shop")),
             )
         }
         if (skippedLegacyCustomTags) {
@@ -311,23 +337,91 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
 
     private fun loadShop() {
         shopProducts.clear()
+        tags.values.forEach { tag ->
+            val shop = tag.shop ?: return@forEach
+            val defaultIcon = ItemTemplate(
+                material = "NAME_TAG",
+                name = tag.display,
+                lore = buildList {
+                    addAll(tag.description)
+                    add(rarityDisplay(tag.rarity))
+                },
+            )
+            val icon = shop.icon?.let {
+                ItemTemplate(
+                    material = it.material,
+                    name = it.name.takeIf(String::isNotBlank) ?: defaultIcon.name,
+                    lore = it.lore.ifEmpty { defaultIcon.lore },
+                )
+            } ?: defaultIcon
+            shopProducts[tag.id] = ShopProductDefinition(
+                id = tag.id,
+                type = ShopProductType.TAG,
+                targetId = tag.id,
+                enabled = shop.enabled,
+                permission = shop.permission,
+                conditions = shop.conditions,
+                cost = shop.cost,
+                submitItems = shop.submitItems,
+                icon = icon,
+            )
+        }
         val yaml = YamlConfiguration.loadConfiguration(File(plugin.dataFolder, "shop.yml"))
         yaml.getConfigurationSection("products")?.getKeys(false)?.forEach { productId ->
             val section = yaml.getConfigurationSection("products.$productId") ?: return@forEach
             val iconSection = section.getConfigurationSection("icon")
+            val targetId = section.getString("target-id", productId) ?: productId
+            val tag = tags[targetId]
             shopProducts[productId] = ShopProductDefinition(
                 id = productId,
                 type = ShopProductType.from(section.getString("type")),
-                targetId = section.getString("target-id", productId) ?: productId,
+                targetId = targetId,
                 enabled = section.getBoolean("enabled", true),
                 permission = section.getString("permission")?.takeIf { it.isNotBlank() },
                 conditions = section.getStringList("conditions"),
                 cost = parseCost(section.getConfigurationSection("cost")),
+                submitItems = parseSubmitItems(section.getConfigurationSection("submit-items")),
                 icon = ItemTemplate(
                     material = iconSection?.getString("material", "NAME_TAG") ?: "NAME_TAG",
-                    name = iconSection?.getString("name", productId) ?: productId,
-                    lore = iconSection?.getStringList("lore") ?: emptyList(),
+                    name = iconSection?.getString("name", tag?.display ?: productId) ?: tag?.display ?: productId,
+                    lore = iconSection?.getStringList("lore") ?: tag?.description.orEmpty(),
                 ),
+            )
+        }
+    }
+
+    private fun parseTagShop(section: ConfigurationSection?): TagShopDefinition? {
+        if (section == null) {
+            return null
+        }
+        val iconSection = section.getConfigurationSection("icon")
+        return TagShopDefinition(
+            enabled = section.getBoolean("enabled", true),
+            permission = section.getString("permission")?.takeIf { it.isNotBlank() },
+            conditions = section.getStringList("conditions"),
+            cost = parseCost(section.getConfigurationSection("cost")),
+            submitItems = parseSubmitItems(section.getConfigurationSection("submit-items")),
+            icon = iconSection?.let {
+                ItemTemplate(
+                    material = it.getString("material", "NAME_TAG") ?: "NAME_TAG",
+                    name = it.getString("name", "") ?: "",
+                    lore = it.getStringList("lore"),
+                )
+            },
+        )
+    }
+
+    private fun parseSubmitItems(section: ConfigurationSection?): List<SubmitItemDefinition> {
+        if (section == null) {
+            return emptyList()
+        }
+        return section.getKeys(false).mapNotNull { key ->
+            val itemSection = section.getConfigurationSection(key) ?: return@mapNotNull null
+            val material = itemSection.getString("material")?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+            SubmitItemDefinition(
+                material = material,
+                amount = itemSection.getInt("amount", 1).coerceAtLeast(1),
+                name = itemSection.getString("name")?.takeIf { it.isNotBlank() },
             )
         }
     }
@@ -340,6 +434,10 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
             val palettes = readPaletteLibraries(section).ifEmpty { readPaletteGroups(section, "palettes") }
             val randomColorPool = section.getStringList("random-color-pool")
                 .mapNotNull(Support::normalizeHex)
+            val allowedPattern = validatedAllowedPattern(
+                presetId = presetId,
+                pattern = section.getString("allowed-pattern")?.takeIf { it.isNotBlank() },
+            )
             presets[presetId] = CustomTitlePreset(
                 id = presetId,
                 minLength = section.getInt("min-length", 2).coerceAtLeast(1),
@@ -348,7 +446,7 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
                 colorsPerScheme = section.getInt("colors-per-scheme", 2).coerceAtLeast(1),
                 allowManualColors = section.getBoolean("allow-manual-colors", true),
                 allowSpaces = section.getBoolean("allow-spaces", true),
-                allowedPattern = section.getString("allowed-pattern")?.takeIf { it.isNotBlank() },
+                allowedPattern = allowedPattern,
                 blockedWords = section.getStringList("blocked-words").map { UnicodeText.riskText(it) }.toSet(),
                 blockedPatterns = section.getStringList("blocked-patterns"),
                 palettes = palettes,
@@ -367,6 +465,21 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
             ),
             presets = presets,
         )
+    }
+
+    private fun validatedAllowedPattern(presetId: String, pattern: String?): String? {
+        if (pattern.isNullOrBlank()) {
+            return null
+        }
+        return runCatching {
+            Regex(pattern)
+            pattern
+        }.getOrElse { ex ->
+            plugin.logger.warning(
+                "Invalid custom-title allowed-pattern for preset '$presetId': $pattern; pattern disabled. Cause: ${ex.message}",
+            )
+            null
+        }
     }
 
     private fun readPaletteGroups(section: ConfigurationSection, path: String): List<List<String>> {

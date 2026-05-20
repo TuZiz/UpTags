@@ -1,7 +1,25 @@
 package cn.aing.uptags.gui
 
+import cn.aing.uptags.gui.title.CustomTitleMenuService
+
+import cn.aing.uptags.gui.shop.ShopMenuService
+
+import cn.aing.uptags.gui.scroll.ScrollSelectionMenuService
+
+import cn.aing.uptags.gui.effect.MenuEntryFactory
+
+import cn.aing.uptags.gui.effect.EffectMenuService
+
+import cn.aing.uptags.gui.common.MenuType
+
+import cn.aing.uptags.gui.common.MenuSession
+
+import cn.aing.uptags.gui.common.MenuHolder
+
+import cn.aing.uptags.gui.common.ActionMenuHolder
+
 import cn.aing.uptags.Support
-import cn.aing.uptags.command.AdminAccess
+import cn.aing.uptags.command.admin.AdminAccess
 import cn.aing.uptags.config.ConfigRegistry
 import cn.aing.uptags.config.MessageService
 import cn.aing.uptags.model.config.CurrencyType
@@ -11,13 +29,13 @@ import cn.aing.uptags.model.config.ItemTemplate
 import cn.aing.uptags.model.runtime.TitleEntry
 import cn.aing.uptags.model.runtime.ScrollSelectionContext
 import cn.aing.uptags.model.runtime.TitleKind
-import cn.aing.uptags.service.AdminActionResult
-import cn.aing.uptags.service.ScrollService
-import cn.aing.uptags.service.ShopService
-import cn.aing.uptags.service.TagService
-import cn.aing.uptags.service.CustomTitleService
-import cn.aing.uptags.service.ClickableMessageService
-import cn.aing.uptags.service.PlayerNameService
+import cn.aing.uptags.service.tag.AdminActionResult
+import cn.aing.uptags.service.scroll.ScrollService
+import cn.aing.uptags.service.shop.ShopService
+import cn.aing.uptags.service.tag.TagService
+import cn.aing.uptags.service.title.CustomTitleService
+import cn.aing.uptags.service.message.ClickableMessageService
+import cn.aing.uptags.service.player.PlayerNameService
 import org.bukkit.Bukkit
 import org.bukkit.Material
 import org.bukkit.OfflinePlayer

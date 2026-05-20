@@ -18,6 +18,8 @@ import cn.aing.uptags.model.runtime.PlayerTagData
 import cn.aing.uptags.model.runtime.ScrollKind
 import cn.aing.uptags.model.runtime.TagProgress
 import cn.aing.uptags.repository.PlayerDataRepository
+import cn.aing.uptags.service.economy.EconomyBridge
+import cn.aing.uptags.service.tag.TagService
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify

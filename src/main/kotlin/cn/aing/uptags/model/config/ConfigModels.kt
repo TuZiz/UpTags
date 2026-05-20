@@ -72,6 +72,22 @@ data class TagDefinition(
     var defaultUnlocked: Boolean,
     var upgradeGroups: MutableList<String>,
     var permission: String? = null,
+    var shop: TagShopDefinition? = null,
+)
+
+data class TagShopDefinition(
+    val enabled: Boolean = true,
+    val permission: String? = null,
+    val conditions: List<String> = emptyList(),
+    val cost: CostDefinition = CostDefinition(),
+    val submitItems: List<SubmitItemDefinition> = emptyList(),
+    val icon: ItemTemplate? = null,
+)
+
+data class SubmitItemDefinition(
+    val material: String,
+    val amount: Int,
+    val name: String? = null,
 )
 
 data class BuffDefinition(
@@ -122,6 +138,7 @@ data class ShopProductDefinition(
     val permission: String?,
     val conditions: List<String>,
     val cost: CostDefinition,
+    val submitItems: List<SubmitItemDefinition> = emptyList(),
     val icon: ItemTemplate,
 )
 

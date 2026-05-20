@@ -27,13 +27,23 @@ object UnicodeText {
     }
 
     fun containsForbiddenCodePoint(value: String): Boolean {
-        var index = 0
-        while (index < value.length) {
-            val codePoint = value.codePointAt(index)
+        val codePoints = value.codePoints().toArray()
+        codePoints.forEachIndexed { index, codePoint ->
+            if (isVariationSelector(codePoint)) {
+                if (!isValidVariationSelector(codePoints, index)) {
+                    return true
+                }
+                return@forEachIndexed
+            }
+            if (codePoint == zeroWidthJoiner) {
+                if (!isValidZeroWidthJoiner(codePoints, index)) {
+                    return true
+                }
+                return@forEachIndexed
+            }
             if (Character.getType(codePoint) in forbiddenTypes) {
                 return true
             }
-            index += Character.charCount(codePoint)
         }
         return false
     }
@@ -52,6 +62,19 @@ object UnicodeText {
         }
         return Normalizer.normalize(withoutForbidden, Normalizer.Form.NFKC)
             .lowercase(Locale.ROOT)
+    }
+
+    fun allowedPatternText(value: String): String {
+        return buildString {
+            var index = 0
+            while (index < value.length) {
+                val codePoint = value.codePointAt(index)
+                if (codePoint != zeroWidthJoiner && !isVariationSelector(codePoint)) {
+                    appendCodePoint(codePoint)
+                }
+                index += Character.charCount(codePoint)
+            }
+        }
     }
 
     fun graphemeClusters(value: String?): List<String> {
@@ -96,10 +119,10 @@ object UnicodeText {
     }
 
     private fun shouldJoin(previousLastCodePoint: Int, firstCodePoint: Int, previous: String): Boolean {
-        if (previousLastCodePoint == 0x200D || firstCodePoint == 0x200D) {
+        if (previousLastCodePoint == zeroWidthJoiner || firstCodePoint == zeroWidthJoiner) {
             return true
         }
-        if (firstCodePoint in 0xFE00..0xFE0F) {
+        if (isVariationSelector(firstCodePoint)) {
             return true
         }
         if (firstCodePoint in 0x1F3FB..0x1F3FF) {
@@ -120,6 +143,53 @@ object UnicodeText {
 
     private fun isRegionalIndicator(codePoint: Int): Boolean = codePoint in 0x1F1E6..0x1F1FF
 
+    private fun isVariationSelector(codePoint: Int): Boolean = codePoint in 0xFE00..0xFE0F
+
+    private fun isValidVariationSelector(codePoints: IntArray, index: Int): Boolean {
+        if (index == 0) {
+            return false
+        }
+        if (isVariationSelector(codePoints[index - 1]) || codePoints[index - 1] == zeroWidthJoiner) {
+            return false
+        }
+        return isEmojiLikeBase(codePoints[index - 1])
+    }
+
+    private fun isValidZeroWidthJoiner(codePoints: IntArray, index: Int): Boolean {
+        if (index == 0 || index == codePoints.lastIndex) {
+            return false
+        }
+        if (codePoints[index - 1] == zeroWidthJoiner || codePoints[index + 1] == zeroWidthJoiner) {
+            return false
+        }
+        val previousBase = previousEmojiBase(codePoints, index) ?: return false
+        val nextBase = nextEmojiBase(codePoints, index) ?: return false
+        return isEmojiLikeBase(previousBase) && isEmojiLikeBase(nextBase)
+    }
+
+    private fun previousEmojiBase(codePoints: IntArray, index: Int): Int? {
+        var cursor = index - 1
+        while (cursor >= 0 && isVariationSelector(codePoints[cursor])) {
+            cursor--
+        }
+        return codePoints.getOrNull(cursor)
+    }
+
+    private fun nextEmojiBase(codePoints: IntArray, index: Int): Int? {
+        var cursor = index + 1
+        while (cursor < codePoints.size && isVariationSelector(codePoints[cursor])) {
+            cursor++
+        }
+        return codePoints.getOrNull(cursor)
+    }
+
+    private fun isEmojiLikeBase(codePoint: Int): Boolean {
+        return codePoint in 0x1F000..0x1FAFF ||
+            codePoint in 0x2600..0x27BF ||
+            isRegionalIndicator(codePoint) ||
+            Character.getType(codePoint) == Character.OTHER_SYMBOL.toInt()
+    }
+
     private fun regionalIndicatorRunLength(value: String): Int {
         var count = 0
         var index = value.length
@@ -133,4 +203,6 @@ object UnicodeText {
         }
         return count
     }
+
+    private const val zeroWidthJoiner = 0x200D
 }

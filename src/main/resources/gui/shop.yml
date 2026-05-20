@@ -55,8 +55,8 @@ templates:
       - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
       - "%product_lore%"
       - ""
-      - " &#E2E8F0价格: &#FDE047%product_price% %product_currency%"
-      - " &#A7F3D0左键购买"
+      - " &#E2E8F0需求: &#FDE047%product_requirement%"
+      - " &#A7F3D0左键解锁"
       - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
   product-locked:
     material: "BARRIER"

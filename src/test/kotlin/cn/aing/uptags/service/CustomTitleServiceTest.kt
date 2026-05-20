@@ -9,6 +9,9 @@ import cn.aing.uptags.model.config.CustomTitleSettings
 import cn.aing.uptags.repository.PlayerDataRepository
 import cn.aing.uptags.repository.SaveResult
 import cn.aing.uptags.model.runtime.PlayerTagData
+import cn.aing.uptags.service.economy.EconomyBridge
+import cn.aing.uptags.service.title.CustomTitleService
+import cn.aing.uptags.service.title.CustomTitleStage
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -78,7 +81,7 @@ class CustomTitleServiceTest {
         every { economy.isAvailable(CurrencyType.TITLE_COIN) } returns true
         every { economy.balance(player, CurrencyType.TITLE_COIN) } returns 100.0
         every { economy.withdraw(player, CurrencyType.TITLE_COIN, 5.0) } returns true
-        every { repository.saveAsync(data, any()) } answers {
+        every { repository.saveAsyncStrict(data, any()) } answers {
             secondArg<(SaveResult) -> Unit>().invoke(SaveResult.Success(1L, System.currentTimeMillis()))
         }
 
@@ -94,7 +97,7 @@ class CustomTitleServiceTest {
         assertNotNull(custom)
         assertEquals("starter", custom.groupId)
         assertEquals(custom.id, data.equippedCustomTitleId)
-        verify(exactly = 2) { repository.saveAsync(data, any()) }
+        verify(exactly = 2) { repository.saveAsyncStrict(data, any()) }
         verify(exactly = 1) { economy.withdraw(player, CurrencyType.TITLE_COIN, 5.0) }
         verify(exactly = 0) { config.saveTags() }
     }
@@ -154,7 +157,7 @@ class CustomTitleServiceTest {
         every { economy.isAvailable(CurrencyType.TITLE_COIN) } returns true
         every { economy.balance(player, CurrencyType.TITLE_COIN) } returns 100.0
         every { economy.withdraw(player, CurrencyType.TITLE_COIN, 5.0) } returns true
-        every { repository.saveAsync(data, any()) } answers {
+        every { repository.saveAsyncStrict(data, any()) } answers {
             secondArg<(SaveResult) -> Unit>().invoke(SaveResult.Success(1L, System.currentTimeMillis()))
         }
 

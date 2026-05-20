@@ -4,17 +4,80 @@ import cn.aing.uptags.config.ConfigRegistry
 import cn.aing.uptags.config.MessageService
 import cn.aing.uptags.model.config.CostDefinition
 import cn.aing.uptags.model.config.CurrencyType
+import cn.aing.uptags.service.economy.EconomyBridge
+import cn.aing.uptags.service.shop.ShopService
+import cn.aing.uptags.service.tag.TagService
+import cn.aing.uptags.service.title.CustomTitleService
 import cn.aing.uptags.model.config.ItemTemplate
 import cn.aing.uptags.model.config.ShopProductDefinition
 import cn.aing.uptags.model.config.ShopProductType
+import cn.aing.uptags.model.config.SubmitItemDefinition
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import org.bukkit.Material
 import org.bukkit.entity.Player
+import org.bukkit.inventory.ItemStack
+import org.bukkit.inventory.PlayerInventory
 
 class ShopServiceTest {
+    @Test
+    fun adminCanSeeProductsEvenWhenConditionsAreNotMet() {
+        val player = mockk<Player>()
+        val config = mockk<ConfigRegistry>()
+        val tagService = mockk<TagService>()
+        val customTitleService = mockk<CustomTitleService>(relaxed = true)
+        val economy = mockk<EconomyBridge>(relaxed = true)
+        val messages = mockk<MessageService>(relaxed = true)
+        val product = ShopProductDefinition(
+            id = "miner_soul",
+            type = ShopProductType.TAG,
+            targetId = "miner_soul",
+            enabled = true,
+            permission = null,
+            conditions = listOf("%statistic_mine_block%>=256"),
+            cost = CostDefinition(),
+            icon = ItemTemplate("NAME_TAG", "Miner Soul", emptyList()),
+        )
+
+        every { config.shopProducts } returns linkedMapOf(product.id to product)
+        every { player.hasPermission("uptags.admin") } returns true
+
+        val service = ShopService(config, tagService, customTitleService, economy, messages)
+        val visible = service.visibleProducts(player)
+
+        assertEquals(listOf(product), visible)
+        verify(exactly = 0) { tagService.checkConditions(player, product.conditions) }
+    }
+
+    @Test
+    fun submitItemRequirementsUseChineseMaterialNames() {
+        val config = mockk<ConfigRegistry>()
+        val tagService = mockk<TagService>()
+        val customTitleService = mockk<CustomTitleService>(relaxed = true)
+        val economy = mockk<EconomyBridge>(relaxed = true)
+        val messages = mockk<MessageService>(relaxed = true)
+        val product = ShopProductDefinition(
+            id = "cave_lighter",
+            type = ShopProductType.TAG,
+            targetId = "cave_lighter",
+            enabled = true,
+            permission = null,
+            conditions = emptyList(),
+            cost = CostDefinition(),
+            submitItems = listOf(SubmitItemDefinition("TORCH", 128)),
+            icon = ItemTemplate("NAME_TAG", "Cave Lighter", emptyList()),
+        )
+
+        val service = ShopService(config, tagService, customTitleService, economy, messages)
+        val display = service.requirementDisplay(product)
+
+        assertEquals("128x 火把", display)
+    }
+
     @Test
     fun customProductStartsDraftWithoutImmediateCharge() {
         val player = mockk<Player>()
@@ -35,6 +98,7 @@ class ShopServiceTest {
         )
 
         every { config.shopProducts } returns linkedMapOf(product.id to product)
+        every { player.hasPermission(any<String>()) } returns false
         every { tagService.checkConditions(player, product.conditions) } returns true
         every { economy.isAvailable(CurrencyType.TITLE_COIN) } returns true
         every { economy.balance(player, CurrencyType.TITLE_COIN) } returns 100.0
@@ -46,5 +110,53 @@ class ShopServiceTest {
         assertTrue(started)
         verify(exactly = 1) { customTitleService.startProductDraft(player, "basic", CurrencyType.TITLE_COIN, 5.0, "custom_basic") }
         verify(exactly = 0) { economy.withdraw(any(), any(), any()) }
+    }
+
+    @Test
+    fun tagProductCanUnlockBySubmittingItemsWithoutChargingCurrency() {
+        val player = mockk<Player>()
+        val inventory = mockk<PlayerInventory>()
+        val config = mockk<ConfigRegistry>()
+        val tagService = mockk<TagService>()
+        val customTitleService = mockk<CustomTitleService>(relaxed = true)
+        val economy = mockk<EconomyBridge>(relaxed = true)
+        val messages = mockk<MessageService>(relaxed = true)
+        val contents = arrayOf<ItemStack?>(
+            ItemStack(Material.BREAD, 20),
+            ItemStack(Material.BREAD, 20),
+        )
+        val product = ShopProductDefinition(
+            id = "bread_guard",
+            type = ShopProductType.TAG,
+            targetId = "bread_guard",
+            enabled = true,
+            permission = null,
+            conditions = emptyList(),
+            cost = CostDefinition(),
+            submitItems = listOf(SubmitItemDefinition("BREAD", 32)),
+            icon = ItemTemplate("NAME_TAG", "Bread Guard", emptyList()),
+        )
+
+        every { player.inventory } returns inventory
+        every { inventory.storageContents } returns contents
+        every { inventory.storageContents = any() } answers {
+            val updated = firstArg<Array<ItemStack?>>()
+            contents.indices.forEach { contents[it] = updated[it] }
+        }
+        every { config.shopProducts } returns linkedMapOf(product.id to product)
+        every { player.hasPermission(any<String>()) } returns false
+        every { tagService.checkConditions(player, product.conditions) } returns true
+        every { tagService.isOwned(player, product.targetId) } returns false
+        every { tagService.giveTag(player, product.targetId) } returns true
+        every { tagService.tagName(product.targetId) } returns "Bread Guard"
+
+        val service = ShopService(config, tagService, customTitleService, economy, messages)
+        val bought = service.buy(player, product.id)
+
+        assertTrue(bought)
+        assertEquals(0, contents[0]?.amount ?: 0)
+        assertEquals(8, contents[1]?.amount)
+        verify(exactly = 0) { economy.withdraw(any(), any(), any()) }
+        verify(exactly = 1) { tagService.giveTag(player, "bread_guard") }
     }
 }

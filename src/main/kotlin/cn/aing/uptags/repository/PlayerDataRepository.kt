@@ -8,6 +8,7 @@ import cn.aing.uptags.service.sync.RedisSyncService
 import org.bukkit.plugin.java.JavaPlugin
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ConcurrentLinkedQueue
 
 class PlayerDataRepository(
     private val plugin: JavaPlugin,
@@ -17,6 +18,7 @@ class PlayerDataRepository(
     private val cache = ConcurrentHashMap<UUID, PlayerCacheEntry>()
     private val dirty = ConcurrentHashMap.newKeySet<UUID>()
     private val pendingSaves = ConcurrentHashMap<UUID, PendingSave>()
+    private val strictSaves = ConcurrentHashMap<UUID, ConcurrentLinkedQueue<PendingSave>>()
     private val savingNow = ConcurrentHashMap.newKeySet<UUID>()
     private var redisSyncService: RedisSyncService? = null
     private var serverId: String = "local"
@@ -92,22 +94,23 @@ class PlayerDataRepository(
         if (!savingNow.add(data.uniqueId)) {
             return
         }
-        scheduler.runAsync {
-            try {
-                drainSaveQueue(data.uniqueId)
-            } finally {
-                savingNow.remove(data.uniqueId)
-                if (pendingSaves.containsKey(data.uniqueId) && savingNow.add(data.uniqueId)) {
-                    scheduler.runAsync {
-                        try {
-                            drainSaveQueue(data.uniqueId)
-                        } finally {
-                            savingNow.remove(data.uniqueId)
-                        }
-                    }
-                }
-            }
+        scheduleDrain(data.uniqueId)
+    }
+
+    fun saveAsyncStrict(data: PlayerTagData, callback: (SaveResult) -> Unit) {
+        markDirty(data)
+        strictSaves.computeIfAbsent(data.uniqueId) { ConcurrentLinkedQueue() }
+            .add(
+                PendingSave(
+                    data = data.copyDeep(),
+                    retryOnFailure = false,
+                    callbacks = mutableListOf(callback),
+                ),
+            )
+        if (!savingNow.add(data.uniqueId)) {
+            return
         }
+        scheduleDrain(data.uniqueId)
     }
 
     fun saveSync(data: PlayerTagData) {
@@ -137,6 +140,7 @@ class PlayerDataRepository(
         cache.remove(uniqueId)
         dirty.remove(uniqueId)
         pendingSaves.remove(uniqueId)
+        strictSaves.remove(uniqueId)
         savingNow.remove(uniqueId)
     }
 
@@ -146,7 +150,7 @@ class PlayerDataRepository(
 
     private fun drainSaveQueue(uniqueId: UUID) {
         while (true) {
-            val request = pendingSaves.remove(uniqueId) ?: break
+            val request = nextSaveRequest(uniqueId) ?: break
             val nextData = request.data
             val currentEntry = loadEntry(uniqueId)
             val expectedVersion = currentEntry.version
@@ -184,6 +188,32 @@ class PlayerDataRepository(
                 }
             }
         }
+    }
+
+    private fun scheduleDrain(uniqueId: UUID) {
+        scheduler.runAsync {
+            try {
+                drainSaveQueue(uniqueId)
+            } finally {
+                savingNow.remove(uniqueId)
+                if (hasPendingSave(uniqueId) && savingNow.add(uniqueId)) {
+                    scheduleDrain(uniqueId)
+                }
+            }
+        }
+    }
+
+    private fun nextSaveRequest(uniqueId: UUID): PendingSave? {
+        val strictQueue = strictSaves[uniqueId]
+        val strict = strictQueue?.poll()
+        if (strictQueue != null && strictQueue.isEmpty()) {
+            strictSaves.remove(uniqueId, strictQueue)
+        }
+        return strict ?: pendingSaves.remove(uniqueId)
+    }
+
+    private fun hasPendingSave(uniqueId: UUID): Boolean {
+        return pendingSaves.containsKey(uniqueId) || strictSaves[uniqueId]?.isNotEmpty() == true
     }
 
     private fun completeCallbacks(request: PendingSave, result: SaveResult) {

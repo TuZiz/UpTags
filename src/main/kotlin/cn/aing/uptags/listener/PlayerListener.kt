@@ -1,10 +1,10 @@
 package cn.aing.uptags.listener
 
 import cn.aing.uptags.repository.PlayerDataRepository
-import cn.aing.uptags.service.CustomTitleService
-import cn.aing.uptags.service.EffectService
-import cn.aing.uptags.service.PlayerNameService
-import cn.aing.uptags.service.TagService
+import cn.aing.uptags.service.title.CustomTitleService
+import cn.aing.uptags.service.effect.EffectService
+import cn.aing.uptags.service.player.PlayerNameService
+import cn.aing.uptags.service.tag.TagService
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.player.PlayerJoinEvent

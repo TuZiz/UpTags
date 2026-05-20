@@ -2,8 +2,8 @@ package cn.aing.uptags.listener
 
 import cn.aing.uptags.compat.PlatformScheduler
 import cn.aing.uptags.config.MessageService
-import cn.aing.uptags.service.ClickableMessageService
-import cn.aing.uptags.service.CustomTitleService
+import cn.aing.uptags.service.message.ClickableMessageService
+import cn.aing.uptags.service.title.CustomTitleService
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener

@@ -147,9 +147,18 @@ permissions:
       uptags.admin.custom.list: true
       uptags.admin.custom.equip: true
       uptags.admin.custom.delete: true
+      uptags.admin.custom.orders: true
+      uptags.admin.custom.refund: true
+      uptags.admin.custom.complete: true
   uptags.admin.custom.list:
     default: false
   uptags.admin.custom.equip:
     default: false
   uptags.admin.custom.delete:
+    default: false
+  uptags.admin.custom.orders:
+    default: false
+  uptags.admin.custom.refund:
+    default: false
+  uptags.admin.custom.complete:
     default: false

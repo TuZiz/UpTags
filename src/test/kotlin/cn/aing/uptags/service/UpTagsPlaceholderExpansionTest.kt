@@ -1,6 +1,8 @@
 package cn.aing.uptags.service
 
 import cn.aing.uptags.UpTagsPlugin
+import cn.aing.uptags.service.placeholder.UpTagsPlaceholderExpansion
+import cn.aing.uptags.service.tag.TagService
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify

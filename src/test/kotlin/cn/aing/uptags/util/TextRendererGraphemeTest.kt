@@ -24,6 +24,17 @@ class TextRendererGraphemeTest {
         assertEquals("桜咲く귀여운★♡✦・ー⭐勇者🏳️🌈", TextRenderer.stripColor(rendered))
         assertEquals(16, UnicodeText.visibleCharacterCount("桜咲く귀여운★♡✦・ー⭐勇者🏳️🌈"))
         assertEquals(2, UnicodeText.visibleCharacterCount("🏳️🌈"))
+        assertEquals(1, UnicodeText.visibleCharacterCount("🏳️‍🌈"))
+        assertEquals(1, UnicodeText.visibleCharacterCount("👨‍👩‍👧‍👦"))
         assertEquals(2, UnicodeText.visibleCharacterCount("e\u0301龍"))
+    }
+
+    @Test
+    fun renderPaletteTextKeepsZwJEmojiClustersIntact() {
+        val text = "🏳️‍🌈👨‍👩‍👧‍👦"
+        val rendered = TextRenderer.renderPaletteText(text, listOf("#000000", "#FFFFFF"))
+
+        assertEquals(text, TextRenderer.stripColor(rendered))
+        assertFalse(rendered.contains("\u200D${TextRenderer.color("&#FFFFFF")}"))
     }
 }

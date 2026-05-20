@@ -7,6 +7,8 @@ import cn.aing.uptags.model.config.CustomTitlePreset
 import cn.aing.uptags.model.config.CustomTitleSettings
 import cn.aing.uptags.model.runtime.PlayerTagData
 import cn.aing.uptags.repository.PlayerDataRepository
+import cn.aing.uptags.service.economy.EconomyBridge
+import cn.aing.uptags.service.title.CustomTitleService
 import io.mockk.every
 import io.mockk.mockk
 import java.util.UUID
@@ -33,6 +35,8 @@ class UnicodeTitleValidationTest {
             "🐉龍",
             "⭐勇者",
             "🏳️🌈",
+            "🏳️‍🌈",
+            "👨‍👩‍👧‍👦",
             "A|B,C:D;E#F~G",
             "ー",
         )
@@ -58,6 +62,9 @@ class UnicodeTitleValidationTest {
             "ａｄｍｉｎ",
             "AdMiN",
             "ad\u200Bmin",
+            "\u200D",
+            "abc\u200Ddef",
+            "\uFE0F",
             "bad\uE000title",
         )
 

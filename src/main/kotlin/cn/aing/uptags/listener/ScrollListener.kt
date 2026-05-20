@@ -3,7 +3,7 @@ package cn.aing.uptags.listener
 import cn.aing.uptags.compat.PlatformScheduler
 import cn.aing.uptags.config.MessageService
 import cn.aing.uptags.gui.MenuService
-import cn.aing.uptags.service.ScrollService
+import cn.aing.uptags.service.scroll.ScrollService
 import org.bukkit.event.Event
 import org.bukkit.event.EventHandler
 import org.bukkit.event.EventPriority

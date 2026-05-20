@@ -1,11 +1,11 @@
-package cn.aing.uptags.listener
+﻿package cn.aing.uptags.listener
 
 import cn.aing.uptags.compat.PlatformScheduler
 import cn.aing.uptags.compat.TaskHandle
 import cn.aing.uptags.config.MessageService
-import cn.aing.uptags.service.ClickableMessageService
-import cn.aing.uptags.service.CustomTitleService
-import cn.aing.uptags.service.ValidationResult
+import cn.aing.uptags.service.message.ClickableMessageService
+import cn.aing.uptags.service.title.CustomTitleService
+import cn.aing.uptags.service.title.ValidationResult
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot

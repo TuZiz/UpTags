@@ -30,7 +30,7 @@ class PlayerDataCodecUnicodeRoundTripTest {
             }
             customTitles["custom-unicode"] = CustomTitleData(
                 id = "custom-unicode",
-                rawText = "$separatorText🐉龍⭐勇者🏳️🌈夢・幻귀여운칭호",
+                rawText = "$separatorText🐉龍⭐勇者🏳️🌈🏳️‍🌈👨‍👩‍👧‍👦夢・幻귀여운칭호",
                 presetId = "unicode",
                 groupId = "starter|group",
                 manualColors = mutableListOf("#FFFFFF", "#000000"),

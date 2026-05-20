@@ -80,7 +80,7 @@ class MessageService(private val plugin: JavaPlugin) {
                 "&#FDE047/tags admin coin <give|take|set> <玩家> <数量> &#94A3B8- 管理内置称号币",
                 "&#FDE047/tags admin buff <set|enable|disable|detach> ... &#94A3B8- 命令式管理目标称号 Buff",
                 "&#FDE047/tags admin particle <give|take|select|clear|detach> ... &#94A3B8- 命令式管理目标称号粒子",
-                "&#FDE047/tags admin custom <list|equip|delete> ... &#94A3B8- 管理目标自定义称号",
+                "&#FDE047/tags admin custom <list|equip|delete|orders|refund|complete> ... &#94A3B8- 管理目标自定义称号与异常订单",
                 "&#FDE047/tags admin scroll give <在线玩家> <卷轴ID> [数量] &#94A3B8- 发放卷轴",
                 "&#FDE047/tags admin tag <create|delete|setdisplay|setrarity|setgroups|setdefault> ... &#94A3B8- 管理配置称号",
             ).joinToString("\n")

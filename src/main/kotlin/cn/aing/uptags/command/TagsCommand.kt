@@ -1,14 +1,26 @@
 package cn.aing.uptags.command
 
+import cn.aing.uptags.command.custom.TagsCustomCommand
+
+import cn.aing.uptags.command.core.TagsTabCompleter
+
+import cn.aing.uptags.command.core.TagsHelpRenderer
+
+import cn.aing.uptags.command.core.TagsCommandContext
+
+import cn.aing.uptags.command.admin.TagsAdminCommand
+
+import cn.aing.uptags.command.admin.AdminAccess
+
 import cn.aing.uptags.UpTagsPlugin
 import cn.aing.uptags.config.MessageService
 import cn.aing.uptags.gui.MenuService
-import cn.aing.uptags.service.ClickableMessageService
-import cn.aing.uptags.service.CustomTitleService
-import cn.aing.uptags.service.PlayerNameService
-import cn.aing.uptags.service.ScrollService
-import cn.aing.uptags.service.ShopService
-import cn.aing.uptags.service.TagService
+import cn.aing.uptags.service.message.ClickableMessageService
+import cn.aing.uptags.service.title.CustomTitleService
+import cn.aing.uptags.service.player.PlayerNameService
+import cn.aing.uptags.service.scroll.ScrollService
+import cn.aing.uptags.service.shop.ShopService
+import cn.aing.uptags.service.tag.TagService
 import org.bukkit.command.Command
 import org.bukkit.command.CommandExecutor
 import org.bukkit.command.CommandSender
