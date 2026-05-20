@@ -175,3 +175,20 @@ tags:
         slime_ball:
           material: SLIME_BALL
           amount: 32
+
+  abyss_cartographer: { display: '&#E2E8F0[&#5B7CFA深暗绘图师&#E2E8F0]', description: [ '&#94A3B8记录深暗地形的谨慎探险者。' ], rarity: EPIC, default-unlocked: false, upgrade-groups: [ ADVENTURE ] }
+  nether_pathfinder: { display: '&#E2E8F0[&#F97316下界巡路人&#E2E8F0]', description: [ '&#94A3B8熟悉岩浆海与堡垒边界。' ], rarity: LIMITED, default-unlocked: false, upgrade-groups: [ NETHER ] }
+  end_voyager: { display: '&#E2E8F0[&#C4B5FD末地远航者&#E2E8F0]', description: [ '&#94A3B8把虚空边缘当作航线。' ], rarity: EPIC, default-unlocked: false, upgrade-groups: [ END ] }
+  warden_echo: { display: '&#E2E8F0[&#67E8F9监守回声&#E2E8F0]', description: [ '&#94A3B8从幽匿尖啸中活着回来。' ], rarity: EPIC, default-unlocked: false, upgrade-groups: [ ADVENTURE ] }
+  diamond_vein_master: { display: '&#E2E8F0[&#60A5FA深层钻脉师&#E2E8F0]', description: [ '&#94A3B8只追逐最深处的蓝色矿脉。' ], rarity: LIMITED, default-unlocked: false, upgrade-groups: [ MINING ] }
+  sky_limit_builder: { display: '&#E2E8F0[&#FDE68A天际构筑者&#E2E8F0]', description: [ '&#94A3B8把脚手架一路搭到云层之上。' ], rarity: LIMITED, default-unlocked: false, upgrade-groups: [ BUILDING ] }
+  long_marcher: { display: '&#E2E8F0[&#A7F3D0远行长路&#E2E8F0]', description: [ '&#94A3B8地图上的折线就是你的履历。' ], rarity: LIMITED, default-unlocked: false, upgrade-groups: [ ADVENTURE ] }
+  ocean_salvager: { display: '&#E2E8F0[&#7DD3FC深海打捞员&#E2E8F0]', description: [ '&#94A3B8从海底废墟带回有用之物。' ], rarity: LIMITED, default-unlocked: false, upgrade-groups: [ OCEAN ] }
+  redstone_architect: { display: '&#E2E8F0[&#F87171红石建筑师&#E2E8F0]', description: [ '&#94A3B8让建筑拥有会思考的线路。' ], rarity: EPIC, default-unlocked: false, upgrade-groups: [ REDSTONE ] }
+  fortress_raider: { display: '&#E2E8F0[&#FDBA74要塞掠行者&#E2E8F0]', description: [ '&#94A3B8烈焰人刷新点旁的常客。' ], rarity: LIMITED, default-unlocked: false, upgrade-groups: [ NETHER ] }
+  coral_keeper: { display: '&#E2E8F0[&#22D3EE珊瑚守望&#E2E8F0]', description: [ '&#94A3B8守护热带海底的颜色。' ], rarity: LIMITED, default-unlocked: false, upgrade-groups: [ OCEAN ] }
+  obsidian_banker: { display: '&#E2E8F0[&#A78BFA黑曜金库&#E2E8F0]', description: [ '&#94A3B8财富和黑曜石一样稳定。' ], rarity: LIMITED, default-unlocked: false, upgrade-groups: [ PRESTIGE ] }
+  season_snowcaller: { display: '&#E2E8F0[&#BFDBFE凛冬唤雪者&#E2E8F0]', description: [ '&#94A3B8限定季节里的雪线守护者。' ], rarity: LIMITED, default-unlocked: false, upgrade-groups: [ SEASONAL ] }
+  prestige_founder: { display: '&#E2E8F0[&#FDE047声望奠基者&#E2E8F0]', description: [ '&#94A3B8长线贡献者的身份象征。' ], rarity: EPIC, default-unlocked: false, upgrade-groups: [ PRESTIGE ] }
+  dragon_relic_hunter: { display: '&#E2E8F0[&#C084FC龙息遗珍猎手&#E2E8F0]', description: [ '&#94A3B8收集末地龙息与紫颂遗物。' ], rarity: EPIC, default-unlocked: false, upgrade-groups: [ END ] }
+  ancient_city_runner: { display: '&#E2E8F0[&#64748B古城潜行者&#E2E8F0]', description: [ '&#94A3B8在古城阴影下保持安静。' ], rarity: EPIC, default-unlocked: false, upgrade-groups: [ ADVENTURE ] }

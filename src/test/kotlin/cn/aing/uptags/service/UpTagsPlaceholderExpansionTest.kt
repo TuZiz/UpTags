@@ -22,6 +22,7 @@ class UpTagsPlaceholderExpansionTest {
 
         every { offlinePlayer.uniqueId } returns uniqueId
         every { offlinePlayer.player } returns null
+        every { tagService.isDataLoaded(uniqueId) } returns true
         every { tagService.currentTagId(uniqueId) } returns "vip"
         every { tagService.currentTagDisplay(uniqueId) } returns "VIP"
         every { tagService.titleCoins(uniqueId) } returns 12.5
@@ -47,6 +48,7 @@ class UpTagsPlaceholderExpansionTest {
 
         every { offlinePlayer.uniqueId } returns uniqueId
         every { offlinePlayer.player } returns player
+        every { tagService.isDataLoaded(uniqueId) } returns true
         every { tagService.currentTagId(player) } returns "newbie"
         every { tagService.points(player) } returns 88.0
 

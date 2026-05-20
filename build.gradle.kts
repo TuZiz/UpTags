@@ -36,6 +36,7 @@ dependencies {
     testImplementation("org.spigotmc:spigot-api:1.20.6-R0.1-SNAPSHOT")
     testImplementation("me.clip:placeholderapi:2.11.6")
     testImplementation("io.mockk:mockk:1.13.12")
+    testImplementation("com.h2database:h2:2.3.232")
 }
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {

@@ -106,11 +106,35 @@ data class PurchaseOrderData(
     var currencyType: CurrencyType,
     var currencyAmount: Double,
     var submittedItems: MutableList<String> = mutableListOf(),
+    var compensatedItems: MutableList<String> = mutableListOf(),
     var createdAt: Long = System.currentTimeMillis(),
     var updatedAt: Long = createdAt,
     var failureReason: String? = null,
 ) {
-    fun copyDeep(): PurchaseOrderData = copy(submittedItems = submittedItems.toMutableList())
+    fun copyDeep(): PurchaseOrderData = copy(
+        submittedItems = submittedItems.toMutableList(),
+        compensatedItems = compensatedItems.toMutableList(),
+    )
+}
+
+class ChallengeProgressData {
+    val values: MutableMap<String, Long> = LinkedHashMap()
+    var lastMoveSampleAt: Long = 0L
+    var lastX: Double? = null
+    var lastY: Double? = null
+    var lastZ: Double? = null
+    var lastWorld: String? = null
+
+    fun copyDeep(): ChallengeProgressData {
+        val copy = ChallengeProgressData()
+        copy.values.putAll(values)
+        copy.lastMoveSampleAt = lastMoveSampleAt
+        copy.lastX = lastX
+        copy.lastY = lastY
+        copy.lastZ = lastZ
+        copy.lastWorld = lastWorld
+        return copy
+    }
 }
 
 data class CustomTitlePurchaseOrderData(
@@ -169,6 +193,7 @@ class PlayerTagData(val uniqueId: UUID) {
     val customTitles: MutableMap<String, CustomTitleData> = LinkedHashMap()
     val customTitleOrders: MutableMap<String, CustomTitlePurchaseOrderData> = LinkedHashMap()
     val purchaseOrders: MutableMap<String, PurchaseOrderData> = LinkedHashMap()
+    val challengeProgress: ChallengeProgressData = ChallengeProgressData()
     var equippedCustomTitleId: String? = null
 
     fun copyDeep(): PlayerTagData {
@@ -183,6 +208,12 @@ class PlayerTagData(val uniqueId: UUID) {
         customTitles.forEach { (key, value) -> copy.customTitles[key] = value.copyDeep() }
         customTitleOrders.forEach { (key, value) -> copy.customTitleOrders[key] = value.copyDeep() }
         purchaseOrders.forEach { (key, value) -> copy.purchaseOrders[key] = value.copyDeep() }
+        copy.challengeProgress.values.putAll(challengeProgress.values)
+        copy.challengeProgress.lastMoveSampleAt = challengeProgress.lastMoveSampleAt
+        copy.challengeProgress.lastX = challengeProgress.lastX
+        copy.challengeProgress.lastY = challengeProgress.lastY
+        copy.challengeProgress.lastZ = challengeProgress.lastZ
+        copy.challengeProgress.lastWorld = challengeProgress.lastWorld
         return copy
     }
 }

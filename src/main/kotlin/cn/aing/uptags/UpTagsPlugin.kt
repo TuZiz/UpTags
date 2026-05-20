@@ -7,6 +7,7 @@ import cn.aing.uptags.config.MessageService
 import cn.aing.uptags.config.StorageMode
 import cn.aing.uptags.gui.MenuService
 import cn.aing.uptags.listener.ChatInputListener
+import cn.aing.uptags.listener.ChallengeProgressListener
 import cn.aing.uptags.listener.PlayerListener
 import cn.aing.uptags.listener.ScrollListener
 import cn.aing.uptags.repository.PlayerDataRepository
@@ -20,6 +21,7 @@ import cn.aing.uptags.service.effect.EffectService
 import cn.aing.uptags.service.player.PlayerNameService
 import cn.aing.uptags.service.scroll.ScrollService
 import cn.aing.uptags.service.shop.ShopService
+import cn.aing.uptags.service.shop.ChallengeProgressService
 import cn.aing.uptags.service.tag.TagService
 import cn.aing.uptags.service.placeholder.UpTagsPlaceholderExpansion
 import cn.aing.uptags.service.sync.JedisRedisSyncService
@@ -43,6 +45,7 @@ class UpTagsPlugin : JavaPlugin() {
     private lateinit var clickableMessageService: ClickableMessageService
     private lateinit var customTitleService: CustomTitleService
     private lateinit var shopService: ShopService
+    private lateinit var challengeProgressService: ChallengeProgressService
     private lateinit var playerNameService: PlayerNameService
     private lateinit var menuService: MenuService
     private lateinit var effectService: EffectService
@@ -87,14 +90,16 @@ class UpTagsPlugin : JavaPlugin() {
             withdrawAccessor = { player, amount -> customTitleService.takeTitleCoins(player, amount) },
             depositAccessor = { player, amount -> customTitleService.addTitleCoins(player, amount); true },
         )
-        shopService = ShopService(config, tagService, customTitleService, economyBridge, messages)
+        challengeProgressService = ChallengeProgressService(repository)
+        shopService = ShopService(config, tagService, customTitleService, economyBridge, messages, challengeProgressService)
         scrollService = ScrollService(this, config, tagService, messages)
         tagService.attachScrollFactory { scrollKey, level -> scrollService.createScroll(scrollKey, 1, level) }
-        menuService = MenuService(this, config, tagService, scrollService, shopService, messages, customTitleService, clickableMessageService, playerNameService)
+        menuService = MenuService(this, config, tagService, scrollService, shopService, messages, customTitleService, clickableMessageService, playerNameService, repository)
         effectService = EffectService(this, scheduler, config, tagService)
 
         server.pluginManager.registerEvents(menuService, this)
-        server.pluginManager.registerEvents(PlayerListener(tagService, customTitleService, repository, effectService, playerNameService, scheduler), this)
+        server.pluginManager.registerEvents(PlayerListener(tagService, customTitleService, repository, effectService, playerNameService, scheduler, messages, shopService), this)
+        server.pluginManager.registerEvents(ChallengeProgressListener(challengeProgressService), this)
         server.pluginManager.registerEvents(ScrollListener(menuService, scrollService, messages, scheduler), this)
         server.pluginManager.registerEvents(ChatInputListener(scheduler, customTitleService, clickableMessageService, messages), this)
 
@@ -125,6 +130,7 @@ class UpTagsPlugin : JavaPlugin() {
                     }
                     tagService.preparePlayer(player, false)
                     customTitleService.preparePlayer(player)
+                    shopService.recoverPendingOrders(player)
                     effectService.startPlayer(player)
                 }
             }

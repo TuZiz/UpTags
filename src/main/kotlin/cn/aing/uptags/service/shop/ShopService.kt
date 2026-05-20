@@ -11,6 +11,7 @@ import cn.aing.uptags.model.config.ShopProductType
 import cn.aing.uptags.model.config.SubmitItemDefinition
 import cn.aing.uptags.model.runtime.PurchaseOrderData
 import cn.aing.uptags.model.runtime.PurchaseOrderStatus
+import cn.aing.uptags.repository.SaveResult
 import cn.aing.uptags.service.economy.EconomyBridge
 import cn.aing.uptags.service.tag.TagService
 import cn.aing.uptags.service.title.CustomTitleService
@@ -25,7 +26,7 @@ class ShopService(
     private val customTitleService: CustomTitleService,
     private val economyBridge: EconomyBridge,
     private val messageService: MessageService,
-    private val challengeProgressService: ChallengeProgressService = ChallengeProgressService(),
+    private val challengeProgressService: ChallengeProgressService,
 ) {
     fun visibleProducts(player: Player): List<ShopProductDefinition> {
         return config.shopProducts.values.filter { product ->
@@ -39,6 +40,27 @@ class ShopService(
         return visibleProducts(player).filter { it.type == ShopProductType.CUSTOM }
     }
 
+    fun recoverPendingOrders(player: Player) {
+        val data = tagService.requireLoaded(player) ?: return
+        data.purchaseOrders.values
+            .filter { it.status == PurchaseOrderStatus.PENDING || it.status == PurchaseOrderStatus.PAID || it.status == PurchaseOrderStatus.REFUND_PENDING }
+            .forEach { order ->
+                val product = config.shopProducts[order.productId] ?: return@forEach
+                if (order.status == PurchaseOrderStatus.PENDING) {
+                    order.fail("interrupted-before-payment")
+                    tagService.recordPurchaseOrderStrict(player, order) {}
+                    return@forEach
+                }
+                if (order.status == PurchaseOrderStatus.PAID || order.status == PurchaseOrderStatus.REFUND_PENDING) {
+                    val refunded = economyBridge.refund(player, order.currencyType, order.currencyAmount)
+                    order.status = if (refunded) PurchaseOrderStatus.FAILED else PurchaseOrderStatus.REFUND_PENDING
+                    order.failureReason = "recovered-after-restart"
+                    order.updatedAt = System.currentTimeMillis()
+                    tagService.recordPurchaseOrderStrict(player, order) {}
+                }
+            }
+    }
+
     fun buy(player: Player, productId: String): Boolean {
         val product = validateProduct(player, productId, ShopProductType.TAG) ?: return false
         if (tagService.isOwned(player, product.targetId)) {
@@ -47,6 +69,14 @@ class ShopService(
         }
 
         val price = product.cost.priceForLevel(1)
+        if (product.mode == ShopProductMode.ITEM_EXCHANGE && product.submitItems.isEmpty()) {
+            messageService.send(player, "shop-not-available")
+            return false
+        }
+        if ((product.mode == ShopProductMode.SEASONAL || product.mode == ShopProductMode.PRESTIGE) && product.conditions.isEmpty()) {
+            messageService.send(player, "shop-not-available")
+            return false
+        }
         if (!validatePaymentAndSubmitItems(player, product, price)) {
             return false
         }
@@ -64,52 +94,15 @@ class ShopService(
             currencyAmount = price,
             submittedItems = product.submitItems.map { "${it.amount}x${it.material}" }.toMutableList(),
         )
-        tagService.recordPurchaseOrder(player, order)
-        val itemSnapshot = player.inventory.storageContents.map { it?.clone() }.toTypedArray()
-        var itemsTaken = false
-        var currencyTaken = false
-
-        try {
-            if (product.submitItems.isNotEmpty()) {
-                if (!takeSubmitItems(player, product.submitItems)) {
-                    order.fail("submit-items-missing")
-                    tagService.recordPurchaseOrder(player, order)
-                    messageService.send(player, "shop-submit-items-missing", submitItemsDisplay(product.submitItems))
-                    return false
-                }
-                itemsTaken = true
+        tagService.recordPurchaseOrderStrict(player, order) { result ->
+            if (result is SaveResult.Success) {
+                processPendingOrder(player, product, order)
+            } else {
+                messageService.send(player, "shop-purchase-save-failed")
             }
-            if (price > 0.0) {
-                if (!economyBridge.withdraw(player, product.cost.type, price)) {
-                    order.fail("currency-withdraw-failed")
-                    if (itemsTaken) {
-                        restoreItems(player, itemSnapshot)
-                    }
-                    tagService.recordPurchaseOrder(player, order)
-                    messageService.send(player, "not-enough", Support.formatDouble(price), economyBridge.displayName(product.cost.type))
-                    return false
-                }
-                currencyTaken = true
-                order.status = PurchaseOrderStatus.PAID
-                order.updatedAt = System.currentTimeMillis()
-                tagService.recordPurchaseOrder(player, order)
-            }
-            if (!tagService.giveTag(player, product.targetId)) {
-                order.failOrRefundPending(compensate(player, itemSnapshot, itemsTaken, currencyTaken, product, price), "grant-failed")
-                tagService.recordPurchaseOrder(player, order)
-                messageService.send(player, "shop-not-available")
-                return false
-            }
-            order.status = PurchaseOrderStatus.GRANTED
-            order.updatedAt = System.currentTimeMillis()
-            tagService.recordPurchaseOrder(player, order)
-            sendPurchaseSuccess(player, product, price)
-            return true
-        } catch (ex: RuntimeException) {
-            order.failOrRefundPending(compensate(player, itemSnapshot, itemsTaken, currencyTaken, product, price), ex.message)
-            tagService.recordPurchaseOrder(player, order)
-            throw ex
         }
+        messageService.send(player, "shop-purchase-pending")
+        return true
     }
 
     fun startCustomFlow(player: Player, productId: String): Boolean {
@@ -205,7 +198,65 @@ class ShopService(
         return player.hasPermission(AdminAccess.ADMIN) || tagService.checkConditions(player, product.conditions)
     }
 
-    private fun takeSubmitItems(player: Player, requirements: List<SubmitItemDefinition>): Boolean {
+    private fun processPendingOrder(player: Player, product: ShopProductDefinition, order: PurchaseOrderData) {
+        val price = order.currencyAmount
+        val deductedItems = ArrayList<ItemStack>()
+        var currencyTaken = false
+        try {
+            if (product.submitItems.isNotEmpty() && !takeSubmitItems(player, product.submitItems, deductedItems)) {
+                order.fail("submit-items-missing")
+                tagService.recordPurchaseOrderStrict(player, order) {}
+                messageService.send(player, "shop-submit-items-missing", submitItemsDisplay(product.submitItems))
+                return
+            }
+            order.submittedItems.clear()
+            order.submittedItems.addAll(deductedItems.map(::encodeStack))
+            if (price > 0.0) {
+                if (!economyBridge.withdraw(player, product.cost.type, price)) {
+                    restoreDeductedItems(player, deductedItems)
+                    order.compensatedItems.addAll(deductedItems.map(::encodeStack))
+                    order.fail("currency-withdraw-failed")
+                    tagService.recordPurchaseOrderStrict(player, order) {}
+                    messageService.send(player, "not-enough", Support.formatDouble(price), economyBridge.displayName(product.cost.type))
+                    return
+                }
+                currencyTaken = true
+                order.status = PurchaseOrderStatus.PAID
+                order.updatedAt = System.currentTimeMillis()
+                tagService.recordPurchaseOrderStrict(player, order) { paidResult ->
+                    if (paidResult !is SaveResult.Success) {
+                        order.failOrRefundPending(compensate(player, deductedItems, currencyTaken, product, price), "paid-save-failed")
+                        tagService.recordPurchaseOrderStrict(player, order) {}
+                    }
+                }
+            }
+            if (!tagService.grantTagNoSave(player, product.targetId)) {
+                order.failOrRefundPending(compensate(player, deductedItems, currencyTaken, product, price), "grant-failed")
+                tagService.recordPurchaseOrderStrict(player, order) {}
+                messageService.send(player, "shop-not-available")
+                return
+            }
+            val data = tagService.data(player)
+            order.status = PurchaseOrderStatus.GRANTED
+            order.updatedAt = System.currentTimeMillis()
+            data.purchaseOrders[order.orderId] = order.copyDeep()
+            tagService.saveStrict(data) { grantedResult ->
+                if (grantedResult is SaveResult.Success) {
+                    sendPurchaseSuccess(player, product, price)
+                } else {
+                    order.failOrRefundPending(compensate(player, deductedItems, currencyTaken, product, price), "granted-save-failed")
+                    tagService.recordPurchaseOrderStrict(player, order) {}
+                    messageService.send(player, "shop-purchase-refund-pending")
+                }
+            }
+        } catch (ex: RuntimeException) {
+            order.failOrRefundPending(compensate(player, deductedItems, currencyTaken, product, price), ex.message)
+            tagService.recordPurchaseOrderStrict(player, order) {}
+            throw ex
+        }
+    }
+
+    private fun takeSubmitItems(player: Player, requirements: List<SubmitItemDefinition>, deducted: MutableList<ItemStack>): Boolean {
         if (!hasSubmitItems(player, requirements)) {
             return false
         }
@@ -217,6 +268,9 @@ class ShopService(
                     return@forEachIndexed
                 }
                 val taken = minOf(stack.amount, remaining)
+                val takenStack = stack.clone()
+                takenStack.amount = taken
+                deducted += takenStack
                 stack.amount -= taken
                 remaining -= taken
                 if (stack.amount <= 0) {
@@ -247,27 +301,33 @@ class ShopService(
         return Support.stripColor(actualName).equals(Support.stripColor(expectedName), ignoreCase = true)
     }
 
-    private fun restoreItems(player: Player, snapshot: Array<ItemStack?>) {
-        player.inventory.storageContents = snapshot.map { it?.clone() }.toTypedArray()
-    }
-
     private fun compensate(
         player: Player,
-        itemSnapshot: Array<ItemStack?>,
-        itemsTaken: Boolean,
+        deductedItems: List<ItemStack>,
         currencyTaken: Boolean,
         product: ShopProductDefinition,
         price: Double,
     ): Boolean {
         var ok = true
-        if (itemsTaken) {
-            restoreItems(player, itemSnapshot)
+        if (deductedItems.isNotEmpty()) {
+            restoreDeductedItems(player, deductedItems)
         }
         if (currencyTaken && !economyBridge.refund(player, product.cost.type, price)) {
             ok = false
         }
         return ok
     }
+
+    private fun restoreDeductedItems(player: Player, deductedItems: List<ItemStack>) {
+        deductedItems.forEach { stack ->
+            val leftovers = player.inventory.addItem(stack.clone())
+            leftovers.values.forEach { leftover ->
+                player.world.dropItemNaturally(player.location, leftover)
+            }
+        }
+    }
+
+    private fun encodeStack(stack: ItemStack): String = "${stack.amount}x${stack.type.name.lowercase()}"
 
     private fun sendPurchaseSuccess(player: Player, product: ShopProductDefinition, price: Double) {
         if (product.submitItems.isNotEmpty()) {

@@ -34,6 +34,10 @@ class PlayerDataRepositoryStrictSaveTest {
         }
 
         val repository = PlayerDataRepository(plugin, scheduler, store)
+        repository.preparePlayerAsync(playerId)
+        while (tasks.isNotEmpty()) {
+            tasks.removeFirst().invoke()
+        }
         val strictData = PlayerTagData(playerId).apply {
             customTitleOrders["order-1"] = order("order-1", CustomTitleOrderStatus.PENDING)
         }

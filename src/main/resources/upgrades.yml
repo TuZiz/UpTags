@@ -89,6 +89,15 @@ buffs:
       type: POINTS
       levels: { '1': 15, '2': 25, '3': 40, '4': 60, '5': 85 }
       conditions: []
+  slow_falling:
+    type: SLOW_FALLING
+    display: '&#BFDBFE缓降'
+    max-level: 1
+    duration: 160
+    cost:
+      type: POINTS
+      levels: { '1': 35 }
+      conditions: []
   luck:
     type: LUCK
     display: '&#86EFAC幸运'
@@ -133,6 +142,51 @@ groups:
     display: '&#C084FCEPIC'
     buffs: [strength, speed, haste, regeneration, jump_boost, fire_resistance, water_breathing, health_boost, absorption, night_vision, luck, resistance, instant_health]
     particles: [halo, aura, helix, spiral, ring, crown, orbit, pulse, wings, feet, flame, totem, spark, comet, rain, shield]
+  ADVENTURE:
+    name: '探险弱增益'
+    display: '&#A7F3D0ADVENTURE'
+    buffs: [speed, night_vision]
+    particles: [feet, pulse, halo]
+  MINING:
+    name: '矿脉弱增益'
+    display: '&#60A5FAMINING'
+    buffs: [haste, night_vision]
+    particles: [spark, feet]
+  NETHER:
+    name: '下界弱增益'
+    display: '&#F97316NETHER'
+    buffs: [fire_resistance, speed]
+    particles: [flame, comet]
+  END:
+    name: '末地弱增益'
+    display: '&#C084FCEND'
+    buffs: [slow_falling, jump_boost]
+    particles: [orbit, wings, spiral]
+  OCEAN:
+    name: '海洋弱增益'
+    display: '&#22D3EEOCEAN'
+    buffs: [water_breathing, luck]
+    particles: [rain, aura]
+  REDSTONE:
+    name: '红石弱增益'
+    display: '&#F87171REDSTONE'
+    buffs: [haste, speed]
+    particles: [pulse, ring]
+  BUILDING:
+    name: '建筑弱增益'
+    display: '&#FDE68ABUILDING'
+    buffs: [jump_boost, slow_falling]
+    particles: [shield, halo]
+  SEASONAL:
+    name: '季节弱增益'
+    display: '&#BFDBFESEASONAL'
+    buffs: [speed, luck]
+    particles: [rain, spark]
+  PRESTIGE:
+    name: '声望弱增益'
+    display: '&#FDE047PRESTIGE'
+    buffs: [luck, night_vision]
+    particles: [crown, shield]
 
 particles:
   halo:

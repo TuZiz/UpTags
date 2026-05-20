@@ -23,6 +23,9 @@ class UpTagsPlaceholderExpansion(
 
     override fun onRequest(offlinePlayer: OfflinePlayer, params: String): String {
         val uniqueId = offlinePlayer.uniqueId ?: return ""
+        if (!tagService.isDataLoaded(uniqueId)) {
+            return if (offlinePlayer.player != null) "加载中" else ""
+        }
         val player = offlinePlayer.player
         return when {
             params.equals("current", true) -> resolveCurrent(uniqueId, player)

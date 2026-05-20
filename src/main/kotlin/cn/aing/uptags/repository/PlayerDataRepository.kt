@@ -11,6 +11,7 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.TimeUnit
+import org.bukkit.entity.Player
 
 class PlayerDataRepository(
     private val plugin: JavaPlugin,
@@ -35,11 +36,15 @@ class PlayerDataRepository(
         this.serverId = serverId
     }
 
-    fun get(uniqueId: UUID): PlayerTagData = getCached(uniqueId) ?: createEmptyCached(uniqueId).data
+    fun get(uniqueId: UUID): PlayerTagData = getCached(uniqueId) ?: throw PlayerDataNotLoadedException(uniqueId)
 
     fun getCached(uniqueId: UUID): PlayerTagData? = cache[uniqueId]?.data
 
-    fun entry(uniqueId: UUID): PlayerCacheEntry = cache[uniqueId] ?: createEmptyCached(uniqueId)
+    fun isLoaded(uniqueId: UUID): Boolean = cache[uniqueId]?.stale == false
+
+    fun requireLoaded(player: Player): PlayerTagData? = getCached(player.uniqueId)?.takeIf { isLoaded(player.uniqueId) }
+
+    fun entry(uniqueId: UUID): PlayerCacheEntry = cache[uniqueId] ?: throw PlayerDataNotLoadedException(uniqueId)
 
     fun version(uniqueId: UUID): Long = cache[uniqueId]?.version ?: 0L
 
@@ -287,13 +292,6 @@ class PlayerDataRepository(
         )
     }
 
-    private fun createEmptyCached(uniqueId: UUID): PlayerCacheEntry {
-        plugin.logger.warning("Player data for $uniqueId was requested before async preparation completed; using cache-only empty data.")
-        return cache.computeIfAbsent(uniqueId) {
-            PlayerCacheEntry(PlayerTagData(uniqueId), 0L, stale = true)
-        }
-    }
-
     private data class PendingSave(
         val data: PlayerTagData,
         val retryOnFailure: Boolean,
@@ -302,3 +300,5 @@ class PlayerDataRepository(
         fun withoutCallbacks(): PendingSave = copy(callbacks = mutableListOf())
     }
 }
+
+class PlayerDataNotLoadedException(uniqueId: UUID) : IllegalStateException("Player data is not loaded: $uniqueId")

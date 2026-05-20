@@ -183,7 +183,9 @@ class MysqlPlayerDataStore(
     }
 
     private fun ensureDriverLoaded() {
-        Class.forName("com.mysql.cj.jdbc.Driver")
+        if (!jdbcUrl.startsWith("jdbc:h2:", ignoreCase = true)) {
+            Class.forName("com.mysql.cj.jdbc.Driver")
+        }
     }
 
     private fun validateTableName() {

@@ -1,1 +1,159 @@
 products:
+  abyss_cartographer:
+    type: TAG
+    target-id: abyss_cartographer
+    mode: CHALLENGE_CLAIM
+    enabled: true
+    conditions: [ "challenge:biome:deep_dark:1" ]
+    cost: { type: POINTS, amount: 0 }
+    submit-items: {}
+    icon:
+      material: SCULK
+      name: "&#5B7CFA[深暗绘图师]"
+      lore: [ "&#94A3B8在深暗之地完成一次定位记录。" ]
+  nether_pathfinder:
+    type: TAG
+    target-id: nether_pathfinder
+    mode: CHALLENGE_CLAIM
+    enabled: true
+    conditions: [ "challenge:world:the_nether:1" ]
+    cost: { type: POINTS, amount: 0 }
+    submit-items: {}
+    icon: { material: NETHERRACK, name: "&#F97316[下界巡路人]", lore: [ "&#94A3B8踏入下界并留下探索印记。" ] }
+  end_voyager:
+    type: TAG
+    target-id: end_voyager
+    mode: CHALLENGE_CLAIM
+    enabled: true
+    conditions: [ "challenge:world:the_end:1" ]
+    cost: { type: POINTS, amount: 0 }
+    submit-items: {}
+    icon: { material: END_STONE, name: "&#C4B5FD[末地远航者]", lore: [ "&#94A3B8抵达末地，开始新的航程。" ] }
+  warden_echo:
+    type: TAG
+    target-id: warden_echo
+    mode: CHALLENGE_CLAIM
+    enabled: true
+    conditions: [ "challenge:kill:warden:1" ]
+    cost: { type: POINTS, amount: 0 }
+    submit-items: {}
+    icon: { material: ECHO_SHARD, name: "&#67E8F9[监守回声]", lore: [ "&#94A3B8击败一次 Warden 后领取。" ] }
+  diamond_vein_master:
+    type: TAG
+    target-id: diamond_vein_master
+    mode: CHALLENGE_CLAIM
+    enabled: true
+    conditions: [ "challenge:mine:deepslate_diamond_ore:64" ]
+    cost: { type: POINTS, amount: 0 }
+    submit-items: {}
+    icon: { material: DEEPSLATE_DIAMOND_ORE, name: "&#60A5FA[深层钻脉师]", lore: [ "&#94A3B8挖掘 64 个深层钻石矿。" ] }
+  sky_limit_builder:
+    type: TAG
+    target-id: sky_limit_builder
+    mode: CHALLENGE_CLAIM
+    enabled: true
+    conditions: [ "challenge:height:overworld:250" ]
+    cost: { type: POINTS, amount: 0 }
+    submit-items: {}
+    icon: { material: SCAFFOLDING, name: "&#FDE68A[天际构筑者]", lore: [ "&#94A3B8在主世界抵达 250 高度。" ] }
+  long_marcher:
+    type: TAG
+    target-id: long_marcher
+    mode: CHALLENGE_CLAIM
+    enabled: true
+    conditions: [ "challenge:stat:walk_one_cm:100000" ]
+    cost: { type: POINTS, amount: 0 }
+    submit-items: {}
+    icon: { material: LEATHER_BOOTS, name: "&#A7F3D0[远行长路]", lore: [ "&#94A3B8累计步行 100000cm。" ] }
+  ocean_salvager:
+    type: TAG
+    target-id: ocean_salvager
+    mode: ITEM_EXCHANGE
+    enabled: true
+    conditions: []
+    cost: { type: POINTS, amount: 0 }
+    submit-items:
+      prismarine: { material: PRISMARINE_SHARD, amount: 64 }
+      nautilus: { material: NAUTILUS_SHELL, amount: 4 }
+    icon: { material: HEART_OF_THE_SEA, name: "&#7DD3FC[深海打捞员]", lore: [ "&#94A3B8提交海洋材料兑换。" ] }
+  redstone_architect:
+    type: TAG
+    target-id: redstone_architect
+    mode: ITEM_EXCHANGE
+    enabled: true
+    conditions: []
+    cost: { type: POINTS, amount: 0 }
+    submit-items:
+      comparator: { material: COMPARATOR, amount: 16 }
+      observer: { material: OBSERVER, amount: 16 }
+      redstone_block: { material: REDSTONE_BLOCK, amount: 8 }
+    icon: { material: REDSTONE_LAMP, name: "&#F87171[红石建筑师]", lore: [ "&#94A3B8用复杂红石元件换取。" ] }
+  fortress_raider:
+    type: TAG
+    target-id: fortress_raider
+    mode: ITEM_EXCHANGE
+    enabled: true
+    conditions: [ "challenge:world:the_nether:1" ]
+    cost: { type: POINTS, amount: 0 }
+    submit-items:
+      blaze_rod: { material: BLAZE_ROD, amount: 32 }
+      nether_brick: { material: NETHER_BRICK, amount: 64 }
+    icon: { material: BLAZE_ROD, name: "&#FDBA74[要塞掠行者]", lore: [ "&#94A3B8下界探索与材料提交。" ] }
+  coral_keeper:
+    type: TAG
+    target-id: coral_keeper
+    mode: BUY
+    enabled: true
+    conditions: []
+    cost: { type: POINTS, amount: 1200 }
+    submit-items: {}
+    icon: { material: TUBE_CORAL, name: "&#22D3EE[珊瑚守望]", lore: [ "&#94A3B8用点券购买的海洋主题称号。" ] }
+  obsidian_banker:
+    type: TAG
+    target-id: obsidian_banker
+    mode: BUY
+    enabled: true
+    conditions: []
+    cost: { type: MONEY, amount: 25000 }
+    submit-items: {}
+    icon: { material: OBSIDIAN, name: "&#A78BFA[黑曜金库]", lore: [ "&#94A3B8稳定资产的象征。" ] }
+  season_snowcaller:
+    type: TAG
+    target-id: season_snowcaller
+    mode: SEASONAL
+    enabled: true
+    conditions: [ "%server_season%==winter" ]
+    cost: { type: POINTS, amount: 500 }
+    submit-items:
+      snow: { material: SNOW_BLOCK, amount: 64 }
+    icon: { material: POWDER_SNOW_BUCKET, name: "&#BFDBFE[凛冬唤雪者]", lore: [ "&#94A3B8冬季活动限定。" ] }
+  prestige_founder:
+    type: TAG
+    target-id: prestige_founder
+    mode: PRESTIGE
+    enabled: true
+    permission: uptags.prestige.founder
+    conditions: [ "challenge:stat:play_one_minute:72000" ]
+    cost: { type: TITLE_COIN, amount: 100 }
+    submit-items: {}
+    icon: { material: NETHER_STAR, name: "&#FDE047[声望奠基者]", lore: [ "&#94A3B8需要权限、在线时长与称号币。" ] }
+  dragon_relic_hunter:
+    type: TAG
+    target-id: dragon_relic_hunter
+    mode: ITEM_EXCHANGE
+    enabled: true
+    conditions: [ "challenge:world:the_end:1" ]
+    cost: { type: POINTS, amount: 0 }
+    submit-items:
+      chorus: { material: CHORUS_FRUIT, amount: 64 }
+      dragon_breath: { material: DRAGON_BREATH, amount: 8 }
+    icon: { material: DRAGON_BREATH, name: "&#C084FC[龙息遗珍猎手]", lore: [ "&#94A3B8末地材料兑换。" ] }
+  ancient_city_runner:
+    type: TAG
+    target-id: ancient_city_runner
+    mode: CHALLENGE_CLAIM
+    enabled: true
+    conditions: [ "challenge:deep_dark_stay:300" ]
+    cost: { type: POINTS, amount: 0 }
+    submit-items: {}
+    icon: { material: REINFORCED_DEEPSLATE, name: "&#64748B[古城潜行者]", lore: [ "&#94A3B8在深暗区域累计停留 300 秒。" ] }

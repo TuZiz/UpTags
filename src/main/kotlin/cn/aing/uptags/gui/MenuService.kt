@@ -36,6 +36,7 @@ import cn.aing.uptags.service.tag.TagService
 import cn.aing.uptags.service.title.CustomTitleService
 import cn.aing.uptags.service.message.ClickableMessageService
 import cn.aing.uptags.service.player.PlayerNameService
+import cn.aing.uptags.repository.PlayerDataRepository
 import org.bukkit.Bukkit
 import org.bukkit.Material
 import org.bukkit.OfflinePlayer
@@ -57,6 +58,7 @@ class MenuService(
     private val customTitleService: CustomTitleService,
     private val clickableMessageService: ClickableMessageService,
     private val playerNameService: PlayerNameService,
+    private val repository: PlayerDataRepository,
 ) : Listener {
     private val entryFactory = MenuEntryFactory(config, tagService, ::currencyName)
     private val customMenus = CustomTitleMenuService(
@@ -95,6 +97,7 @@ class MenuService(
     )
 
     fun openWarehouse(player: Player, page: Int) {
+        if (!ensureLoaded(player)) return
         val layout = config.warehouseLayout
         val titles = tagService.visibleTitles(player)
         val session = createSession(MenuType.WAREHOUSE, layout, page, null, null)
@@ -202,10 +205,12 @@ class MenuService(
     }
 
     fun openShop(player: Player, page: Int) {
+        if (!ensureLoaded(player)) return
         shopMenus.open(player, page)
     }
 
     fun openUpgrade(player: Player, tagId: String, page: Int) {
+        if (!ensureLoaded(player)) return
         effectMenus.openUpgrade(player, tagId, page)
     }
 
@@ -214,6 +219,7 @@ class MenuService(
     }
 
     fun openDetach(player: Player, tagId: String, page: Int) {
+        if (!ensureLoaded(player)) return
         effectMenus.openDetach(player, tagId, page)
     }
 
@@ -222,18 +228,22 @@ class MenuService(
     }
 
     fun openScrollSelection(player: Player, context: ScrollSelectionContext, page: Int) {
+        if (!ensureLoaded(player)) return
         scrollSelectionMenus.open(player, context, page)
     }
 
     fun openCustomCurrencySelector(player: Player) {
+        if (!ensureLoaded(player)) return
         customMenus.openCurrencySelector(player)
     }
 
     fun openCustomTitleColorEditor(player: Player) {
+        if (!ensureLoaded(player)) return
         customMenus.openColorEditor(player)
     }
 
     fun openCustomTitleGroupSelector(player: Player) {
+        if (!ensureLoaded(player)) return
         customMenus.openGroupSelector(player)
     }
 
@@ -246,6 +256,14 @@ class MenuService(
         }
         event.isCancelled = true
         holder.actions[event.slot]?.invoke(event)
+    }
+
+    private fun ensureLoaded(player: Player): Boolean {
+        if (repository.isLoaded(player.uniqueId)) {
+            return true
+        }
+        messageService.send(player, "data-loading")
+        return false
     }
 
     private fun currencyName(type: CurrencyType): String = when (type) {

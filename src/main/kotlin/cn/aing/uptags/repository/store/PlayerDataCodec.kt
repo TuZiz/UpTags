@@ -69,11 +69,22 @@ object PlayerDataCodec {
                 encode(order.currencyType.name),
                 order.currencyAmount.toString(),
                 order.submittedItems.joinToString(",") { encode(it) },
+                order.compensatedItems.joinToString(",") { encode(it) },
                 order.createdAt.toString(),
                 order.updatedAt.toString(),
                 encode(order.failureReason ?: ""),
             ).joinToString("|")
         }
+        val challengeParts = data.challengeProgress.values.entries.joinToString(";;") { (key, value) ->
+            "${encode(key)}:$value"
+        }
+        val challengeMeta = listOf(
+            data.challengeProgress.lastMoveSampleAt.toString(),
+            data.challengeProgress.lastWorld?.let(::encode).orEmpty(),
+            data.challengeProgress.lastX?.toString().orEmpty(),
+            data.challengeProgress.lastY?.toString().orEmpty(),
+            data.challengeProgress.lastZ?.toString().orEmpty(),
+        ).joinToString("|")
         return listOf(
             schemaVersion,
             data.ownedTags.joinToString(",") { encode(it) },
@@ -86,6 +97,8 @@ object PlayerDataCodec {
             colorOverrideParts,
             orderParts,
             purchaseOrderParts,
+            challengeParts,
+            challengeMeta,
         ).joinToString("###")
     }
 
@@ -194,10 +207,36 @@ object PlayerDataCodec {
                         ?.map(::decode)
                         ?.toMutableList()
                         ?: mutableListOf(),
-                    createdAt = entryParts.getOrNull(7)?.toLongOrNull() ?: System.currentTimeMillis(),
-                    updatedAt = entryParts.getOrNull(8)?.toLongOrNull() ?: System.currentTimeMillis(),
-                    failureReason = entryParts.getOrNull(9)?.ifBlank { null }?.let(::decode),
+                    compensatedItems = entryParts.getOrNull(7)
+                        ?.takeIf { it.isNotBlank() }
+                        ?.split(',')
+                        ?.filter { it.isNotBlank() }
+                        ?.map(::decode)
+                        ?.toMutableList()
+                        ?: mutableListOf(),
+                    createdAt = entryParts.getOrNull(8)?.toLongOrNull() ?: System.currentTimeMillis(),
+                    updatedAt = entryParts.getOrNull(9)?.toLongOrNull() ?: System.currentTimeMillis(),
+                    failureReason = entryParts.getOrNull(10)?.ifBlank { null }?.let(::decode),
                 )
+            }
+        part(10)
+            ?.takeIf { it.isNotBlank() }
+            ?.split(";;")
+            ?.forEach { entry ->
+                val pieces = entry.split(':', limit = 2)
+                val key = pieces.getOrNull(0)?.takeIf { it.isNotBlank() }?.let(::decode) ?: return@forEach
+                val value = pieces.getOrNull(1)?.toLongOrNull() ?: return@forEach
+                data.challengeProgress.values[key] = value
+            }
+        part(11)
+            ?.takeIf { it.isNotBlank() }
+            ?.split('|')
+            ?.let { meta ->
+                data.challengeProgress.lastMoveSampleAt = meta.getOrNull(0)?.toLongOrNull() ?: 0L
+                data.challengeProgress.lastWorld = meta.getOrNull(1)?.ifBlank { null }?.let(::decode)
+                data.challengeProgress.lastX = meta.getOrNull(2)?.toDoubleOrNull()
+                data.challengeProgress.lastY = meta.getOrNull(3)?.toDoubleOrNull()
+                data.challengeProgress.lastZ = meta.getOrNull(4)?.toDoubleOrNull()
             }
         return data
     }

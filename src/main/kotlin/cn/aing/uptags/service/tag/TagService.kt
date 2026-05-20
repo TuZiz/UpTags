@@ -18,6 +18,7 @@ import cn.aing.uptags.model.runtime.TagProgress
 import cn.aing.uptags.model.runtime.TitleEntry
 import cn.aing.uptags.model.runtime.TitleKind
 import cn.aing.uptags.repository.PlayerDataRepository
+import cn.aing.uptags.repository.SaveResult
 import org.bukkit.OfflinePlayer
 import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
@@ -87,6 +88,10 @@ class TagService(
     fun data(uniqueId: UUID): PlayerTagData = repository.get(uniqueId)
 
     fun data(player: Player): PlayerTagData = repository.get(player.uniqueId)
+
+    fun isDataLoaded(uniqueId: UUID): Boolean = repository.isLoaded(uniqueId)
+
+    fun requireLoaded(player: Player): PlayerTagData? = repository.requireLoaded(player)
 
     fun syncAutoUnlocks(player: Player, data: PlayerTagData): Int {
         var unlocked = 0
@@ -262,6 +267,19 @@ class TagService(
         return added
     }
 
+    fun grantTagNoSave(target: OfflinePlayer, tagId: String): Boolean {
+        val definition = resolveTag(tagId) ?: return false
+        val data = data(target.uniqueId)
+        val added = data.ownedTags.add(definition.id)
+        ensureProgress(definition, data)
+        target.player?.let { enforceDefaultTag(it, data) }
+        return added
+    }
+
+    fun saveStrict(data: PlayerTagData, callback: (SaveResult) -> Unit) {
+        repository.saveAsyncStrict(data, callback)
+    }
+
     fun takeTag(target: OfflinePlayer, tagId: String): Boolean {
         val definition = resolveTag(tagId) ?: return false
         val data = data(target.uniqueId)
@@ -409,6 +427,12 @@ class TagService(
         val data = data(player)
         data.purchaseOrders[order.orderId] = order.copyDeep()
         repository.saveAsync(data)
+    }
+
+    fun recordPurchaseOrderStrict(player: Player, order: PurchaseOrderData, callback: (SaveResult) -> Unit) {
+        val data = data(player)
+        data.purchaseOrders[order.orderId] = order.copyDeep()
+        repository.saveAsyncStrict(data, callback)
     }
 
     fun activeBuffsDisplay(player: Player): String = readModel.activeBuffsDisplay(player)

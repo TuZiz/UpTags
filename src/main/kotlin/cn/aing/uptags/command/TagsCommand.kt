@@ -114,6 +114,10 @@ class TagsCommand(
         if (!context.requireUse(sender)) {
             return true
         }
+        if (!context.tagService.isDataLoaded(player.uniqueId)) {
+            context.messageService.send(sender, "data-loading")
+            return true
+        }
         if (args.size < 2) {
             TagsHelpRenderer.send(sender)
             return true
@@ -136,6 +140,10 @@ class TagsCommand(
             return true
         }
         if (!context.requireUse(sender)) {
+            return true
+        }
+        if (!context.tagService.isDataLoaded(player.uniqueId)) {
+            context.messageService.send(sender, "data-loading")
             return true
         }
         context.tagService.unequipTag(player)
