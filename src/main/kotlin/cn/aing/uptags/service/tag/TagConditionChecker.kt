@@ -12,7 +12,10 @@ internal class TagConditionChecker {
         for (condition in conditions) {
             val rendered = PlaceholderHook.apply(player, condition)
             val matcher = conditionPattern.matcher(rendered)
-            if (!matcher.matches()) continue
+            if (!matcher.matches()) {
+                Bukkit.getLogger().warning("Invalid UpTags condition '$condition' for ${player.uniqueId}; failing closed.")
+                return false
+            }
             val left = matcher.group(1).trim()
             val operator = matcher.group(2)
             val right = matcher.group(3).trim()

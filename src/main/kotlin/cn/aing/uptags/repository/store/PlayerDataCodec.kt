@@ -5,6 +5,8 @@ import cn.aing.uptags.model.runtime.CustomTitleData
 import cn.aing.uptags.model.runtime.CustomTitleOrderStatus
 import cn.aing.uptags.model.runtime.CustomTitlePurchaseOrderData
 import cn.aing.uptags.model.runtime.PlayerTagData
+import cn.aing.uptags.model.runtime.PurchaseOrderData
+import cn.aing.uptags.model.runtime.PurchaseOrderStatus
 import cn.aing.uptags.model.runtime.TagColorProfile
 import cn.aing.uptags.model.runtime.TagProgress
 import java.util.UUID
@@ -58,6 +60,20 @@ object PlayerDataCodec {
                 encode(order.previousEquippedCustomTitleId ?: ""),
             ).joinToString("|")
         }
+        val purchaseOrderParts = data.purchaseOrders.values.joinToString(";;") { order ->
+            listOf(
+                encode(order.orderId),
+                encode(order.productId),
+                encode(order.targetId),
+                encode(order.status.name),
+                encode(order.currencyType.name),
+                order.currencyAmount.toString(),
+                order.submittedItems.joinToString(",") { encode(it) },
+                order.createdAt.toString(),
+                order.updatedAt.toString(),
+                encode(order.failureReason ?: ""),
+            ).joinToString("|")
+        }
         return listOf(
             schemaVersion,
             data.ownedTags.joinToString(",") { encode(it) },
@@ -69,6 +85,7 @@ object PlayerDataCodec {
             encode(data.equippedCustomTitleId ?: ""),
             colorOverrideParts,
             orderParts,
+            purchaseOrderParts,
         ).joinToString("###")
     }
 
@@ -155,6 +172,31 @@ object PlayerDataCodec {
                     failureReason = entryParts.getOrNull(10)?.ifBlank { null }?.let(::decode),
                     previousEquippedTagId = entryParts.getOrNull(11)?.ifBlank { null }?.let(::decode),
                     previousEquippedCustomTitleId = entryParts.getOrNull(12)?.ifBlank { null }?.let(::decode),
+                )
+            }
+        part(9)
+            ?.takeIf { it.isNotBlank() }
+            ?.split(";;")
+            ?.forEach { entry ->
+                val entryParts = entry.split('|')
+                val orderId = entryParts.getOrNull(0)?.takeIf { it.isNotBlank() }?.let(::decode) ?: return@forEach
+                data.purchaseOrders[orderId] = PurchaseOrderData(
+                    orderId = orderId,
+                    productId = entryParts.getOrNull(1)?.let(::decode) ?: "",
+                    targetId = entryParts.getOrNull(2)?.let(::decode) ?: "",
+                    status = PurchaseOrderStatus.from(entryParts.getOrNull(3)?.let(::decode)),
+                    currencyType = CurrencyType.from(entryParts.getOrNull(4)?.let(::decode)),
+                    currencyAmount = entryParts.getOrNull(5)?.toDoubleOrNull() ?: 0.0,
+                    submittedItems = entryParts.getOrNull(6)
+                        ?.takeIf { it.isNotBlank() }
+                        ?.split(',')
+                        ?.filter { it.isNotBlank() }
+                        ?.map(::decode)
+                        ?.toMutableList()
+                        ?: mutableListOf(),
+                    createdAt = entryParts.getOrNull(7)?.toLongOrNull() ?: System.currentTimeMillis(),
+                    updatedAt = entryParts.getOrNull(8)?.toLongOrNull() ?: System.currentTimeMillis(),
+                    failureReason = entryParts.getOrNull(9)?.ifBlank { null }?.let(::decode),
                 )
             }
         return data

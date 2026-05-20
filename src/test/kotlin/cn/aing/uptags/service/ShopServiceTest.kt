@@ -10,6 +10,7 @@ import cn.aing.uptags.service.tag.TagService
 import cn.aing.uptags.service.title.CustomTitleService
 import cn.aing.uptags.model.config.ItemTemplate
 import cn.aing.uptags.model.config.ShopProductDefinition
+import cn.aing.uptags.model.config.ShopProductMode
 import cn.aing.uptags.model.config.ShopProductType
 import cn.aing.uptags.model.config.SubmitItemDefinition
 import io.mockk.every
@@ -17,6 +18,7 @@ import io.mockk.mockk
 import io.mockk.verify
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import org.bukkit.Material
 import org.bukkit.entity.Player
@@ -147,6 +149,7 @@ class ShopServiceTest {
         every { player.hasPermission(any<String>()) } returns false
         every { tagService.checkConditions(player, product.conditions) } returns true
         every { tagService.isOwned(player, product.targetId) } returns false
+        every { tagService.recordPurchaseOrder(player, any()) } returns Unit
         every { tagService.giveTag(player, product.targetId) } returns true
         every { tagService.tagName(product.targetId) } returns "Bread Guard"
 
@@ -158,5 +161,84 @@ class ShopServiceTest {
         assertEquals(8, contents[1]?.amount)
         verify(exactly = 0) { economy.withdraw(any(), any(), any()) }
         verify(exactly = 1) { tagService.giveTag(player, "bread_guard") }
+    }
+
+    @Test
+    fun failedGrantRestoresSubmittedItemsAndRefundsCurrency() {
+        val player = mockk<Player>()
+        val inventory = mockk<PlayerInventory>()
+        val config = mockk<ConfigRegistry>()
+        val tagService = mockk<TagService>()
+        val customTitleService = mockk<CustomTitleService>(relaxed = true)
+        val economy = mockk<EconomyBridge>()
+        val messages = mockk<MessageService>(relaxed = true)
+        val contents = arrayOf<ItemStack?>(ItemStack(Material.BREAD, 40))
+        val product = ShopProductDefinition(
+            id = "bread_guard",
+            type = ShopProductType.TAG,
+            targetId = "bread_guard",
+            enabled = true,
+            permission = null,
+            conditions = emptyList(),
+            cost = CostDefinition(type = CurrencyType.POINTS, amount = 10.0),
+            submitItems = listOf(SubmitItemDefinition("BREAD", 32)),
+            icon = ItemTemplate("NAME_TAG", "Bread Guard", emptyList()),
+        )
+
+        every { player.inventory } returns inventory
+        every { inventory.storageContents } returns contents
+        every { inventory.storageContents = any() } answers {
+            val updated = firstArg<Array<ItemStack?>>()
+            contents.indices.forEach { contents[it] = updated[it] }
+        }
+        every { config.shopProducts } returns linkedMapOf(product.id to product)
+        every { player.hasPermission(any<String>()) } returns false
+        every { tagService.checkConditions(player, product.conditions) } returns true
+        every { tagService.isOwned(player, product.targetId) } returns false
+        every { tagService.recordPurchaseOrder(player, any()) } returns Unit
+        every { tagService.giveTag(player, product.targetId) } returns false
+        every { economy.isAvailable(CurrencyType.POINTS) } returns true
+        every { economy.balance(player, CurrencyType.POINTS) } returns 100.0
+        every { economy.withdraw(player, CurrencyType.POINTS, 10.0) } returns true
+        every { economy.refund(player, CurrencyType.POINTS, 10.0) } returns true
+
+        val service = ShopService(config, tagService, customTitleService, economy, messages)
+        val bought = service.buy(player, product.id)
+
+        assertFalse(bought)
+        assertEquals(40, contents[0]?.amount)
+        verify(exactly = 1) { economy.refund(player, CurrencyType.POINTS, 10.0) }
+    }
+
+    @Test
+    fun challengeClaimRequiresChallengeProgress() {
+        val player = mockk<Player>()
+        val config = mockk<ConfigRegistry>()
+        val tagService = mockk<TagService>()
+        val customTitleService = mockk<CustomTitleService>(relaxed = true)
+        val economy = mockk<EconomyBridge>(relaxed = true)
+        val messages = mockk<MessageService>(relaxed = true)
+        val challenge = cn.aing.uptags.service.shop.ChallengeProgressService()
+        val product = ShopProductDefinition(
+            id = "miner",
+            type = ShopProductType.TAG,
+            targetId = "miner",
+            mode = ShopProductMode.CHALLENGE_CLAIM,
+            enabled = true,
+            permission = null,
+            conditions = listOf("challenge:statistic:mine_block:10"),
+            cost = CostDefinition(),
+            icon = ItemTemplate("NAME_TAG", "Miner", emptyList()),
+        )
+
+        every { config.shopProducts } returns linkedMapOf(product.id to product)
+        every { player.uniqueId } returns java.util.UUID.randomUUID()
+        every { player.hasPermission(any<String>()) } returns false
+        every { tagService.checkConditions(player, product.conditions) } returns true
+        every { tagService.isOwned(player, product.targetId) } returns false
+
+        val service = ShopService(config, tagService, customTitleService, economy, messages, challenge)
+
+        assertFalse(service.buy(player, product.id))
     }
 }

@@ -32,6 +32,23 @@ enum class ShopProductType {
     }
 }
 
+enum class ShopProductMode {
+    BUY,
+    CHALLENGE_CLAIM,
+    ITEM_EXCHANGE,
+    SEASONAL,
+    PRESTIGE;
+
+    companion object {
+        fun from(raw: String?): ShopProductMode {
+            if (raw.isNullOrBlank()) {
+                return BUY
+            }
+            return entries.firstOrNull { it.name.equals(raw.trim(), ignoreCase = true) } ?: BUY
+        }
+    }
+}
+
 data class CostDefinition(
     val type: CurrencyType = CurrencyType.POINTS,
     val amount: Double = 0.0,
@@ -45,6 +62,12 @@ data class PluginSettings(
     val effectTickInterval: Long,
     val forceDefaultTag: Boolean,
     val forcedTagId: String,
+    val particleFrequencyTicks: Long = effectTickInterval,
+    val particleCountMultiplier: Int = 1,
+    val particleViewDistance: Double = 32.0,
+    val disabledBuffWorlds: Set<String> = emptySet(),
+    val disabledBuffPermission: String? = null,
+    val disableBuffsInPvp: Boolean = false,
 )
 
 data class DetachSettings(
@@ -134,6 +157,7 @@ data class ShopProductDefinition(
     val id: String,
     val type: ShopProductType,
     val targetId: String,
+    val mode: ShopProductMode = ShopProductMode.BUY,
     val enabled: Boolean,
     val permission: String?,
     val conditions: List<String>,

@@ -1,13 +1,12 @@
 package cn.aing.uptags.service.sync
 
 import org.bukkit.plugin.java.JavaPlugin
-import redis.clients.jedis.HostAndPort
 import redis.clients.jedis.JedisPubSub
 import redis.clients.jedis.JedisPooled
 import redis.clients.jedis.UnifiedJedis
-import java.net.URI
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.math.min
 
 class JedisRedisSyncService(
     private val plugin: JavaPlugin,
@@ -16,30 +15,18 @@ class JedisRedisSyncService(
     private val onMessage: (PlayerSyncMessage) -> Unit,
 ) : RedisSyncService {
     private var publisher: UnifiedJedis? = null
-    private var subscriberClient: UnifiedJedis? = null
     private var subscriberThread: Thread? = null
     private val running = AtomicBoolean(false)
+
+    @Volatile
+    private var activePubSub: JedisPubSub? = null
 
     override fun start() {
         if (!running.compareAndSet(false, true)) {
             return
         }
         publisher = createClient()
-        subscriberClient = createClient()
-        val pubSub = object : JedisPubSub() {
-            override fun onMessage(channel: String, message: String) {
-                decode(message)?.let(onMessage)
-            }
-        }
-        subscriberThread = Thread({
-            try {
-                subscriberClient?.subscribe(pubSub, channel)
-            } catch (ex: Exception) {
-                if (running.get()) {
-                    plugin.logger.warning("Redis 订阅失败: ${ex.message}")
-                }
-            }
-        }, "${plugin.name}-redis-sub").apply {
+        subscriberThread = Thread(::runSubscriberLoop, "${plugin.name}-redis-sub").apply {
             isDaemon = true
             start()
         }
@@ -49,29 +36,50 @@ class JedisRedisSyncService(
         try {
             publisher?.publish(channel, encode(message))
         } catch (ex: Exception) {
-            plugin.logger.warning("Redis 发布失败: ${ex.message}")
+            plugin.logger.warning("Redis publish failed: ${ex.message}")
         }
     }
 
     override fun shutdown() {
         running.set(false)
-        runCatching { subscriberClient?.close() }
+        runCatching { activePubSub?.unsubscribe() }
         runCatching { publisher?.close() }
         subscriberThread?.interrupt()
         subscriberThread = null
-        subscriberClient = null
         publisher = null
     }
 
-    private fun createClient(): UnifiedJedis {
-        val parsed = URI(uri)
-        return if (parsed.scheme == "redis") {
-            val port = if (parsed.port == -1) 6379 else parsed.port
-            JedisPooled(HostAndPort(parsed.host, port))
-        } else {
-            JedisPooled(uri)
+    private fun runSubscriberLoop() {
+        var backoffMillis = 1_000L
+        while (running.get()) {
+            var subscriber: UnifiedJedis? = null
+            val pubSub = object : JedisPubSub() {
+                override fun onMessage(channel: String, message: String) {
+                    decode(message)?.let(onMessage)
+                }
+            }
+            activePubSub = pubSub
+            try {
+                subscriber = createClient()
+                subscriber.subscribe(pubSub, channel)
+                backoffMillis = 1_000L
+            } catch (ex: Exception) {
+                if (running.get()) {
+                    plugin.logger.warning("Redis subscription failed, retrying in ${backoffMillis}ms: ${ex.message}")
+                    runCatching { Thread.sleep(backoffMillis) }
+                    backoffMillis = min(backoffMillis * 2L, 30_000L)
+                }
+            } finally {
+                runCatching { pubSub.unsubscribe() }
+                runCatching { subscriber?.close() }
+                if (activePubSub === pubSub) {
+                    activePubSub = null
+                }
+            }
         }
     }
+
+    private fun createClient(): UnifiedJedis = JedisPooled(uri)
 
     private fun encode(message: PlayerSyncMessage): String = listOf(
         message.uniqueId.toString(),

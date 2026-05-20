@@ -2,7 +2,6 @@ package cn.aing.uptags.service.sync
 
 import cn.aing.uptags.compat.PlatformScheduler
 import cn.aing.uptags.repository.PlayerDataRepository
-import org.bukkit.Bukkit
 import java.util.UUID
 
 class PlayerSyncService(
@@ -14,11 +13,14 @@ class PlayerSyncService(
     }
 
     fun handleRemoteInvalidation(message: PlayerSyncMessage) {
+        if (!repository.shouldAcceptRemoteVersion(message.uniqueId, message.version)) {
+            return
+        }
         repository.markStale(message.uniqueId)
-        val player = Bukkit.getPlayer(message.uniqueId) ?: return
         scheduler.runAsync {
-            repository.refreshIfStale(message.uniqueId)
-            scheduler.runPlayer(player) {}
+            if (repository.shouldAcceptRemoteVersion(message.uniqueId, message.version)) {
+                repository.refreshIfStale(message.uniqueId)
+            }
         }
     }
 }

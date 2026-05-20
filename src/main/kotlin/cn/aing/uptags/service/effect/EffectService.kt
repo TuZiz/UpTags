@@ -12,6 +12,8 @@ import org.bukkit.entity.Player
 import org.bukkit.plugin.java.JavaPlugin
 import org.bukkit.potion.PotionEffect
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicLong
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -22,14 +24,17 @@ class EffectService(
     private val tagService: TagService,
 ) {
     private val playerTasks = LinkedHashMap<UUID, TaskHandle>()
-    private var pulse: Long = 0
+    private val playerPulses = ConcurrentHashMap<UUID, AtomicLong>()
+    private val renderPulse = AtomicLong()
 
     fun startPlayer(player: Player) {
         stopPlayer(player.uniqueId)
         val handle = scheduler.runPlayerRepeating(player, config.settings.effectTickInterval, config.settings.effectTickInterval) {
-            pulse++
+            val pulse = playerPulses.computeIfAbsent(player.uniqueId) { AtomicLong() }.incrementAndGet()
             applyBuffs(player)
-            spawnParticles(player)
+            if ((pulse * config.settings.effectTickInterval) % config.settings.particleFrequencyTicks == 0L) {
+                spawnParticles(player, pulse)
+            }
         }
         if (handle != null) {
             playerTasks[player.uniqueId] = handle
@@ -38,6 +43,7 @@ class EffectService(
 
     fun stopPlayer(uniqueId: UUID) {
         playerTasks.remove(uniqueId)?.cancel()
+        playerPulses.remove(uniqueId)
     }
 
     fun restartAll() {
@@ -48,17 +54,41 @@ class EffectService(
     fun stopAll() {
         playerTasks.values.forEach(TaskHandle::cancel)
         playerTasks.clear()
+        playerPulses.clear()
     }
 
     private fun applyBuffs(player: Player) {
+        if (buffsDisabled(player)) {
+            return
+        }
         tagService.activeBuffs(player).forEach { buff ->
             val amplifier = (tagService.activeBuffLevel(player, buff.id) - 1).coerceAtLeast(0)
             player.addPotionEffect(PotionEffect(buff.type, maxOf(buff.duration, config.settings.effectTickInterval.toInt() + 40), amplifier, true, false, true))
         }
     }
 
-    private fun spawnParticles(player: Player) {
+    private fun buffsDisabled(player: Player): Boolean {
+        val settings = config.settings
+        if (player.world.name.lowercase() in settings.disabledBuffWorlds) {
+            return true
+        }
+        val permission = settings.disabledBuffPermission
+        if (permission != null && player.hasPermission(permission)) {
+            return true
+        }
+        return settings.disableBuffsInPvp && player.world.pvp
+    }
+
+    private fun spawnParticles(player: Player, pulse: Long) {
         val particle = tagService.selectedParticle(player) ?: return
+        if (player.world.players.none { viewer ->
+                viewer == player || viewer.location.world == player.world &&
+                    viewer.location.distanceSquared(player.location) <= config.settings.particleViewDistance * config.settings.particleViewDistance
+            }
+        ) {
+            return
+        }
+        renderPulse.set(pulse)
         val base = player.location.clone()
         when (particle.pattern.lowercase()) {
             "halo" -> {
@@ -111,16 +141,17 @@ class EffectService(
         }
     }
 
-    private fun ring(center: Location, radius: Double, particle: Particle, points: Int) {
+    private fun ring(center: Location, radius: Double, particle: Particle, points: Int, pulse: Long = 0L) {
         val world = center.world ?: return
-        repeat(points) { index ->
+        repeat(points * config.settings.particleCountMultiplier) { index ->
             val angle = ((Math.PI * 2) / points) * index + (pulse * 0.12)
-            world.spawnParticle(particle, center.x + cos(angle) * radius, center.y, center.z + sin(angle) * radius, 1, 0.0, 0.0, 0.0, 0.0)
+            world.spawnParticle(particle, center.x + cos(angle) * radius, center.y, center.z + sin(angle) * radius, 1, 0.0, 0.0, 0.0, 0.0, null, true)
         }
     }
 
     private fun sphere(center: Location, radius: Double, particle: Particle, points: Int) {
         val world = center.world ?: return
+        val pulse = renderPulse.get()
         repeat(points) { index ->
             val angle = pulse * 0.17 + (Math.PI * 2 / points) * index
             val x = cos(angle) * radius
@@ -132,6 +163,7 @@ class EffectService(
 
     private fun helix(center: Location, radius: Double, particle: Particle) {
         val world = center.world ?: return
+        val pulse = renderPulse.get()
         repeat(8) { index ->
             val angle = pulse * 0.18 + index * 0.65
             val y = (index * 0.15) % 1.6
@@ -142,6 +174,7 @@ class EffectService(
 
     private fun spiral(center: Location, radius: Double, particle: Particle) {
         val world = center.world ?: return
+        val pulse = renderPulse.get()
         repeat(10) { index ->
             val angle = pulse * 0.2 + index * 0.45
             val stepRadius = radius + index * 0.03
@@ -156,12 +189,13 @@ class EffectService(
 
     private fun orbit(center: Location, particle: Particle) {
         val world = center.world ?: return
+        val pulse = renderPulse.get()
         val angle = pulse * 0.16
         world.spawnParticle(particle, center.x + cos(angle) * 0.8, center.y + 0.25, center.z + sin(angle) * 0.8, 1, 0.0, 0.0, 0.0, 0.0)
         world.spawnParticle(particle, center.x - cos(angle) * 0.8, center.y - 0.05, center.z - sin(angle) * 0.8, 1, 0.0, 0.0, 0.0, 0.0)
     }
 
-    private fun pulse(center: Location, particle: Particle) = ring(center, 0.35 + (pulse % 8) * 0.08, particle, 12)
+    private fun pulse(center: Location, particle: Particle) = ring(center, 0.35 + (renderPulse.get() % 8) * 0.08, particle, 12)
 
     private fun wings(center: Location, particle: Particle) {
         val world = center.world ?: return
@@ -174,6 +208,7 @@ class EffectService(
 
     private fun comet(center: Location, particle: Particle) {
         val world = center.world ?: return
+        val pulse = renderPulse.get()
         val angle = pulse * 0.18
         repeat(4) { index ->
             val distance = 0.3 * index
@@ -183,6 +218,7 @@ class EffectService(
 
     private fun rain(center: Location, particle: Particle) {
         val world = center.world ?: return
+        val pulse = renderPulse.get()
         repeat(6) { index ->
             val angle = (Math.PI * 2 / 6) * index
             world.spawnParticle(particle, center.x + cos(angle) * 0.5, center.y - (pulse % 5) * 0.12, center.z + sin(angle) * 0.5, 1, 0.0, 0.0, 0.0, 0.0)
@@ -201,6 +237,7 @@ class EffectService(
 
     private fun dustRing(center: Location, radius: Double, points: Int, color: Color, size: Float) {
         val world = center.world ?: return
+        val pulse = renderPulse.get()
         val dust = Particle.DustOptions(color, size)
         repeat(points) { index ->
             val angle = ((Math.PI * 2) / points) * index + (pulse * 0.1)
@@ -210,6 +247,7 @@ class EffectService(
 
     private fun dustBurst(center: Location, points: Int, color: Color, size: Float) {
         val world = center.world ?: return
+        val pulse = renderPulse.get()
         val dust = Particle.DustOptions(color, size)
         repeat(points) { index ->
             val angle = pulse * 0.15 + (Math.PI * 2 / points) * index

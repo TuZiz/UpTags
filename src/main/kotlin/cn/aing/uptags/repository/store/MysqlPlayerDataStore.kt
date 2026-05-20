@@ -5,6 +5,7 @@ import cn.aing.uptags.repository.SaveResult
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import java.sql.Connection
+import java.sql.SQLIntegrityConstraintViolationException
 import java.sql.PreparedStatement
 import java.util.LinkedHashMap
 import java.util.UUID
@@ -87,10 +88,17 @@ class MysqlPlayerDataStore(
     override fun save(snapshot: PlayerDataSnapshot, expectedVersion: Long?): SaveResult {
         return try {
             connection().use { connection ->
-                if (expectedVersion == null || expectedVersion == 0L) {
+                if (expectedVersion == null) {
                     connection.prepareStatement(
                         "INSERT INTO $table (uuid, data_json, version, updated_at) VALUES (?, ?, ?, ?) " +
                             "ON DUPLICATE KEY UPDATE data_json = VALUES(data_json), version = VALUES(version), updated_at = VALUES(updated_at)",
+                    ).use { statement ->
+                        bindSnapshot(statement, snapshot)
+                        statement.executeUpdate()
+                    }
+                } else if (expectedVersion == 0L) {
+                    connection.prepareStatement(
+                        "INSERT INTO $table (uuid, data_json, version, updated_at) VALUES (?, ?, ?, ?)",
                     ).use { statement ->
                         bindSnapshot(statement, snapshot)
                         statement.executeUpdate()
@@ -112,6 +120,8 @@ class MysqlPlayerDataStore(
                 }
             }
             SaveResult.Success(snapshot.version, snapshot.updatedAt)
+        } catch (ex: SQLIntegrityConstraintViolationException) {
+            SaveResult.Conflict(load(snapshot.data.uniqueId))
         } catch (ex: Exception) {
             SaveResult.Failure("MySQL save failed: ${ex.message}", ex)
         }

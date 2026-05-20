@@ -1,6 +1,6 @@
 plugins {
     kotlin("jvm") version "2.1.21"
-    id("com.gradleup.shadow") version "8.3.5"
+    id("com.gradleup.shadow") version "9.4.1"
 }
 
 group = "cn.aing"
@@ -60,6 +60,9 @@ tasks.jar {
 tasks.shadowJar {
     archiveClassifier.set("all")
     mergeServiceFiles()
+    relocate("com.zaxxer.hikari", "cn.aing.uptags.libs.hikari")
+    relocate("redis.clients.jedis", "cn.aing.uptags.libs.jedis")
+    relocate("com.mysql", "cn.aing.uptags.libs.mysql")
 }
 
 tasks.build {

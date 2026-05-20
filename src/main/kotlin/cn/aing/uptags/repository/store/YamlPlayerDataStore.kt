@@ -38,8 +38,13 @@ class YamlPlayerDataStore(
         val file = file(snapshot.data.uniqueId)
         val yaml = if (file.exists()) YamlConfiguration.loadConfiguration(file) else YamlConfiguration()
         val currentVersion = yaml.getLong("version", 0L)
-        if (expectedVersion != null && expectedVersion != 0L && currentVersion != expectedVersion) {
-            return SaveResult.Conflict(load(snapshot.data.uniqueId))
+        if (expectedVersion != null) {
+            if (expectedVersion == 0L && file.exists()) {
+                return SaveResult.Conflict(load(snapshot.data.uniqueId))
+            }
+            if (expectedVersion > 0L && currentVersion != expectedVersion) {
+                return SaveResult.Conflict(load(snapshot.data.uniqueId))
+            }
         }
         yaml.set("schema_version", 2)
         yaml.set("data_json", PlayerDataCodec.serialize(snapshot.data))

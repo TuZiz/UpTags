@@ -7,8 +7,10 @@ import cn.aing.uptags.service.sync.PlayerSyncMessage
 import cn.aing.uptags.service.sync.RedisSyncService
 import org.bukkit.plugin.java.JavaPlugin
 import java.util.UUID
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.TimeUnit
 
 class PlayerDataRepository(
     private val plugin: JavaPlugin,
@@ -20,6 +22,7 @@ class PlayerDataRepository(
     private val pendingSaves = ConcurrentHashMap<UUID, PendingSave>()
     private val strictSaves = ConcurrentHashMap<UUID, ConcurrentLinkedQueue<PendingSave>>()
     private val savingNow = ConcurrentHashMap.newKeySet<UUID>()
+    private val loading = ConcurrentHashMap<UUID, CompletableFuture<PlayerCacheEntry>>()
     private var redisSyncService: RedisSyncService? = null
     private var serverId: String = "local"
 
@@ -32,11 +35,36 @@ class PlayerDataRepository(
         this.serverId = serverId
     }
 
-    fun get(uniqueId: UUID): PlayerTagData = loadEntry(uniqueId).data
+    fun get(uniqueId: UUID): PlayerTagData = getCached(uniqueId) ?: createEmptyCached(uniqueId).data
 
-    fun entry(uniqueId: UUID): PlayerCacheEntry = loadEntry(uniqueId)
+    fun getCached(uniqueId: UUID): PlayerTagData? = cache[uniqueId]?.data
 
-    fun version(uniqueId: UUID): Long = loadEntry(uniqueId).version
+    fun entry(uniqueId: UUID): PlayerCacheEntry = cache[uniqueId] ?: createEmptyCached(uniqueId)
+
+    fun version(uniqueId: UUID): Long = cache[uniqueId]?.version ?: 0L
+
+    fun loadAsync(uniqueId: UUID): CompletableFuture<PlayerCacheEntry> {
+        cache[uniqueId]?.takeUnless { it.stale }?.let { return CompletableFuture.completedFuture(it) }
+        return loading.computeIfAbsent(uniqueId) {
+            val future = CompletableFuture<PlayerCacheEntry>()
+            scheduler.runAsync {
+                try {
+                    val entry = loadEntryFromStore(uniqueId)
+                    cache[uniqueId] = entry
+                    future.complete(entry)
+                } catch (ex: Throwable) {
+                    future.completeExceptionally(ex)
+                } finally {
+                    loading.remove(uniqueId)
+                }
+            }
+            future
+        }
+    }
+
+    fun preparePlayerAsync(uniqueId: UUID): CompletableFuture<PlayerTagData> {
+        return loadAsync(uniqueId).thenApply { it.data }
+    }
 
     fun markDirty(data: PlayerTagData) {
         dirty += data.uniqueId
@@ -44,6 +72,11 @@ class PlayerDataRepository(
 
     fun markStale(uniqueId: UUID) {
         cache[uniqueId]?.stale = true
+    }
+
+    fun shouldAcceptRemoteVersion(uniqueId: UUID, remoteVersion: Long): Boolean {
+        val localVersion = cache[uniqueId]?.version ?: 0L
+        return remoteVersion > localVersion
     }
 
     fun replace(snapshot: PlayerDataSnapshot) {
@@ -57,8 +90,8 @@ class PlayerDataRepository(
     }
 
     fun refresh(uniqueId: UUID): Boolean {
-        val snapshot = store.load(uniqueId) ?: PlayerDataSnapshot(PlayerTagData(uniqueId), 0L, System.currentTimeMillis())
-        replace(snapshot)
+        val entry = loadEntryFromStore(uniqueId)
+        cache[uniqueId] = entry
         return true
     }
 
@@ -114,7 +147,7 @@ class PlayerDataRepository(
     }
 
     fun saveSync(data: PlayerTagData) {
-        val currentEntry = loadEntry(data.uniqueId)
+        val currentEntry = entry(data.uniqueId)
         val expectedVersion = currentEntry.version
         val snapshot = PlayerDataSnapshot(
             data = data.copyDeep(),
@@ -144,6 +177,15 @@ class PlayerDataRepository(
         savingNow.remove(uniqueId)
     }
 
+    fun flushAndStop(timeoutSeconds: Long = 30L) {
+        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds.coerceAtLeast(1L))
+        while ((pendingSaves.isNotEmpty() || strictSaves.isNotEmpty() || savingNow.isNotEmpty()) && System.nanoTime() < deadline) {
+            Thread.sleep(25L)
+        }
+        saveAllSync()
+        shutdown()
+    }
+
     fun shutdown() {
         store.shutdown()
     }
@@ -152,7 +194,7 @@ class PlayerDataRepository(
         while (true) {
             val request = nextSaveRequest(uniqueId) ?: break
             val nextData = request.data
-            val currentEntry = loadEntry(uniqueId)
+            val currentEntry = entry(uniqueId)
             val expectedVersion = currentEntry.version
             val snapshot = PlayerDataSnapshot(
                 data = nextData.copyDeep(),
@@ -235,14 +277,21 @@ class PlayerDataRepository(
         )
     }
 
-    private fun loadEntry(uniqueId: UUID): PlayerCacheEntry = cache.computeIfAbsent(uniqueId) {
+    private fun loadEntryFromStore(uniqueId: UUID): PlayerCacheEntry {
         val snapshot = store.load(uniqueId) ?: PlayerDataSnapshot(PlayerTagData(uniqueId), 0L, System.currentTimeMillis())
-        PlayerCacheEntry(
+        return PlayerCacheEntry(
             data = snapshot.data.copyDeep(),
             version = snapshot.version,
             stale = false,
             lastSyncAt = snapshot.updatedAt,
         )
+    }
+
+    private fun createEmptyCached(uniqueId: UUID): PlayerCacheEntry {
+        plugin.logger.warning("Player data for $uniqueId was requested before async preparation completed; using cache-only empty data.")
+        return cache.computeIfAbsent(uniqueId) {
+            PlayerCacheEntry(PlayerTagData(uniqueId), 0L, stale = true)
+        }
     }
 
     private data class PendingSave(

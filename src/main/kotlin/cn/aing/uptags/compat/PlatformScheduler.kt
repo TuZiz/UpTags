@@ -7,6 +7,7 @@ import org.bukkit.scheduler.BukkitTask
 import java.lang.reflect.Proxy
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.function.Consumer
 
 interface TaskHandle {
@@ -14,7 +15,13 @@ interface TaskHandle {
 }
 
 private class SimpleTaskHandle(private val canceller: () -> Unit) : TaskHandle {
-    override fun cancel() = canceller()
+    private val cancelled = AtomicBoolean(false)
+
+    override fun cancel() {
+        if (cancelled.compareAndSet(false, true)) {
+            canceller()
+        }
+    }
 }
 
 class PlatformScheduler(private val plugin: JavaPlugin) {
@@ -26,36 +33,34 @@ class PlatformScheduler(private val plugin: JavaPlugin) {
     fun isFolia(): Boolean = foliaBridge != null
 
     fun runAsync(task: () -> Unit): TaskHandle {
-        val future = asyncExecutor.submit(task)
+        val future = asyncExecutor.submit(wrap(task))
         return SimpleTaskHandle { future.cancel(false) }
     }
 
     fun runGlobal(task: () -> Unit): TaskHandle {
         val bridge = foliaBridge
         if (bridge != null) {
-            bridge.executeGlobal(task)
-            return SimpleTaskHandle {}
+            return bridge.executeGlobal(wrap(task))
         }
-        val bukkitTask = Bukkit.getScheduler().runTask(plugin, task)
+        val bukkitTask = Bukkit.getScheduler().runTask(plugin, wrap(task))
         return bukkitTask.asHandle()
     }
 
     fun runPlayer(player: Player, task: () -> Unit): TaskHandle {
         val bridge = foliaBridge
         if (bridge != null) {
-            bridge.executePlayer(player, task)
-            return SimpleTaskHandle {}
+            return bridge.executePlayer(player, wrap(task))
         }
-        val bukkitTask = Bukkit.getScheduler().runTask(plugin, task)
+        val bukkitTask = Bukkit.getScheduler().runTask(plugin, wrap(task))
         return bukkitTask.asHandle()
     }
 
     fun runPlayerRepeating(player: Player, delayTicks: Long, periodTicks: Long, task: () -> Unit): TaskHandle? {
         val bridge = foliaBridge
         if (bridge != null) {
-            return bridge.runPlayerRepeating(player, delayTicks, periodTicks, task)
+            return bridge.runPlayerRepeating(player, delayTicks, periodTicks, wrap(task))
         }
-        return Bukkit.getScheduler().runTaskTimer(plugin, task, delayTicks, periodTicks).asHandle()
+        return Bukkit.getScheduler().runTaskTimer(plugin, wrap(task), delayTicks, periodTicks).asHandle()
     }
 
     fun shutdown() {
@@ -63,6 +68,24 @@ class PlatformScheduler(private val plugin: JavaPlugin) {
     }
 
     private fun BukkitTask.asHandle(): TaskHandle = SimpleTaskHandle { cancel() }
+
+    private fun wrap(task: () -> Unit): Runnable = Runnable {
+        try {
+            task()
+        } catch (ex: Throwable) {
+            plugin.logger.severe("Scheduled task failed: ${ex.message}")
+            ex.printStackTrace()
+        }
+    }
+
+    private fun wrap(task: Runnable): Runnable = Runnable {
+        try {
+            task.run()
+        } catch (ex: Throwable) {
+            plugin.logger.severe("Scheduled task failed: ${ex.message}")
+            ex.printStackTrace()
+        }
+    }
 }
 
 private class FoliaBridge private constructor(
@@ -74,18 +97,28 @@ private class FoliaBridge private constructor(
     private val entityRunAtFixedRateMethod: java.lang.reflect.Method,
     private val scheduledTaskCancelMethod: java.lang.reflect.Method,
 ) {
-    fun executeGlobal(task: () -> Unit) {
-        globalExecuteMethod.invoke(globalScheduler, plugin, Runnable(task))
+    fun executeGlobal(task: Runnable): TaskHandle {
+        val scheduledTask = globalExecuteMethod.invoke(globalScheduler, plugin, task)
+        return if (scheduledTask != null) {
+            SimpleTaskHandle { scheduledTaskCancelMethod.invoke(scheduledTask) }
+        } else {
+            SimpleTaskHandle {}
+        }
     }
 
-    fun executePlayer(player: Player, task: () -> Unit) {
+    fun executePlayer(player: Player, task: Runnable): TaskHandle {
         val scheduler = playerSchedulerMethod.invoke(player)
-        entityExecuteMethod.invoke(scheduler, plugin, Runnable(task), Runnable {}, 1L)
+        val scheduledTask = entityExecuteMethod.invoke(scheduler, plugin, task, Runnable {}, 1L)
+        return if (scheduledTask != null) {
+            SimpleTaskHandle { scheduledTaskCancelMethod.invoke(scheduledTask) }
+        } else {
+            SimpleTaskHandle {}
+        }
     }
 
-    fun runPlayerRepeating(player: Player, delayTicks: Long, periodTicks: Long, task: () -> Unit): TaskHandle? {
+    fun runPlayerRepeating(player: Player, delayTicks: Long, periodTicks: Long, task: Runnable): TaskHandle? {
         val scheduler = playerSchedulerMethod.invoke(player)
-        val consumer = consumerProxy { task() }
+        val consumer = consumerProxy { task.run() }
         val scheduledTask = entityRunAtFixedRateMethod.invoke(scheduler, plugin, consumer, Runnable {}, delayTicks, periodTicks)
             ?: return null
         return SimpleTaskHandle { scheduledTaskCancelMethod.invoke(scheduledTask) }

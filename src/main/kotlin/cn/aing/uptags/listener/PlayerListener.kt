@@ -1,6 +1,7 @@
 package cn.aing.uptags.listener
 
 import cn.aing.uptags.repository.PlayerDataRepository
+import cn.aing.uptags.compat.PlatformScheduler
 import cn.aing.uptags.service.title.CustomTitleService
 import cn.aing.uptags.service.effect.EffectService
 import cn.aing.uptags.service.player.PlayerNameService
@@ -16,19 +17,31 @@ class PlayerListener(
     private val repository: PlayerDataRepository,
     private val effectService: EffectService,
     private val playerNameService: PlayerNameService,
+    private val scheduler: PlatformScheduler,
 ) : Listener {
     @EventHandler
     fun onJoin(event: PlayerJoinEvent) {
-        playerNameService.remember(event.player)
-        tagService.preparePlayer(event.player, true)
-        customTitleService.preparePlayer(event.player)
-        effectService.startPlayer(event.player)
+        val player = event.player
+        playerNameService.remember(player)
+        repository.preparePlayerAsync(player.uniqueId).whenComplete { _, error ->
+            if (error != null) {
+                return@whenComplete
+            }
+            scheduler.runPlayer(player) {
+                if (!player.isOnline) {
+                    return@runPlayer
+                }
+                tagService.preparePlayer(player, true)
+                customTitleService.preparePlayer(player)
+                effectService.startPlayer(player)
+            }
+        }
     }
 
     @EventHandler
     fun onQuit(event: PlayerQuitEvent) {
         effectService.stopPlayer(event.player.uniqueId)
         customTitleService.cancelDraft(event.player, notify = false)
-        repository.saveAsync(repository.get(event.player.uniqueId))
+        repository.getCached(event.player.uniqueId)?.let(repository::saveAsync)
     }
 }

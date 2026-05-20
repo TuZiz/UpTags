@@ -94,7 +94,7 @@ class UpTagsPlugin : JavaPlugin() {
         effectService = EffectService(this, scheduler, config, tagService)
 
         server.pluginManager.registerEvents(menuService, this)
-        server.pluginManager.registerEvents(PlayerListener(tagService, customTitleService, repository, effectService, playerNameService), this)
+        server.pluginManager.registerEvents(PlayerListener(tagService, customTitleService, repository, effectService, playerNameService, scheduler), this)
         server.pluginManager.registerEvents(ScrollListener(menuService, scrollService, messages, scheduler), this)
         server.pluginManager.registerEvents(ChatInputListener(scheduler, customTitleService, clickableMessageService, messages), this)
 
@@ -114,9 +114,20 @@ class UpTagsPlugin : JavaPlugin() {
         redisSyncService.start()
         server.onlinePlayers.forEach { player ->
             playerNameService.remember(player)
-            tagService.preparePlayer(player, false)
-            customTitleService.preparePlayer(player)
-            effectService.startPlayer(player)
+            repository.preparePlayerAsync(player.uniqueId).whenComplete { _, error ->
+                if (error != null) {
+                    logger.warning("Failed to load player data for ${player.uniqueId}: ${error.message}")
+                    return@whenComplete
+                }
+                scheduler.runPlayer(player) {
+                    if (!player.isOnline) {
+                        return@runPlayer
+                    }
+                    tagService.preparePlayer(player, false)
+                    customTitleService.preparePlayer(player)
+                    effectService.startPlayer(player)
+                }
+            }
         }
     }
 
@@ -178,8 +189,7 @@ class UpTagsPlugin : JavaPlugin() {
             redisSyncService.shutdown()
         }
         if (this::repository.isInitialized) {
-            repository.saveAllSync()
-            repository.shutdown()
+            repository.flushAndStop()
         }
         if (this::scheduler.isInitialized) {
             scheduler.shutdown()

@@ -53,17 +53,12 @@ class EconomyBridge(private val plugin: JavaPlugin) {
         CurrencyType.TITLE_COIN -> titleCoinWithdrawer?.invoke(player, amount) ?: false
     }
 
-    /**
-     * 自定义称号流程取消/超时时退款入口。
-     * 目前只自动退还称号币，其他货币交给服主手动处理。
-     */
-    fun refund(player: Player, type: CurrencyType, amount: Double) {
-        if (amount <= 0.0) return
-        when (type) {
-            CurrencyType.TITLE_COIN -> titleCoinDepositor?.invoke(player, amount)
-            CurrencyType.MONEY, CurrencyType.POINTS -> {
-                // 不做处理，避免和外部经济插件冲突
-            }
+    fun refund(player: Player, type: CurrencyType, amount: Double): Boolean {
+        if (amount <= 0.0) return true
+        return when (type) {
+            CurrencyType.TITLE_COIN -> titleCoinDepositor?.invoke(player, amount) == true
+            CurrencyType.MONEY -> depositVault(player, amount)
+            CurrencyType.POINTS -> givePlayerPoints(player, ceil(amount).toInt())
         }
     }
 
@@ -105,6 +100,19 @@ class EconomyBridge(private val plugin: JavaPlugin) {
         }
     }
 
+    private fun depositVault(player: Player, amount: Double): Boolean {
+        val economy = ensureVaultHooked() ?: return false
+        return try {
+            val response = invokeObject(economy, "depositPlayer", player, amount)
+                ?: invokeObject(economy, "depositPlayer", player.name, amount)
+                ?: return false
+            val success = response.javaClass.getMethod("transactionSuccess")
+            success.invoke(response) as Boolean
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     private fun getPlayerPoints(player: Player): Double {
         val api = ensurePlayerPointsHooked() ?: return 0.0
         return invokeNumber(api, "look", player.uniqueId) ?: invokeNumber(api, "look", player) ?: 0.0
@@ -117,6 +125,13 @@ class EconomyBridge(private val plugin: JavaPlugin) {
         }
         return invokeBoolean(api, "take", player.uniqueId, amount)
             ?: invokeBoolean(api, "take", player, amount)
+            ?: false
+    }
+
+    private fun givePlayerPoints(player: Player, amount: Int): Boolean {
+        val api = ensurePlayerPointsHooked() ?: return false
+        return invokeBoolean(api, "give", player.uniqueId, amount)
+            ?: invokeBoolean(api, "give", player, amount)
             ?: false
     }
 

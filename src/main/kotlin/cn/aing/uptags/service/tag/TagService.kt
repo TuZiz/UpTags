@@ -12,6 +12,7 @@ import cn.aing.uptags.model.config.ParticleDefinition
 import cn.aing.uptags.model.config.TagDefinition
 import cn.aing.uptags.model.runtime.CustomTitleData
 import cn.aing.uptags.model.runtime.PlayerTagData
+import cn.aing.uptags.model.runtime.PurchaseOrderData
 import cn.aing.uptags.model.runtime.ScrollKind
 import cn.aing.uptags.model.runtime.TagProgress
 import cn.aing.uptags.model.runtime.TitleEntry
@@ -403,6 +404,12 @@ class TagService(
     fun selectedParticle(player: Player): ParticleDefinition? = readModel.selectedParticle(player)
 
     fun checkConditions(player: Player, conditions: List<String>): Boolean = conditionChecker.check(player, conditions)
+
+    fun recordPurchaseOrder(player: Player, order: PurchaseOrderData) {
+        val data = data(player)
+        data.purchaseOrders[order.orderId] = order.copyDeep()
+        repository.saveAsync(data)
+    }
 
     fun activeBuffsDisplay(player: Player): String = readModel.activeBuffsDisplay(player)
 

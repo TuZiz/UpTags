@@ -81,6 +81,38 @@ enum class CustomTitleOrderStatus {
     }
 }
 
+enum class PurchaseOrderStatus {
+    PENDING,
+    PAID,
+    GRANTED,
+    FAILED,
+    REFUND_PENDING;
+
+    companion object {
+        fun from(raw: String?): PurchaseOrderStatus {
+            if (raw.isNullOrBlank()) {
+                return PENDING
+            }
+            return entries.firstOrNull { it.name.equals(raw.trim(), ignoreCase = true) } ?: PENDING
+        }
+    }
+}
+
+data class PurchaseOrderData(
+    val orderId: String,
+    val productId: String,
+    val targetId: String,
+    var status: PurchaseOrderStatus,
+    var currencyType: CurrencyType,
+    var currencyAmount: Double,
+    var submittedItems: MutableList<String> = mutableListOf(),
+    var createdAt: Long = System.currentTimeMillis(),
+    var updatedAt: Long = createdAt,
+    var failureReason: String? = null,
+) {
+    fun copyDeep(): PurchaseOrderData = copy(submittedItems = submittedItems.toMutableList())
+}
+
 data class CustomTitlePurchaseOrderData(
     val orderId: String,
     val titleId: String,
@@ -136,6 +168,7 @@ class PlayerTagData(val uniqueId: UUID) {
     var titleCoinInitialized: Boolean = false
     val customTitles: MutableMap<String, CustomTitleData> = LinkedHashMap()
     val customTitleOrders: MutableMap<String, CustomTitlePurchaseOrderData> = LinkedHashMap()
+    val purchaseOrders: MutableMap<String, PurchaseOrderData> = LinkedHashMap()
     var equippedCustomTitleId: String? = null
 
     fun copyDeep(): PlayerTagData {
@@ -149,6 +182,7 @@ class PlayerTagData(val uniqueId: UUID) {
         tagColorOverrides.forEach { (key, value) -> copy.tagColorOverrides[key] = value.copyDeep() }
         customTitles.forEach { (key, value) -> copy.customTitles[key] = value.copyDeep() }
         customTitleOrders.forEach { (key, value) -> copy.customTitleOrders[key] = value.copyDeep() }
+        purchaseOrders.forEach { (key, value) -> copy.purchaseOrders[key] = value.copyDeep() }
         return copy
     }
 }

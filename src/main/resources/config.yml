@@ -1,5 +1,13 @@
 settings:
   effect-tick-interval: 20
+  particles:
+    frequency-ticks: 20
+    count-multiplier: 1
+    view-distance: 32
+  buffs:
+    disabled-worlds: []
+    disabled-permission: ""
+    disable-in-pvp: false
   force-default-tag:
     enabled: true
     tag-id: "newbie"

@@ -16,6 +16,7 @@ import cn.aing.uptags.model.config.ParticleDefinition
 import cn.aing.uptags.model.config.PluginSettings
 import cn.aing.uptags.model.config.ScrollDefinition
 import cn.aing.uptags.model.config.ShopProductDefinition
+import cn.aing.uptags.model.config.ShopProductMode
 import cn.aing.uptags.model.config.ShopProductType
 import cn.aing.uptags.model.config.SubmitItemDefinition
 import cn.aing.uptags.model.config.TagDefinition
@@ -204,7 +205,17 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
         val interval = yaml.getLong("settings.effect-tick-interval", 20).coerceAtLeast(10)
         val enabled = yaml.getBoolean("settings.force-default-tag.enabled", true)
         val tagId = yaml.getString("settings.force-default-tag.tag-id", "newbie") ?: "newbie"
-        settings = PluginSettings(interval, enabled, tagId)
+        settings = PluginSettings(
+            effectTickInterval = interval,
+            forceDefaultTag = enabled,
+            forcedTagId = tagId,
+            particleFrequencyTicks = yaml.getLong("settings.particles.frequency-ticks", interval).coerceAtLeast(1L),
+            particleCountMultiplier = yaml.getInt("settings.particles.count-multiplier", 1).coerceAtLeast(1),
+            particleViewDistance = yaml.getDouble("settings.particles.view-distance", 32.0).coerceAtLeast(1.0),
+            disabledBuffWorlds = yaml.getStringList("settings.buffs.disabled-worlds").map { it.lowercase() }.toSet(),
+            disabledBuffPermission = yaml.getString("settings.buffs.disabled-permission")?.takeIf { it.isNotBlank() },
+            disableBuffsInPvp = yaml.getBoolean("settings.buffs.disable-in-pvp", false),
+        )
         storage = StorageSettings(
             mode = StorageMode.from(yaml.getString("storage.mode", "yml")),
             yml = YamlStorageSettings(
@@ -358,6 +369,7 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
                 id = tag.id,
                 type = ShopProductType.TAG,
                 targetId = tag.id,
+                mode = ShopProductMode.BUY,
                 enabled = shop.enabled,
                 permission = shop.permission,
                 conditions = shop.conditions,
@@ -376,6 +388,7 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
                 id = productId,
                 type = ShopProductType.from(section.getString("type")),
                 targetId = targetId,
+                mode = ShopProductMode.from(section.getString("mode")),
                 enabled = section.getBoolean("enabled", true),
                 permission = section.getString("permission")?.takeIf { it.isNotBlank() },
                 conditions = section.getStringList("conditions"),
