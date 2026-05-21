@@ -1,6 +1,6 @@
 Title: "&#C4B5FD称号&#A78BFA商店"
 GuiPlain:
-  - "XATIPSC#X"
+  - "XHTIPSC#X"
   - "#@@@@@@@#"
   - "#@@@@@@@#"
   - "#@@@@@@@#"
@@ -26,8 +26,8 @@ GuiKey:
       - "&#E2E8F0%custom_flow_summary%"
       - "&#A7F3D0点击开始定制"
       - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
-  "A":
-    IconFunction: "shop-category:all"
+  "H":
+    IconFunction: "shop-category:featured"
     Material: "COMPASS"
     Name: "&#F8FAFC分类: &#A7F3D0%category_name%"
     Lore:

@@ -158,6 +158,7 @@ data class ShopProductDefinition(
     val type: ShopProductType,
     val targetId: String,
     val mode: ShopProductMode = ShopProductMode.BUY,
+    val category: String? = null,
     val enabled: Boolean,
     val permission: String?,
     val conditions: List<String>,

@@ -3,6 +3,7 @@ products:
     type: TAG
     target-id: miner_soul
     mode: CHALLENGE_CLAIM
+    category: challenge
     enabled: true
     conditions:
     - challenge:stat:mine_block:2048
@@ -25,6 +26,7 @@ products:
     type: TAG
     target-id: fisher_daily
     mode: CHALLENGE_CLAIM
+    category: challenge
     enabled: true
     conditions:
     - challenge:stat:fish_caught:128
@@ -50,6 +52,7 @@ products:
     type: TAG
     target-id: redstone_apprentice
     mode: ITEM_EXCHANGE
+    category: exchange
     enabled: true
     conditions:
     cost:
@@ -77,6 +80,7 @@ products:
     type: TAG
     target-id: field_keeper
     mode: ITEM_EXCHANGE
+    category: exchange
     enabled: true
     conditions:
     cost:
@@ -104,6 +108,7 @@ products:
     type: TAG
     target-id: night_owl
     mode: CHALLENGE_CLAIM
+    category: challenge
     enabled: true
     conditions:
     - challenge:stat:time_since_rest:240000
@@ -123,6 +128,7 @@ products:
     type: TAG
     target-id: map_runner
     mode: CHALLENGE_CLAIM
+    category: challenge
     enabled: true
     conditions:
     - challenge:stat:walk_one_cm:1000000
@@ -145,6 +151,7 @@ products:
     type: TAG
     target-id: cave_lighter
     mode: ITEM_EXCHANGE
+    category: exchange
     enabled: true
     conditions:
     cost:
@@ -169,6 +176,7 @@ products:
     type: TAG
     target-id: chest_sorter
     mode: ITEM_EXCHANGE
+    category: exchange
     enabled: true
     conditions:
     cost:
@@ -193,6 +201,7 @@ products:
     type: TAG
     target-id: bread_guard
     mode: ITEM_EXCHANGE
+    category: exchange
     enabled: true
     conditions:
     cost:
@@ -214,6 +223,7 @@ products:
     type: TAG
     target-id: slime_friend
     mode: ITEM_EXCHANGE
+    category: exchange
     enabled: true
     conditions:
     cost:
@@ -235,6 +245,7 @@ products:
     type: TAG
     target-id: abyss_cartographer
     mode: CHALLENGE_CLAIM
+    category: challenge
     enabled: true
     conditions:
     - challenge:biome:deep_dark:1
@@ -255,6 +266,7 @@ products:
     type: TAG
     target-id: nether_pathfinder
     mode: CHALLENGE_CLAIM
+    category: challenge
     enabled: true
     conditions:
     - challenge:world:the_nether:1
@@ -275,6 +287,7 @@ products:
     type: TAG
     target-id: end_voyager
     mode: CHALLENGE_CLAIM
+    category: challenge
     enabled: true
     conditions:
     - challenge:world:the_end:1
@@ -294,6 +307,7 @@ products:
     type: TAG
     target-id: warden_echo
     mode: CHALLENGE_CLAIM
+    category: challenge
     enabled: true
     conditions:
     - challenge:kill:warden:1
@@ -311,6 +325,7 @@ products:
     type: TAG
     target-id: diamond_vein_master
     mode: CHALLENGE_CLAIM
+    category: challenge
     enabled: true
     conditions:
     - challenge:mine:deepslate_diamond_ore:96
@@ -330,6 +345,7 @@ products:
     type: TAG
     target-id: sky_limit_builder
     mode: CHALLENGE_CLAIM
+    category: challenge
     enabled: true
     conditions:
     - challenge:height:overworld:300
@@ -349,6 +365,7 @@ products:
     type: TAG
     target-id: long_marcher
     mode: CHALLENGE_CLAIM
+    category: challenge
     enabled: true
     conditions:
     - challenge:stat:walk_one_cm:1000000
@@ -365,6 +382,7 @@ products:
     type: TAG
     target-id: ocean_salvager
     mode: ITEM_EXCHANGE
+    category: exchange
     enabled: true
     conditions:
     cost:
@@ -389,6 +407,7 @@ products:
     type: TAG
     target-id: redstone_architect
     mode: ITEM_EXCHANGE
+    category: exchange
     enabled: true
     conditions:
     cost:
@@ -419,6 +438,7 @@ products:
     type: TAG
     target-id: fortress_raider
     mode: ITEM_EXCHANGE
+    category: exchange
     enabled: true
     conditions:
     - challenge:world:the_nether:1
@@ -445,6 +465,7 @@ products:
     type: TAG
     target-id: coral_keeper
     mode: BUY
+    category: buy
     enabled: true
     conditions:
     cost:
@@ -466,6 +487,7 @@ products:
     type: TAG
     target-id: obsidian_banker
     mode: BUY
+    category: buy
     enabled: true
     conditions:
     cost:
@@ -484,6 +506,7 @@ products:
     type: TAG
     target-id: season_snowcaller
     mode: SEASONAL
+    category: limited
     enabled: true
     conditions:
     - '%server_season%==winter'
@@ -507,6 +530,7 @@ products:
     type: TAG
     target-id: prestige_founder
     mode: PRESTIGE
+    category: limited
     enabled: true
     permission: uptags.prestige.founder
     conditions:
@@ -524,6 +548,7 @@ products:
     type: TAG
     target-id: dragon_relic_hunter
     mode: ITEM_EXCHANGE
+    category: exchange
     enabled: true
     conditions:
     - challenge:world:the_end:1
@@ -550,6 +575,7 @@ products:
     type: TAG
     target-id: ancient_city_runner
     mode: CHALLENGE_CLAIM
+    category: challenge
     enabled: true
     conditions:
     - challenge:biome:deep_dark:1

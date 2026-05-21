@@ -121,7 +121,7 @@ internal class ShopMenuService(
     }
 
     companion object {
-        const val DEFAULT_CATEGORY_ID = "all"
+        const val DEFAULT_CATEGORY_ID = "featured"
     }
 }
 
@@ -131,30 +131,41 @@ private enum class ShopCategory(
     val hint: String,
     private val predicate: (ShopProductDefinition) -> Boolean,
 ) {
-    ALL("all", "全部", "显示所有可见商品", { true }),
+    FEATURED(
+        "featured",
+        "首页",
+        "只显示未归入分类的常驻商品；更多称号请先选择上方分类",
+        { product -> product.category.isNullOrBlank() },
+    ),
     CHALLENGE(
         "challenge",
         "挑战",
         "统计、维度、群系、击杀、挖掘等挑战领取",
-        { product -> product.mode == ShopProductMode.CHALLENGE_CLAIM },
+        { product -> product.category.equals("challenge", ignoreCase = true) || product.category.isNullOrBlank() && product.mode == ShopProductMode.CHALLENGE_CLAIM },
     ),
     EXCHANGE(
         "exchange",
         "兑换",
         "提交物品兑换称号",
-        { product -> product.mode == ShopProductMode.ITEM_EXCHANGE },
+        { product -> product.category.equals("exchange", ignoreCase = true) || product.category.isNullOrBlank() && product.mode == ShopProductMode.ITEM_EXCHANGE },
     ),
     BUY(
         "buy",
         "购买",
         "消耗点券、金币或称号币购买",
-        { product -> product.mode == ShopProductMode.BUY && product.cost.priceForLevel(1) > 0.0 },
+        {
+            product -> product.category.equals("buy", ignoreCase = true) ||
+                product.category.isNullOrBlank() && product.mode == ShopProductMode.BUY && product.cost.priceForLevel(1) > 0.0
+        },
     ),
     LIMITED(
         "limited",
         "限定",
         "季节活动、声望与特殊条件商品",
-        { product -> product.mode == ShopProductMode.SEASONAL || product.mode == ShopProductMode.PRESTIGE },
+        {
+            product -> product.category.equals("limited", ignoreCase = true) ||
+                product.category.isNullOrBlank() && (product.mode == ShopProductMode.SEASONAL || product.mode == ShopProductMode.PRESTIGE)
+        },
     );
 
     fun matches(product: ShopProductDefinition): Boolean = predicate(product)
@@ -162,7 +173,7 @@ private enum class ShopCategory(
     companion object {
         fun from(raw: String?): ShopCategory {
             val normalized = raw?.trim()?.lowercase().orEmpty()
-            return entries.firstOrNull { it.id == normalized } ?: ALL
+            return entries.firstOrNull { it.id == normalized } ?: FEATURED
         }
     }
 }

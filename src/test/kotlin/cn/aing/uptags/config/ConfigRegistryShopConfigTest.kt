@@ -100,6 +100,7 @@ class ConfigRegistryShopConfigTest {
             products:
               miner_soul:
                 target-id: miner_soul
+                category: challenge
                 cost:
                   type: POINTS
                   amount: 1500
@@ -117,6 +118,7 @@ class ConfigRegistryShopConfigTest {
 
         val product = assertNotNull(registry.shopProducts["miner_soul"])
         assertEquals(1500.0, product.cost.amount)
+        assertEquals("challenge", product.category)
         assertEquals("DIAMOND", product.icon.material)
         assertEquals("&#FFFFFF覆盖商品名", product.icon.name)
 

@@ -354,8 +354,8 @@ class MenuService(
 
     private fun submitItemsDisplay(product: ShopProductDefinition): String {
         return product.submitItems.joinToString("、") { item ->
-            val name = item.name?.takeIf(String::isNotBlank) ?: item.material
-            "提交 ${name.uppercase()} x${item.amount}"
+            val name = item.name?.takeIf(String::isNotBlank) ?: localizedMaterialName(item.material)
+            "提交 ${name} x${item.amount}"
         }
     }
 
@@ -364,18 +364,95 @@ class MenuService(
         val parts = raw.split(":")
         if (parts.firstOrNull()?.equals("challenge", ignoreCase = true) == true) {
             return when (parts.getOrNull(1)?.lowercase()) {
-                "mine" -> "挖掘 ${parts.getOrNull(2)?.uppercase().orEmpty()} x${parts.getOrNull(3).orEmpty()}"
-                "biome" -> "到达群系 ${parts.getOrNull(2).orEmpty()}"
-                "world" -> "进入维度 ${parts.getOrNull(2).orEmpty()}"
-                "kill" -> "击杀 ${parts.getOrNull(2)?.uppercase().orEmpty()} x${parts.getOrNull(3).orEmpty()}"
-                "height" -> "在 ${parts.getOrNull(2).orEmpty()} 到达高度 ${parts.getOrNull(3).orEmpty()}"
-                "stat" -> "统计 ${parts.getOrNull(2).orEmpty()} 达到 ${parts.getOrNull(3).orEmpty()}"
+                "mine" -> "挖掘 ${localizedMaterialName(parts.getOrNull(2).orEmpty())} x${parts.getOrNull(3).orEmpty()}"
+                "biome" -> "到达群系 ${localizedKeyName(parts.getOrNull(2).orEmpty())}"
+                "world" -> "进入维度 ${localizedKeyName(parts.getOrNull(2).orEmpty())}"
+                "kill" -> "击杀 ${localizedKeyName(parts.getOrNull(2).orEmpty())} x${parts.getOrNull(3).orEmpty()}"
+                "height" -> "在 ${localizedKeyName(parts.getOrNull(2).orEmpty())} 到达高度 ${parts.getOrNull(3).orEmpty()}"
+                "stat" -> "统计 ${localizedKeyName(parts.getOrNull(2).orEmpty())} 达到 ${parts.getOrNull(3).orEmpty()}"
                 "deep_dark_stay" -> "深暗区域停留 ${parts.getOrNull(2).orEmpty()} 秒"
                 "advancement" -> "完成进度 ${parts.drop(2).joinToString(":")}"
                 else -> raw
             }
         }
         return raw
+    }
+
+    private fun localizedMaterialName(raw: String): String {
+        return when (raw.trim().uppercase()) {
+            "BARRIER" -> "屏障"
+            "BARREL" -> "木桶"
+            "BLAZE_ROD" -> "烈焰棒"
+            "BLUE_ICE" -> "蓝冰"
+            "BREAD" -> "面包"
+            "CARROT" -> "胡萝卜"
+            "CHEST" -> "箱子"
+            "COAL" -> "煤炭"
+            "COD" -> "鳕鱼"
+            "COMPARATOR" -> "红石比较器"
+            "COMPASS" -> "指南针"
+            "DEEPSLATE" -> "深板岩"
+            "DEEPSLATE_DIAMOND_ORE" -> "深层钻石矿"
+            "DIAMOND" -> "钻石"
+            "ECHO_SHARD" -> "回响碎片"
+            "ENDER_PEARL" -> "末影珍珠"
+            "HAY_BLOCK" -> "干草块"
+            "HEART_OF_THE_SEA" -> "海洋之心"
+            "HOPPER" -> "漏斗"
+            "LANTERN" -> "灯笼"
+            "LEATHER_BOOTS" -> "皮革靴子"
+            "MAGMA_CREAM" -> "岩浆膏"
+            "MAP" -> "地图"
+            "NAUTILUS_SHELL" -> "鹦鹉螺壳"
+            "NETHER_BRICK" -> "下界砖"
+            "NETHER_STAR" -> "下界之星"
+            "NETHERRACK" -> "下界岩"
+            "OBSERVER" -> "侦测器"
+            "OBSIDIAN" -> "黑曜石"
+            "PHANTOM_MEMBRANE" -> "幻翼膜"
+            "PISTON" -> "活塞"
+            "POTATO" -> "马铃薯"
+            "PRISMARINE_SHARD" -> "海晶碎片"
+            "PUFFERFISH" -> "河豚"
+            "RAW_IRON" -> "粗铁"
+            "REDSTONE" -> "红石粉"
+            "REDSTONE_BLOCK" -> "红石块"
+            "REPEATER" -> "红石中继器"
+            "SALMON" -> "鲑鱼"
+            "SCAFFOLDING" -> "脚手架"
+            "SCULK" -> "幽匿块"
+            "SEA_LANTERN" -> "海晶灯"
+            "SLIME_BALL" -> "黏液球"
+            "SLIME_BLOCK" -> "黏液块"
+            "SNOW_BLOCK" -> "雪块"
+            "TORCH" -> "火把"
+            "TUBE_CORAL_BLOCK" -> "管珊瑚块"
+            "WHEAT" -> "小麦"
+            "WITHER_SKELETON_SKULL" -> "凋灵骷髅头颅"
+            else -> localizedKeyName(raw)
+        }
+    }
+
+    private fun localizedKeyName(raw: String): String {
+        return when (raw.trim().lowercase()) {
+            "blaze" -> "烈焰人"
+            "deep_dark" -> "深暗之域"
+            "ender_dragon" -> "末影龙"
+            "fish_caught" -> "钓鱼次数"
+            "mine_block" -> "挖掘方块数"
+            "overworld" -> "主世界"
+            "play_one_minute" -> "在线时间"
+            "the_end" -> "末地"
+            "the_nether" -> "下界"
+            "time_since_rest" -> "未睡眠时间"
+            "walk_one_cm" -> "步行距离"
+            "warden" -> "监守者"
+            else -> raw.trim()
+                .replace('_', ' ')
+                .split(' ')
+                .filter(String::isNotBlank)
+                .joinToString(" ") { it.replaceFirstChar(Char::uppercaseChar) }
+        }
     }
 
     private fun tagBuffSummary(player: Player, tagId: String): String {
@@ -596,7 +673,7 @@ class MenuService(
         }
         when (session.type) {
             MenuType.WAREHOUSE -> openWarehouse(player, page)
-            MenuType.SHOP -> openShop(player, page, session.tagId ?: "all")
+            MenuType.SHOP -> openShop(player, page, session.tagId ?: ShopMenuService.DEFAULT_CATEGORY_ID)
             MenuType.UPGRADE -> openUpgrade(player, session.tagId ?: return, page)
             MenuType.DETACH -> openDetach(player, session.tagId ?: return, page)
             MenuType.SCROLL_SELECT -> openScrollSelection(player, session.scrollContext ?: return, page)
