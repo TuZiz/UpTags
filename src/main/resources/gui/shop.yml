@@ -1,6 +1,6 @@
 Title: "&#C4B5FD称号&#A78BFA商店"
 GuiPlain:
-  - "X###C###X"
+  - "XATIPSC#X"
   - "#@@@@@@@#"
   - "#@@@@@@@#"
   - "#@@@@@@@#"
@@ -25,6 +25,56 @@ GuiKey:
       - "&#E2E8F0%custom_price_summary%"
       - "&#E2E8F0%custom_flow_summary%"
       - "&#A7F3D0点击开始定制"
+      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
+  "A":
+    IconFunction: "shop-category:all"
+    Material: "COMPASS"
+    Name: "&#F8FAFC分类: &#A7F3D0%category_name%"
+    Lore:
+      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
+      - "&#E2E8F0%category_hint%"
+      - "&#E2E8F0可见商品: &#FDE047%category_count%"
+      - "%category_state%"
+      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
+  "T":
+    IconFunction: "shop-category:challenge"
+    Material: "DIAMOND_PICKAXE"
+    Name: "&#F8FAFC分类: &#60A5FA%category_name%"
+    Lore:
+      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
+      - "&#E2E8F0%category_hint%"
+      - "&#E2E8F0可见商品: &#FDE047%category_count%"
+      - "%category_state%"
+      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
+  "I":
+    IconFunction: "shop-category:exchange"
+    Material: "CHEST"
+    Name: "&#F8FAFC分类: &#86EFAC%category_name%"
+    Lore:
+      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
+      - "&#E2E8F0%category_hint%"
+      - "&#E2E8F0可见商品: &#FDE047%category_count%"
+      - "%category_state%"
+      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
+  "P":
+    IconFunction: "shop-category:buy"
+    Material: "EMERALD"
+    Name: "&#F8FAFC分类: &#FDE047%category_name%"
+    Lore:
+      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
+      - "&#E2E8F0%category_hint%"
+      - "&#E2E8F0可见商品: &#FDE047%category_count%"
+      - "%category_state%"
+      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
+  "S":
+    IconFunction: "shop-category:limited"
+    Material: "NETHER_STAR"
+    Name: "&#F8FAFC分类: &#FF8FD8%category_name%"
+    Lore:
+      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
+      - "&#E2E8F0%category_hint%"
+      - "&#E2E8F0可见商品: &#FDE047%category_count%"
+      - "%category_state%"
       - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
   "B":
     IconFunction: "back"

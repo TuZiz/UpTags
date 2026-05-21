@@ -211,6 +211,11 @@ class MenuService(
         shopMenus.open(player, page)
     }
 
+    private fun openShop(player: Player, page: Int, categoryId: String) {
+        if (!ensureLoaded(player)) return
+        shopMenus.open(player, page, categoryId)
+    }
+
     fun openUpgrade(player: Player, tagId: String, page: Int) {
         if (!ensureLoaded(player)) return
         effectMenus.openUpgrade(player, tagId, page)
@@ -591,7 +596,7 @@ class MenuService(
         }
         when (session.type) {
             MenuType.WAREHOUSE -> openWarehouse(player, page)
-            MenuType.SHOP -> openShop(player, page)
+            MenuType.SHOP -> openShop(player, page, session.tagId ?: "all")
             MenuType.UPGRADE -> openUpgrade(player, session.tagId ?: return, page)
             MenuType.DETACH -> openDetach(player, session.tagId ?: return, page)
             MenuType.SCROLL_SELECT -> openScrollSelection(player, session.scrollContext ?: return, page)
