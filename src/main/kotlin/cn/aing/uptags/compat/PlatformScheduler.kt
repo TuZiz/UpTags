@@ -55,6 +55,15 @@ class PlatformScheduler(private val plugin: JavaPlugin) {
         return bukkitTask.asHandle()
     }
 
+    fun runPlayerOrRetired(player: Player, retired: () -> Unit, task: () -> Unit): TaskHandle {
+        val bridge = foliaBridge
+        if (bridge != null) {
+            return bridge.executePlayer(player, wrap(task), wrap(retired))
+        }
+        val bukkitTask = Bukkit.getScheduler().runTask(plugin, wrap(task))
+        return bukkitTask.asHandle()
+    }
+
     fun runPlayerRepeating(player: Player, delayTicks: Long, periodTicks: Long, task: () -> Unit): TaskHandle? {
         val bridge = foliaBridge
         if (bridge != null) {
@@ -106,9 +115,11 @@ private class FoliaBridge private constructor(
         }
     }
 
-    fun executePlayer(player: Player, task: Runnable): TaskHandle {
+    fun executePlayer(player: Player, task: Runnable): TaskHandle = executePlayer(player, task, Runnable {})
+
+    fun executePlayer(player: Player, task: Runnable, retired: Runnable): TaskHandle {
         val scheduler = playerSchedulerMethod.invoke(player)
-        val scheduledTask = entityExecuteMethod.invoke(scheduler, plugin, task, Runnable {}, 1L)
+        val scheduledTask = entityExecuteMethod.invoke(scheduler, plugin, task, retired, 1L)
         return if (scheduledTask != null) {
             SimpleTaskHandle { scheduledTaskCancelMethod.invoke(scheduledTask) }
         } else {

@@ -90,8 +90,8 @@ class UpTagsPlugin : JavaPlugin() {
             withdrawAccessor = { player, amount -> customTitleService.takeTitleCoins(player, amount) },
             depositAccessor = { player, amount -> customTitleService.addTitleCoins(player, amount); true },
         )
-        challengeProgressService = ChallengeProgressService(repository)
-        shopService = ShopService(config, tagService, customTitleService, economyBridge, messages, challengeProgressService)
+        challengeProgressService = ChallengeProgressService(repository, plugin = this)
+        shopService = ShopService(config, tagService, customTitleService, economyBridge, messages, challengeProgressService, scheduler)
         scrollService = ScrollService(this, config, tagService, messages)
         tagService.attachScrollFactory { scrollKey, level -> scrollService.createScroll(scrollKey, 1, level) }
         menuService = MenuService(this, config, tagService, scrollService, shopService, messages, customTitleService, clickableMessageService, playerNameService, repository)

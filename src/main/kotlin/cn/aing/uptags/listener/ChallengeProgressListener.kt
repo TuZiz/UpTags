@@ -18,7 +18,13 @@ class ChallengeProgressListener(
 ) : Listener {
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     fun onStatistic(event: PlayerStatisticIncrementEvent) {
-        challengeProgressService.recordStatistic(event.player, event.statistic, event.newValue)
+        challengeProgressService.recordStatistic(
+            event.player,
+            event.statistic,
+            event.newValue,
+            material = runCatching { event.material }.getOrNull(),
+            entityType = runCatching { event.entityType }.getOrNull(),
+        )
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)

@@ -2,6 +2,7 @@ package cn.aing.uptags.service.shop
 
 import cn.aing.uptags.Support
 import cn.aing.uptags.command.admin.AdminAccess
+import cn.aing.uptags.compat.PlatformScheduler
 import cn.aing.uptags.config.ConfigRegistry
 import cn.aing.uptags.config.MessageService
 import cn.aing.uptags.model.config.CurrencyType
@@ -18,6 +19,7 @@ import cn.aing.uptags.service.title.CustomTitleService
 import org.bukkit.Material
 import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
+import java.util.Locale
 import java.util.UUID
 
 class ShopService(
@@ -27,6 +29,7 @@ class ShopService(
     private val economyBridge: EconomyBridge,
     private val messageService: MessageService,
     private val challengeProgressService: ChallengeProgressService,
+    private val scheduler: PlatformScheduler,
 ) {
     fun visibleProducts(player: Player): List<ShopProductDefinition> {
         return config.shopProducts.values.filter { product ->
@@ -42,23 +45,18 @@ class ShopService(
 
     fun recoverPendingOrders(player: Player) {
         val data = tagService.requireLoaded(player) ?: return
-        data.purchaseOrders.values
-            .filter { it.status == PurchaseOrderStatus.PENDING || it.status == PurchaseOrderStatus.PAID || it.status == PurchaseOrderStatus.REFUND_PENDING }
-            .forEach { order ->
-                val product = config.shopProducts[order.productId] ?: return@forEach
-                if (order.status == PurchaseOrderStatus.PENDING) {
-                    order.fail("interrupted-before-payment")
-                    tagService.recordPurchaseOrderStrict(player, order) {}
-                    return@forEach
-                }
-                if (order.status == PurchaseOrderStatus.PAID || order.status == PurchaseOrderStatus.REFUND_PENDING) {
-                    val refunded = economyBridge.refund(player, order.currencyType, order.currencyAmount)
-                    order.status = if (refunded) PurchaseOrderStatus.FAILED else PurchaseOrderStatus.REFUND_PENDING
-                    order.failureReason = "recovered-after-restart"
-                    order.updatedAt = System.currentTimeMillis()
-                    tagService.recordPurchaseOrderStrict(player, order) {}
-                }
+        val recoverable = data.purchaseOrders.values
+            .filter { it.status in recoverableStatuses }
+            .map { it.copyDeep() }
+        if (recoverable.isEmpty()) {
+            return
+        }
+        scheduler.runPlayerOrRetired(player, retired = {}) {
+            if (!player.isOnline) {
+                return@runPlayerOrRetired
             }
+            recoverable.forEach { order -> recoverOrderOnPlayerThread(player, order) }
+        }
     }
 
     fun buy(player: Player, productId: String): Boolean {
@@ -80,7 +78,7 @@ class ShopService(
         if (!validatePaymentAndSubmitItems(player, product, price)) {
             return false
         }
-        if (product.mode == ShopProductMode.CHALLENGE_CLAIM && !challengeProgressService.canClaim(player, product.conditions)) {
+        if (product.mode == ShopProductMode.CHALLENGE_CLAIM && !challengeProgressService.canClaim(player, product.conditions, "shop.yml products.${product.id}.conditions")) {
             messageService.send(player, "condition-failed")
             return false
         }
@@ -92,13 +90,17 @@ class ShopService(
             status = PurchaseOrderStatus.PENDING,
             currencyType = product.cost.type,
             currencyAmount = price,
-            submittedItems = product.submitItems.map { "${it.amount}x${it.material}" }.toMutableList(),
+            submittedItems = mutableListOf(),
         )
-        tagService.recordPurchaseOrderStrict(player, order) { result ->
+        saveOrderStrict(player, order) { result ->
             if (result is SaveResult.Success) {
-                processPendingOrder(player, product, order)
+                runOnlinePlayer(player) {
+                    takeItemsStage(player, product, order)
+                }
             } else {
-                messageService.send(player, "shop-purchase-save-failed")
+                runOnlinePlayer(player) {
+                    messageService.send(player, "shop-purchase-save-failed")
+                }
             }
         }
         messageService.send(player, "shop-purchase-pending")
@@ -148,6 +150,169 @@ class ShopService(
             parts += submitItemsDisplay(product.submitItems)
         }
         return parts.ifEmpty { listOf("完成后领取") }.joinToString(" / ")
+    }
+
+    private fun takeItemsStage(player: Player, product: ShopProductDefinition, order: PurchaseOrderData) {
+        if (!player.isOnline) {
+            return
+        }
+        if (tagService.isOwned(player, product.targetId)) {
+            order.fail("already-owned-during-purchase")
+            saveOrderStrict(player, order) {}
+            return
+        }
+        val deductedItems = ArrayList<ItemStack>()
+        if (product.submitItems.isNotEmpty() && !takeSubmitItems(player, product.submitItems, deductedItems)) {
+            order.fail("submit-items-missing")
+            saveOrderStrict(player, order) {}
+            messageService.send(player, "shop-submit-items-missing", submitItemsDisplay(product.submitItems))
+            return
+        }
+        order.status = PurchaseOrderStatus.ITEMS_TAKEN
+        order.submittedItems.clear()
+        order.submittedItems.addAll(deductedItems.map(::encodeStack))
+        order.touch()
+        saveOrderStrict(player, order) { result ->
+            if (result is SaveResult.Success) {
+                runOnlinePlayer(player) { payStage(player, product, order) }
+            } else {
+                runOnlinePlayer(player) {
+                    val compensated = restoreSubmittedItems(player, order)
+                    order.failOrRefundPending(compensated, "items-taken-save-failed")
+                    saveOrderStrict(player, order) {}
+                    messageService.send(player, "shop-purchase-refund-pending")
+                }
+            }
+        }
+    }
+
+    private fun payStage(player: Player, product: ShopProductDefinition, order: PurchaseOrderData) {
+        if (!player.isOnline) {
+            return
+        }
+        val price = order.currencyAmount
+        if (price > 0.0 && !economyBridge.withdraw(player, order.currencyType, price)) {
+            val compensated = restoreSubmittedItems(player, order)
+            order.failOrRefundPending(compensated, "currency-withdraw-failed")
+            saveOrderStrict(player, order) {}
+            messageService.send(player, "not-enough", Support.formatDouble(price), economyBridge.displayName(order.currencyType))
+            return
+        }
+        order.status = PurchaseOrderStatus.PAID
+        order.touch()
+        saveOrderStrict(player, order) { paidResult ->
+            if (paidResult is SaveResult.Success) {
+                runOnlinePlayer(player) { markGrantingStage(player, product, order) }
+            } else {
+                runOnlinePlayer(player) {
+                    val compensated = refundAndRestore(player, order, restoreItems = true, refundCurrency = price > 0.0)
+                    order.failOrRefundPending(compensated, "paid-save-failed")
+                    saveOrderStrict(player, order) {}
+                    messageService.send(player, "shop-purchase-refund-pending")
+                }
+            }
+        }
+    }
+
+    private fun markGrantingStage(player: Player, product: ShopProductDefinition, order: PurchaseOrderData) {
+        order.status = PurchaseOrderStatus.GRANTING
+        order.touch()
+        saveOrderStrict(player, order) { grantingResult ->
+            if (grantingResult is SaveResult.Success) {
+                runOnlinePlayer(player) { grantStage(player, product, order) }
+            } else {
+                runOnlinePlayer(player) {
+                    val compensated = refundAndRestore(player, order, restoreItems = true, refundCurrency = order.currencyAmount > 0.0)
+                    order.failOrRefundPending(compensated, "granting-save-failed")
+                    saveOrderStrict(player, order) {}
+                    messageService.send(player, "shop-purchase-refund-pending")
+                }
+            }
+        }
+    }
+
+    private fun grantStage(player: Player, product: ShopProductDefinition, order: PurchaseOrderData) {
+        if (!player.isOnline) {
+            return
+        }
+        if (!tagService.grantTagNoSave(player, product.targetId)) {
+            val compensated = refundAndRestore(player, order, restoreItems = true, refundCurrency = order.currencyAmount > 0.0)
+            order.failOrRefundPending(compensated, "grant-failed")
+            saveOrderStrict(player, order) {}
+            messageService.send(player, "shop-purchase-refund-pending")
+            return
+        }
+        order.status = PurchaseOrderStatus.GRANTED
+        order.touch()
+        saveOrderWithCurrentDataStrict(player, order) { grantedResult ->
+            if (grantedResult is SaveResult.Success) {
+                runOnlinePlayer(player) { sendPurchaseSuccess(player, product, order.currencyAmount) }
+            } else {
+                runOnlinePlayer(player) {
+                    revokeGrantedTagNoSave(player, order.targetId)
+                    val compensated = refundAndRestore(player, order, restoreItems = true, refundCurrency = order.currencyAmount > 0.0)
+                    order.failOrRefundPending(compensated, "granted-save-failed")
+                    saveOrderStrict(player, order) {}
+                    messageService.send(player, "shop-purchase-refund-pending")
+                }
+            }
+        }
+    }
+
+    private fun recoverOrderOnPlayerThread(player: Player, order: PurchaseOrderData) {
+        if (!player.isOnline) {
+            return
+        }
+        when (order.status) {
+            PurchaseOrderStatus.PENDING -> {
+                order.fail("interrupted-before-items")
+                saveOrderStrict(player, order) {}
+            }
+            PurchaseOrderStatus.ITEMS_TAKEN -> {
+                if (order.submittedItems.isEmpty()) {
+                    order.status = PurchaseOrderStatus.REFUND_PENDING
+                    order.failureReason = "missing-submitted-items-for-recovery"
+                    order.touch()
+                    saveOrderStrict(player, order) {}
+                } else {
+                    val restored = restoreSubmittedItems(player, order)
+                    order.status = if (restored) PurchaseOrderStatus.REFUNDED else PurchaseOrderStatus.REFUND_PENDING
+                    order.failureReason = "recovered-items-taken"
+                    order.touch()
+                    saveOrderStrict(player, order) {}
+                }
+            }
+            PurchaseOrderStatus.PAID,
+            PurchaseOrderStatus.GRANTING,
+            -> {
+                if (tagService.isOwned(player, order.targetId)) {
+                    order.status = PurchaseOrderStatus.GRANTED
+                    order.failureReason = null
+                    order.touch()
+                    saveOrderStrict(player, order) {}
+                } else {
+                    refundPendingOrder(player, order, "recovered-after-paid")
+                }
+            }
+            PurchaseOrderStatus.REFUND_PENDING -> refundPendingOrder(player, order, "retry-refund")
+            PurchaseOrderStatus.GRANTED,
+            PurchaseOrderStatus.FAILED,
+            PurchaseOrderStatus.REFUNDED,
+            -> Unit
+        }
+    }
+
+    private fun refundPendingOrder(player: Player, order: PurchaseOrderData, reason: String) {
+        val restored = refundAndRestore(
+            player = player,
+            order = order,
+            restoreItems = order.submittedItems.isNotEmpty(),
+            refundCurrency = order.currencyAmount > 0.0,
+        )
+        order.status = if (restored) PurchaseOrderStatus.REFUNDED else PurchaseOrderStatus.REFUND_PENDING
+        order.failureReason = reason
+        order.touch()
+        saveOrderStrict(player, order) {}
     }
 
     private fun validateProduct(
@@ -203,77 +368,38 @@ class ShopService(
             return false
         }
         val challengeConditions = product.conditions.filter(::isChallengeCondition)
-        return challengeConditions.isEmpty() || challengeProgressService.canClaim(player, challengeConditions)
+        return challengeConditions.isEmpty() ||
+            challengeProgressService.canClaim(player, challengeConditions, "shop.yml products.${product.id}.conditions")
     }
 
     private fun isChallengeCondition(condition: String): Boolean =
         condition.trim().startsWith("challenge:", ignoreCase = true)
 
-    private fun processPendingOrder(player: Player, product: ShopProductDefinition, order: PurchaseOrderData) {
-        val price = order.currencyAmount
-        val deductedItems = ArrayList<ItemStack>()
-        var currencyTaken = false
-        try {
-            if (product.submitItems.isNotEmpty() && !takeSubmitItems(player, product.submitItems, deductedItems)) {
-                order.fail("submit-items-missing")
-                tagService.recordPurchaseOrderStrict(player, order) {}
-                messageService.send(player, "shop-submit-items-missing", submitItemsDisplay(product.submitItems))
-                return
+    private fun runOnlinePlayer(player: Player, task: () -> Unit) {
+        scheduler.runPlayerOrRetired(player, retired = {}) {
+            if (player.isOnline) {
+                task()
             }
-            order.submittedItems.clear()
-            order.submittedItems.addAll(deductedItems.map(::encodeStack))
-            if (price > 0.0) {
-                if (!economyBridge.withdraw(player, product.cost.type, price)) {
-                    restoreDeductedItems(player, deductedItems)
-                    order.compensatedItems.addAll(deductedItems.map(::encodeStack))
-                    order.fail("currency-withdraw-failed")
-                    tagService.recordPurchaseOrderStrict(player, order) {}
-                    messageService.send(player, "not-enough", Support.formatDouble(price), economyBridge.displayName(product.cost.type))
-                    return
-                }
-                currencyTaken = true
-                order.status = PurchaseOrderStatus.PAID
-                order.updatedAt = System.currentTimeMillis()
-                tagService.recordPurchaseOrderStrict(player, order) { paidResult ->
-                    if (paidResult !is SaveResult.Success) {
-                        order.failOrRefundPending(compensate(player, deductedItems, currencyTaken, product, price), "paid-save-failed")
-                        tagService.recordPurchaseOrderStrict(player, order) {}
-                    }
-                }
-            }
-            if (!tagService.grantTagNoSave(player, product.targetId)) {
-                order.failOrRefundPending(compensate(player, deductedItems, currencyTaken, product, price), "grant-failed")
-                tagService.recordPurchaseOrderStrict(player, order) {}
-                messageService.send(player, "shop-not-available")
-                return
-            }
-            val data = tagService.data(player)
-            order.status = PurchaseOrderStatus.GRANTED
-            order.updatedAt = System.currentTimeMillis()
-            data.purchaseOrders[order.orderId] = order.copyDeep()
-            tagService.saveStrict(data) { grantedResult ->
-                if (grantedResult is SaveResult.Success) {
-                    sendPurchaseSuccess(player, product, price)
-                } else {
-                    order.failOrRefundPending(compensate(player, deductedItems, currencyTaken, product, price), "granted-save-failed")
-                    tagService.recordPurchaseOrderStrict(player, order) {}
-                    messageService.send(player, "shop-purchase-refund-pending")
-                }
-            }
-        } catch (ex: RuntimeException) {
-            order.failOrRefundPending(compensate(player, deductedItems, currencyTaken, product, price), ex.message)
-            tagService.recordPurchaseOrderStrict(player, order) {}
-            throw ex
         }
+    }
+
+    private fun saveOrderStrict(player: Player, order: PurchaseOrderData, callback: (SaveResult) -> Unit) {
+        tagService.recordPurchaseOrderStrict(player, order.copyDeep(), callback)
+    }
+
+    private fun saveOrderWithCurrentDataStrict(player: Player, order: PurchaseOrderData, callback: (SaveResult) -> Unit) {
+        val data = tagService.data(player)
+        data.purchaseOrders[order.orderId] = order.copyDeep()
+        tagService.saveStrict(data, callback)
     }
 
     private fun takeSubmitItems(player: Player, requirements: List<SubmitItemDefinition>, deducted: MutableList<ItemStack>): Boolean {
         if (!hasSubmitItems(player, requirements)) {
             return false
         }
+        val contents = player.inventory.storageContents
         requirements.forEach { requirement ->
             var remaining = requirement.amount
-            val contents = player.inventory.storageContents
             contents.forEachIndexed { index, stack ->
                 if (remaining <= 0 || stack == null || !matchesSubmitItem(stack, requirement)) {
                     return@forEachIndexed
@@ -288,8 +414,8 @@ class ShopService(
                     contents[index] = null
                 }
             }
-            player.inventory.storageContents = contents
         }
+        player.inventory.storageContents = contents
         return true
     }
 
@@ -312,33 +438,56 @@ class ShopService(
         return Support.stripColor(actualName).equals(Support.stripColor(expectedName), ignoreCase = true)
     }
 
-    private fun compensate(
+    private fun refundAndRestore(
         player: Player,
-        deductedItems: List<ItemStack>,
-        currencyTaken: Boolean,
-        product: ShopProductDefinition,
-        price: Double,
+        order: PurchaseOrderData,
+        restoreItems: Boolean,
+        refundCurrency: Boolean,
     ): Boolean {
         var ok = true
-        if (deductedItems.isNotEmpty()) {
-            restoreDeductedItems(player, deductedItems)
+        if (restoreItems && !restoreSubmittedItems(player, order)) {
+            ok = false
         }
-        if (currencyTaken && !economyBridge.refund(player, product.cost.type, price)) {
+        if (refundCurrency && !economyBridge.refund(player, order.currencyType, order.currencyAmount)) {
             ok = false
         }
         return ok
     }
 
-    private fun restoreDeductedItems(player: Player, deductedItems: List<ItemStack>) {
-        deductedItems.forEach { stack ->
+    private fun restoreSubmittedItems(player: Player, order: PurchaseOrderData): Boolean {
+        decodeStacks(order.submittedItems).forEach { stack ->
             val leftovers = player.inventory.addItem(stack.clone())
             leftovers.values.forEach { leftover ->
                 player.world.dropItemNaturally(player.location, leftover)
             }
         }
+        order.compensatedItems.clear()
+        order.compensatedItems.addAll(order.submittedItems)
+        return true
     }
 
-    private fun encodeStack(stack: ItemStack): String = "${stack.amount}x${stack.type.name.lowercase()}"
+    private fun revokeGrantedTagNoSave(player: Player, targetId: String) {
+        val data = tagService.data(player)
+        data.ownedTags.remove(targetId)
+        data.tagProgress.remove(targetId)
+        if (data.equippedTagId == targetId) {
+            data.equippedTagId = null
+        }
+    }
+
+    private fun encodeStack(stack: ItemStack): String = "${stack.amount}x${stack.type.name.lowercase(Locale.ROOT)}"
+
+    private fun decodeStacks(encoded: List<String>): List<ItemStack> {
+        return encoded.mapNotNull { raw ->
+            val marker = raw.indexOf('x')
+            if (marker <= 0 || marker >= raw.lastIndex) {
+                return@mapNotNull null
+            }
+            val amount = raw.substring(0, marker).toIntOrNull()?.coerceAtLeast(1) ?: return@mapNotNull null
+            val material = Material.matchMaterial(raw.substring(marker + 1)) ?: return@mapNotNull null
+            ItemStack(material, amount)
+        }
+    }
 
     private fun sendPurchaseSuccess(player: Player, product: ShopProductDefinition, price: Double) {
         if (product.submitItems.isNotEmpty()) {
@@ -374,8 +523,8 @@ class ShopService(
             Material.CHEST -> "箱子"
             Material.BARREL -> "木桶"
             Material.BREAD -> "面包"
-            Material.SLIME_BALL -> "粘液球"
-            else -> raw.lowercase()
+            Material.SLIME_BALL -> "黏液球"
+            else -> raw.lowercase(Locale.ROOT)
                 .split('_')
                 .filter(String::isNotBlank)
                 .joinToString(" ") { it.replaceFirstChar(Char::uppercaseChar) }
@@ -385,12 +534,26 @@ class ShopService(
     private fun PurchaseOrderData.fail(reason: String?) {
         status = PurchaseOrderStatus.FAILED
         failureReason = reason
-        updatedAt = System.currentTimeMillis()
+        touch()
     }
 
     private fun PurchaseOrderData.failOrRefundPending(compensated: Boolean, reason: String?) {
         status = if (compensated) PurchaseOrderStatus.FAILED else PurchaseOrderStatus.REFUND_PENDING
         failureReason = reason
+        touch()
+    }
+
+    private fun PurchaseOrderData.touch() {
         updatedAt = System.currentTimeMillis()
+    }
+
+    private companion object {
+        val recoverableStatuses = setOf(
+            PurchaseOrderStatus.PENDING,
+            PurchaseOrderStatus.ITEMS_TAKEN,
+            PurchaseOrderStatus.PAID,
+            PurchaseOrderStatus.GRANTING,
+            PurchaseOrderStatus.REFUND_PENDING,
+        )
     }
 }

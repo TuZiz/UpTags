@@ -5,7 +5,7 @@ products:
     mode: CHALLENGE_CLAIM
     enabled: true
     conditions:
-    - '%statistic_mine_block%>=2048'
+    - challenge:stat:mine_block:2048
     cost:
       type: POINTS
       amount: 0
@@ -27,7 +27,7 @@ products:
     mode: CHALLENGE_CLAIM
     enabled: true
     conditions:
-    - '%statistic_fish_caught%>=128'
+    - challenge:stat:fish_caught:128
     cost:
       type: POINTS
       amount: 0
@@ -106,7 +106,7 @@ products:
     mode: CHALLENGE_CLAIM
     enabled: true
     conditions:
-    - '%statistic_time_since_rest%>=240000'
+    - challenge:stat:time_since_rest:240000
     cost:
       type: POINTS
       amount: 0
@@ -125,7 +125,7 @@ products:
     mode: CHALLENGE_CLAIM
     enabled: true
     conditions:
-    - '%statistic_walk_one_cm%>=1000000'
+    - challenge:stat:walk_one_cm:1000000
     cost:
       type: POINTS
       amount: 0
@@ -502,6 +502,7 @@ products:
       name: '&#BFDBFE[凛冬唤雪者]'
       lore:
       - '&#94A3B8冬季活动限定，需要活动条件和冰雪材料。'
+      - '&#FDE68A需要 PlaceholderAPI 提供 %server_season% 季节变量。'
   prestige_founder:
     type: TAG
     target-id: prestige_founder

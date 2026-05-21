@@ -83,10 +83,13 @@ enum class CustomTitleOrderStatus {
 
 enum class PurchaseOrderStatus {
     PENDING,
+    ITEMS_TAKEN,
     PAID,
+    GRANTING,
     GRANTED,
     FAILED,
-    REFUND_PENDING;
+    REFUND_PENDING,
+    REFUNDED;
 
     companion object {
         fun from(raw: String?): PurchaseOrderStatus {
