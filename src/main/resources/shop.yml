@@ -6,7 +6,7 @@ products:
     category: challenge
     enabled: true
     conditions:
-    - challenge:stat:mine_block:2048
+      - challenge:stat:mine_block:2048
     cost:
       type: POINTS
       amount: 0
@@ -19,9 +19,9 @@ products:
         amount: 32
     icon:
       material: STONE_PICKAXE
-      name: '&#A3A3A3[矿洞住民]'
+      name: '&#A3A3A3&l✦ &#E5E5E5矿洞住民 &#A3A3A3&l✦'
       lore:
-      - '&#94A3B8挖掘 2048 个方块，并提交矿洞材料。'
+        - '&#94A3B8▪ 挖掘 2048 个方块，并提交矿洞材料。'
   fisher_daily:
     type: TAG
     target-id: fisher_daily
@@ -29,7 +29,7 @@ products:
     category: challenge
     enabled: true
     conditions:
-    - challenge:stat:fish_caught:128
+      - challenge:stat:fish_caught:128
     cost:
       type: POINTS
       amount: 0
@@ -45,9 +45,9 @@ products:
         amount: 4
     icon:
       material: FISHING_ROD
-      name: '&#7DD3FC[钓鱼佬]'
+      name: '&#7DD3FC&l✦ &#BAE6FD钓鱼佬 &#7DD3FC&l✦'
       lore:
-      - '&#94A3B8钓鱼 128 次，并提交一批渔获。'
+        - '&#94A3B8▪ 钓鱼 128 次，并提交一批渔获。'
   redstone_apprentice:
     type: TAG
     target-id: redstone_apprentice
@@ -73,9 +73,9 @@ products:
         amount: 8
     icon:
       material: REDSTONE
-      name: '&#F87171[红石学徒]'
+      name: '&#F87171&l✦ &#FCA5A5红石学徒 &#F87171&l✦'
       lore:
-      - '&#94A3B8提交一套基础红石工程材料。'
+        - '&#94A3B8▪ 提交一套基础红石工程材料。'
   field_keeper:
     type: TAG
     target-id: field_keeper
@@ -101,9 +101,9 @@ products:
         amount: 64
     icon:
       material: WHEAT
-      name: '&#86EFAC[种田人]'
+      name: '&#86EFAC&l✦ &#BBF7D0种田人 &#86EFAC&l✦'
       lore:
-      - '&#94A3B8提交多种农作物兑换。'
+        - '&#94A3B8▪ 提交多种农作物进行兑换。'
   night_owl:
     type: TAG
     target-id: night_owl
@@ -111,7 +111,7 @@ products:
     category: challenge
     enabled: true
     conditions:
-    - challenge:stat:time_since_rest:240000
+      - challenge:stat:time_since_rest:240000
     cost:
       type: POINTS
       amount: 0
@@ -121,9 +121,9 @@ products:
         amount: 4
     icon:
       material: CLOCK
-      name: '&#C084FC[夜猫子]'
+      name: '&#C084FC&l✦ &#D8B4FE夜猫子 &#C084FC&l✦'
       lore:
-      - '&#94A3B8长时间未睡觉，并提交幻翼膜。'
+        - '&#94A3B8▪ 长时间未入睡，并提交幻翼膜。'
   map_runner:
     type: TAG
     target-id: map_runner
@@ -131,7 +131,7 @@ products:
     category: challenge
     enabled: true
     conditions:
-    - challenge:stat:walk_one_cm:1000000
+      - challenge:stat:walk_one_cm:1000000
     cost:
       type: POINTS
       amount: 0
@@ -144,9 +144,9 @@ products:
         amount: 4
     icon:
       material: MAP
-      name: '&#FDE68A[跑图选手]'
+      name: '&#FDE68A&l✦ &#FEF08A跑图选手 &#FDE68A&l✦'
       lore:
-      - '&#94A3B8步行距离达到 1000000cm，并提交导航物品。'
+        - '&#94A3B8▪ 步行距离达 1,000,000cm 并提交导航物品。'
   cave_lighter:
     type: TAG
     target-id: cave_lighter
@@ -169,9 +169,9 @@ products:
         amount: 16
     icon:
       material: TORCH
-      name: '&#FBBF24[插火把的人]'
+      name: '&#FBBF24&l✦ &#FCD34D插火把的人 &#FBBF24&l✦'
       lore:
-      - '&#94A3B8提交足够照亮大型矿洞的照明物资。'
+        - '&#94A3B8▪ 提交足以照亮大型矿洞的照明物资。'
   chest_sorter:
     type: TAG
     target-id: chest_sorter
@@ -194,9 +194,9 @@ products:
         amount: 8
     icon:
       material: CHEST
-      name: '&#38BDF8[箱子整理师]'
+      name: '&#38BDF8&l✦ &#7DD3FC箱子整理师 &#38BDF8&l✦'
       lore:
-      - '&#94A3B8提交完整仓储整理材料兑换。'
+        - '&#94A3B8▪ 提交完整的仓储整理材料进行兑换。'
   bread_guard:
     type: TAG
     target-id: bread_guard
@@ -216,9 +216,9 @@ products:
         amount: 16
     icon:
       material: BREAD
-      name: '&#FCD34D[面包守卫]'
+      name: '&#FCD34D&l✦ &#FDE68A面包守卫 &#FCD34D&l✦'
       lore:
-      - '&#94A3B8提交一批长期补给兑换。'
+        - '&#94A3B8▪ 提交一批长期补给物资进行兑换。'
   slime_friend:
     type: TAG
     target-id: slime_friend
@@ -238,9 +238,9 @@ products:
         amount: 8
     icon:
       material: SLIME_BALL
-      name: '&#A7F3D0[史莱姆好友]'
+      name: '&#A7F3D0&l✦ &#D1FAE5史莱姆好友 &#A7F3D0&l✦'
       lore:
-      - '&#94A3B8提交史莱姆材料兑换。'
+        - '&#94A3B8▪ 提交大量的史莱姆材料进行兑换。'
   abyss_cartographer:
     type: TAG
     target-id: abyss_cartographer
@@ -248,8 +248,8 @@ products:
     category: challenge
     enabled: true
     conditions:
-    - challenge:biome:deep_dark:1
-    - challenge:deep_dark_stay:180
+      - challenge:biome:deep_dark:1
+      - challenge:deep_dark_stay:180
     cost:
       type: POINTS
       amount: 0
@@ -259,9 +259,9 @@ products:
         amount: 32
     icon:
       material: SCULK
-      name: '&#5B7CFA[深暗绘图师]'
+      name: '&#5B7CFA&l✦ &#93A9F5深暗绘图师 &#5B7CFA&l✦'
       lore:
-      - '&#94A3B8深入深暗区域并提交幽匿样本。'
+        - '&#94A3B8▪ 深入深暗区域探索，并提交幽匿样本。'
   nether_pathfinder:
     type: TAG
     target-id: nether_pathfinder
@@ -269,8 +269,8 @@ products:
     category: challenge
     enabled: true
     conditions:
-    - challenge:world:the_nether:1
-    - challenge:kill:blaze:16
+      - challenge:world:the_nether:1
+      - challenge:kill:blaze:16
     cost:
       type: POINTS
       amount: 0
@@ -280,9 +280,9 @@ products:
         amount: 16
     icon:
       material: NETHERRACK
-      name: '&#F97316[下界巡路人]'
+      name: '&#F97316&l✦ &#FDBA74下界巡路人 &#F97316&l✦'
       lore:
-      - '&#94A3B8踏入下界，击杀烈焰人并提交下界材料。'
+        - '&#94A3B8▪ 踏入下界，击杀烈焰人并提交下界特产。'
   end_voyager:
     type: TAG
     target-id: end_voyager
@@ -290,7 +290,7 @@ products:
     category: challenge
     enabled: true
     conditions:
-    - challenge:world:the_end:1
+      - challenge:world:the_end:1
     cost:
       type: POINTS
       amount: 0
@@ -300,9 +300,9 @@ products:
         amount: 16
     icon:
       material: END_STONE
-      name: '&#C4B5FD[末地远航者]'
+      name: '&#C4B5FD&l✦ &#DDD6FE末地远航者 &#C4B5FD&l✦'
       lore:
-      - '&#94A3B8抵达末地，并提交末影珍珠。'
+        - '&#94A3B8▪ 成功抵达末地，并提交末影珍珠。'
   warden_echo:
     type: TAG
     target-id: warden_echo
@@ -310,17 +310,17 @@ products:
     category: challenge
     enabled: true
     conditions:
-    - challenge:kill:warden:1
-    - challenge:deep_dark_stay:600
+      - challenge:kill:warden:1
+      - challenge:deep_dark_stay:600
     cost:
       type: POINTS
       amount: 0
     submit-items:
     icon:
       material: ECHO_SHARD
-      name: '&#67E8F9[监守回声]'
+      name: '&#67E8F9&l✦ &#A5F3FC监守回声 &#67E8F9&l✦'
       lore:
-      - '&#94A3B8在深暗长期探索并击败一次 Warden。'
+        - '&#94A3B8▪ 在深暗区域长期探索并击败一次 Warden。'
   diamond_vein_master:
     type: TAG
     target-id: diamond_vein_master
@@ -328,7 +328,7 @@ products:
     category: challenge
     enabled: true
     conditions:
-    - challenge:mine:deepslate_diamond_ore:96
+      - challenge:mine:deepslate_diamond_ore:96
     cost:
       type: POINTS
       amount: 0
@@ -338,9 +338,9 @@ products:
         amount: 16
     icon:
       material: DEEPSLATE_DIAMOND_ORE
-      name: '&#60A5FA[深层钻脉师]'
+      name: '&#60A5FA&l✦ &#93C5FD深层钻脉师 &#60A5FA&l✦'
       lore:
-      - '&#94A3B8挖掘 96 个深层钻石矿，并提交钻石样本。'
+        - '&#94A3B8▪ 挖掘 96 个深层钻石矿，并提交钻石样本。'
   sky_limit_builder:
     type: TAG
     target-id: sky_limit_builder
@@ -348,7 +348,7 @@ products:
     category: challenge
     enabled: true
     conditions:
-    - challenge:height:overworld:300
+      - challenge:height:overworld:300
     cost:
       type: POINTS
       amount: 0
@@ -358,9 +358,9 @@ products:
         amount: 256
     icon:
       material: SCAFFOLDING
-      name: '&#FDE68A[天际构筑者]'
+      name: '&#FDE68A&l✦ &#FEF08A天际构筑者 &#FDE68A&l✦'
       lore:
-      - '&#94A3B8在主世界抵达 300 高度，并提交脚手架。'
+        - '&#94A3B8▪ 在主世界抵达 300 高度，并提交脚手架。'
   long_marcher:
     type: TAG
     target-id: long_marcher
@@ -368,16 +368,16 @@ products:
     category: challenge
     enabled: true
     conditions:
-    - challenge:stat:walk_one_cm:1000000
+      - challenge:stat:walk_one_cm:1000000
     cost:
       type: POINTS
       amount: 0
     submit-items:
     icon:
       material: LEATHER_BOOTS
-      name: '&#A7F3D0[远行长路]'
+      name: '&#A7F3D0&l✦ &#D1FAE5远行长路 &#A7F3D0&l✦'
       lore:
-      - '&#94A3B8累计步行 1000000cm 后领取。'
+        - '&#94A3B8▪ 累计步行达到 1,000,000cm 后即可领取。'
   ocean_salvager:
     type: TAG
     target-id: ocean_salvager
@@ -400,9 +400,9 @@ products:
         amount: 1
     icon:
       material: HEART_OF_THE_SEA
-      name: '&#7DD3FC[深海打捞员]'
+      name: '&#7DD3FC&l✦ &#BAE6FD深海打捞员 &#7DD3FC&l✦'
       lore:
-      - '&#94A3B8提交高价值海洋材料兑换。'
+        - '&#94A3B8▪ 提交高价值的稀有海洋材料进行兑换。'
   redstone_architect:
     type: TAG
     target-id: redstone_architect
@@ -431,9 +431,9 @@ products:
         amount: 32
     icon:
       material: REDSTONE_LAMP
-      name: '&#F87171[红石建筑师]'
+      name: '&#F87171&l✦ &#FCA5A5红石建筑师 &#F87171&l✦'
       lore:
-      - '&#94A3B8提交大型红石工程材料兑换。'
+        - '&#94A3B8▪ 提交大型红石工程材料进行兑换。'
   fortress_raider:
     type: TAG
     target-id: fortress_raider
@@ -441,8 +441,8 @@ products:
     category: exchange
     enabled: true
     conditions:
-    - challenge:world:the_nether:1
-    - challenge:kill:blaze:32
+      - challenge:world:the_nether:1
+      - challenge:kill:blaze:32
     cost:
       type: POINTS
       amount: 0
@@ -458,9 +458,9 @@ products:
         amount: 1
     icon:
       material: BLAZE_ROD
-      name: '&#FDBA74[要塞掠行者]'
+      name: '&#FDBA74&l✦ &#FED7AA要塞掠行者 &#FDBA74&l✦'
       lore:
-      - '&#94A3B8完成下界战斗目标并提交要塞战利品。'
+        - '&#94A3B8▪ 完成下界战斗目标并提交要塞战利品。'
   coral_keeper:
     type: TAG
     target-id: coral_keeper
@@ -480,9 +480,9 @@ products:
         amount: 16
     icon:
       material: TUBE_CORAL
-      name: '&#22D3EE[珊瑚守望]'
+      name: '&#22D3EE&l✦ &#67E8F9珊瑚守望 &#22D3EE&l✦'
       lore:
-      - '&#94A3B8消耗点券并提交海底装饰材料。'
+        - '&#94A3B8▪ 消耗点券，并提交珍贵的海底装饰材料。'
   obsidian_banker:
     type: TAG
     target-id: obsidian_banker
@@ -499,9 +499,9 @@ products:
         amount: 128
     icon:
       material: OBSIDIAN
-      name: '&#A78BFA[黑曜金库]'
+      name: '&#A78BFA&l✦ &#C4B5FD黑曜金库 &#A78BFA&l✦'
       lore:
-      - '&#94A3B8消耗金币并提交黑曜石储备。'
+        - '&#94A3B8▪ 消耗大量金币，并提交黑曜石储备。'
   season_snowcaller:
     type: TAG
     target-id: season_snowcaller
@@ -509,7 +509,7 @@ products:
     category: limited
     enabled: true
     conditions:
-    - '%server_season%==winter'
+      - '%server_season%==winter'
     cost:
       type: POINTS
       amount: 1000
@@ -522,10 +522,10 @@ products:
         amount: 16
     icon:
       material: POWDER_SNOW_BUCKET
-      name: '&#BFDBFE[凛冬唤雪者]'
+      name: '&#BFDBFE&l✦ &#DBEAFE凛冬唤雪者 &#BFDBFE&l✦'
       lore:
-      - '&#94A3B8冬季活动限定，需要活动条件和冰雪材料。'
-      - '&#FDE68A需要 PlaceholderAPI 提供 %server_season% 季节变量。'
+        - '&#94A3B8▪ 冬季活动限定，需要满足活动条件和冰雪材料。'
+        - '&#FDE68A⚠ 需要 PlaceholderAPI 提供 %server_season% 变量。'
   prestige_founder:
     type: TAG
     target-id: prestige_founder
@@ -534,16 +534,16 @@ products:
     enabled: true
     permission: uptags.prestige.founder
     conditions:
-    - challenge:stat:play_one_minute:432000
+      - challenge:stat:play_one_minute:432000
     cost:
       type: TITLE_COIN
       amount: 250
     submit-items:
     icon:
       material: NETHER_STAR
-      name: '&#FDE047[声望奠基者]'
+      name: '&#FDE047&l✦ &#FEF08A声望奠基者 &#FDE047&l✦'
       lore:
-      - '&#94A3B8需要权限、长期在线统计与称号币。'
+        - '&#94A3B8▪ 需要权限、长期在线统计与相应的称号币。'
   dragon_relic_hunter:
     type: TAG
     target-id: dragon_relic_hunter
@@ -551,8 +551,8 @@ products:
     category: exchange
     enabled: true
     conditions:
-    - challenge:world:the_end:1
-    - challenge:kill:ender_dragon:1
+      - challenge:world:the_end:1
+      - challenge:kill:ender_dragon:1
     cost:
       type: POINTS
       amount: 0
@@ -568,9 +568,9 @@ products:
         amount: 16
     icon:
       material: DRAGON_BREATH
-      name: '&#C084FC[龙息遗珍猎手]'
+      name: '&#C084FC&l✦ &#D8B4FE龙息遗珍猎手 &#C084FC&l✦'
       lore:
-      - '&#94A3B8击败末影龙并提交末地遗物。'
+        - '&#94A3B8▪ 成功击败末影龙，并提交稀有末地遗物。'
   ancient_city_runner:
     type: TAG
     target-id: ancient_city_runner
@@ -578,8 +578,8 @@ products:
     category: challenge
     enabled: true
     conditions:
-    - challenge:biome:deep_dark:1
-    - challenge:deep_dark_stay:900
+      - challenge:biome:deep_dark:1
+      - challenge:deep_dark_stay:900
     cost:
       type: POINTS
       amount: 0
@@ -592,6 +592,6 @@ products:
         amount: 2
     icon:
       material: REINFORCED_DEEPSLATE
-      name: '&#64748B[古城潜行者]'
+      name: '&#64748B&l✦ &#94A3B8古城潜行者 &#64748B&l✦'
       lore:
-      - '&#94A3B8长期潜行深暗区域，并提交古城材料。'
+        - '&#94A3B8▪ 长期潜行于深暗古城，并提交古城探索材料。'

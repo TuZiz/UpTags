@@ -1,7 +1,7 @@
 rarity-display:
-  COMMON: '&#E2E8F0[&#7DD3FC普通&#E2E8F0]'
-  LIMITED: '&#E2E8F0[&#FF8FD8限定&#E2E8F0]'
-  EPIC: '&#E2E8F0[&#C084FC史诗&#E2E8F0]'
+  COMMON: '&#94A3B8[&#7DD3FC普通&#94A3B8]'
+  LIMITED: '&#94A3B8[&#FF8FD8限定&#94A3B8]'
+  EPIC: '&#94A3B8[&#C084FC史诗&#94A3B8]'
 rarity-upgrade-group:
   COMMON: COMMON
   LIMITED: LIMITED
@@ -12,218 +12,218 @@ tag-template:
   default-particle: ''
 tags:
   newbie:
-    display: '&#E2E8F0[&7萌新&#E2E8F0]'
+    display: '&#94A3B8[&#A7F3D0萌新&#94A3B8]'
     description:
-    - '&#94A3B8加入服务器的第一个称号'
+      - '&#94A3B8▪ 加入服务器的第一个称号。'
     rarity: COMMON
     default-unlocked: true
     upgrade-groups:
-    - COMMON
+      - COMMON
   miner_soul:
-    display: '&#E2E8F0[&#A3A3A3矿洞住民&#E2E8F0]'
+    display: '&#94A3B8[&#E5E5E5矿洞住民&#94A3B8]'
     description:
-    - '&#94A3B8常年出没于地下矿道的探索者'
+      - '&#94A3B8▪ 常年出没于地下矿道的探索者。'
     rarity: COMMON
     default-unlocked: false
     upgrade-groups:
-    - COMMON
+      - COMMON
   fisher_daily:
-    display: '&#E2E8F0[&#7DD3FC钓鱼佬&#E2E8F0]'
+    display: '&#94A3B8[&#BAE6FD钓鱼佬&#94A3B8]'
     description:
-    - '&#94A3B8愿意把一整天交给鱼漂的人'
+      - '&#94A3B8▪ 愿意把一整天交给鱼漂的人。'
     rarity: COMMON
     default-unlocked: false
     upgrade-groups:
-    - COMMON
+      - COMMON
   redstone_apprentice:
-    display: '&#E2E8F0[&#F87171红石学徒&#E2E8F0]'
+    display: '&#94A3B8[&#FCA5A5红石学徒&#94A3B8]'
     description:
-    - '&#94A3B8线路不一定优雅，但一定会亮'
+      - '&#94A3B8▪ 线路不一定优雅，但一定会亮。'
     rarity: COMMON
     default-unlocked: false
     upgrade-groups:
-    - COMMON
+      - COMMON
   field_keeper:
-    display: '&#E2E8F0[&#86EFAC种田人&#E2E8F0]'
+    display: '&#94A3B8[&#BBF7D0种田人&#94A3B8]'
     description:
-    - '&#94A3B8把每一格土地都安排得明明白白'
+      - '&#94A3B8▪ 把每一格土地都安排得明明白白。'
     rarity: COMMON
     default-unlocked: false
     upgrade-groups:
-    - COMMON
+      - COMMON
   night_owl:
-    display: '&#E2E8F0[&#C084FC夜猫子&#E2E8F0]'
+    display: '&#94A3B8[&#D8B4FE夜猫子&#94A3B8]'
     description:
-    - '&#94A3B8白天不动，夜里精神'
+      - '&#94A3B8▪ 白天不动，夜里精神。'
     rarity: COMMON
     default-unlocked: false
     upgrade-groups:
-    - COMMON
+      - COMMON
   map_runner:
-    display: '&#E2E8F0[&#FDE68A跑图选手&#E2E8F0]'
+    display: '&#94A3B8[&#FEF08A跑图选手&#94A3B8]'
     description:
-    - '&#94A3B8总是在路上，也总能找到路'
+      - '&#94A3B8▪ 总是在路上，也总能找到路。'
     rarity: COMMON
     default-unlocked: false
     upgrade-groups:
-    - COMMON
+      - COMMON
   cave_lighter:
-    display: '&#E2E8F0[&#FBBF24插火把的人&#E2E8F0]'
+    display: '&#94A3B8[&#FCD34D插火把的人&#94A3B8]'
     description:
-    - '&#94A3B8黑暗还没靠近，火把已经插好'
+      - '&#94A3B8▪ 黑暗还没靠近，火把已经插好。'
     rarity: COMMON
     default-unlocked: false
     upgrade-groups:
-    - COMMON
+      - COMMON
   chest_sorter:
-    display: '&#E2E8F0[&#38BDF8箱子整理师&#E2E8F0]'
+    display: '&#94A3B8[&#7DD3FC箱子整理师&#94A3B8]'
     description:
-    - '&#94A3B8背包可以乱，箱子不能乱'
+      - '&#94A3B8▪ 背包可以乱，箱子不能乱。'
     rarity: COMMON
     default-unlocked: false
     upgrade-groups:
-    - COMMON
+      - COMMON
   bread_guard:
-    display: '&#E2E8F0[&#FCD34D面包守卫&#E2E8F0]'
+    display: '&#94A3B8[&#FDE68A面包守卫&#94A3B8]'
     description:
-    - '&#94A3B8身上总有一组应急干粮'
+      - '&#94A3B8▪ 身上总有一组应急干粮。'
     rarity: COMMON
     default-unlocked: false
     upgrade-groups:
-    - COMMON
+      - COMMON
   slime_friend:
-    display: '&#E2E8F0[&#A7F3D0史莱姆好友&#E2E8F0]'
+    display: '&#94A3B8[&#D1FAE5史莱姆好友&#94A3B8]'
     description:
-    - '&#94A3B8弹弹跳跳地路过每一个清晨'
+      - '&#94A3B8▪ 弹弹跳跳地路过每一个清晨。'
     rarity: COMMON
     default-unlocked: false
     upgrade-groups:
-    - COMMON
+      - COMMON
   abyss_cartographer:
-    display: '&#E2E8F0[&#5B7CFA深暗绘图师&#E2E8F0]'
+    display: '&#94A3B8[&#93A9F5深暗绘图师&#94A3B8]'
     description:
-    - '&#94A3B8记录深暗地形的谨慎探险者。'
+      - '&#94A3B8▪ 记录深暗地形的谨慎探险者。'
     rarity: EPIC
     default-unlocked: false
     upgrade-groups:
-    - ADVENTURE
+      - ADVENTURE
   nether_pathfinder:
-    display: '&#E2E8F0[&#F97316下界巡路人&#E2E8F0]'
+    display: '&#94A3B8[&#FDBA74下界巡路人&#94A3B8]'
     description:
-    - '&#94A3B8熟悉岩浆海与堡垒边界。'
+      - '&#94A3B8▪ 熟悉岩浆海与堡垒边界。'
     rarity: LIMITED
     default-unlocked: false
     upgrade-groups:
-    - NETHER
+      - NETHER
   end_voyager:
-    display: '&#E2E8F0[&#C4B5FD末地远航者&#E2E8F0]'
+    display: '&#94A3B8[&#DDD6FE末地远航者&#94A3B8]'
     description:
-    - '&#94A3B8把虚空边缘当作航线。'
+      - '&#94A3B8▪ 把虚空边缘当作航线。'
     rarity: EPIC
     default-unlocked: false
     upgrade-groups:
-    - END
+      - END
   warden_echo:
-    display: '&#E2E8F0[&#67E8F9监守回声&#E2E8F0]'
+    display: '&#94A3B8[&#A5F3FC监守回声&#94A3B8]'
     description:
-    - '&#94A3B8从幽匿尖啸中活着回来。'
+      - '&#94A3B8▪ 从幽匿尖啸中活着回来。'
     rarity: EPIC
     default-unlocked: false
     upgrade-groups:
-    - ADVENTURE
+      - ADVENTURE
   diamond_vein_master:
-    display: '&#E2E8F0[&#60A5FA深层钻脉师&#E2E8F0]'
+    display: '&#94A3B8[&#93C5FD深层钻脉师&#94A3B8]'
     description:
-    - '&#94A3B8只追逐最深处的蓝色矿脉。'
+      - '&#94A3B8▪ 只追逐最深处的蓝色矿脉。'
     rarity: LIMITED
     default-unlocked: false
     upgrade-groups:
-    - MINING
+      - MINING
   sky_limit_builder:
-    display: '&#E2E8F0[&#FDE68A天际构筑者&#E2E8F0]'
+    display: '&#94A3B8[&#FEF08A天际构筑者&#94A3B8]'
     description:
-    - '&#94A3B8把脚手架一路搭到云层之上。'
+      - '&#94A3B8▪ 把脚手架一路搭到云层之上。'
     rarity: LIMITED
     default-unlocked: false
     upgrade-groups:
-    - BUILDING
+      - BUILDING
   long_marcher:
-    display: '&#E2E8F0[&#A7F3D0远行长路&#E2E8F0]'
+    display: '&#94A3B8[&#D1FAE5远行长路&#94A3B8]'
     description:
-    - '&#94A3B8地图上的折线就是你的履历。'
+      - '&#94A3B8▪ 地图上的折线就是你的履历。'
     rarity: LIMITED
     default-unlocked: false
     upgrade-groups:
-    - ADVENTURE
+      - ADVENTURE
   ocean_salvager:
-    display: '&#E2E8F0[&#7DD3FC深海打捞员&#E2E8F0]'
+    display: '&#94A3B8[&#BAE6FD深海打捞员&#94A3B8]'
     description:
-    - '&#94A3B8从海底废墟带回有用之物。'
+      - '&#94A3B8▪ 从海底废墟带回有用之物。'
     rarity: LIMITED
     default-unlocked: false
     upgrade-groups:
-    - OCEAN
+      - OCEAN
   redstone_architect:
-    display: '&#E2E8F0[&#F87171红石建筑师&#E2E8F0]'
+    display: '&#94A3B8[&#FCA5A5红石建筑师&#94A3B8]'
     description:
-    - '&#94A3B8让建筑拥有会思考的线路。'
+      - '&#94A3B8▪ 让建筑拥有会思考的线路。'
     rarity: EPIC
     default-unlocked: false
     upgrade-groups:
-    - REDSTONE
+      - REDSTONE
   fortress_raider:
-    display: '&#E2E8F0[&#FDBA74要塞掠行者&#E2E8F0]'
+    display: '&#94A3B8[&#FED7AA要塞掠行者&#94A3B8]'
     description:
-    - '&#94A3B8烈焰人刷新点旁的常客。'
+      - '&#94A3B8▪ 烈焰人刷新点旁的常客。'
     rarity: LIMITED
     default-unlocked: false
     upgrade-groups:
-    - NETHER
+      - NETHER
   coral_keeper:
-    display: '&#E2E8F0[&#22D3EE珊瑚守望&#E2E8F0]'
+    display: '&#94A3B8[&#67E8F9珊瑚守望&#94A3B8]'
     description:
-    - '&#94A3B8守护热带海底的颜色。'
+      - '&#94A3B8▪ 守护热带海底的颜色。'
     rarity: LIMITED
     default-unlocked: false
     upgrade-groups:
-    - OCEAN
+      - OCEAN
   obsidian_banker:
-    display: '&#E2E8F0[&#A78BFA黑曜金库&#E2E8F0]'
+    display: '&#94A3B8[&#C4B5FD黑曜金库&#94A3B8]'
     description:
-    - '&#94A3B8财富和黑曜石一样稳定。'
+      - '&#94A3B8▪ 财富和黑曜石一样稳定。'
     rarity: LIMITED
     default-unlocked: false
     upgrade-groups:
-    - PRESTIGE
+      - PRESTIGE
   season_snowcaller:
-    display: '&#E2E8F0[&#BFDBFE凛冬唤雪者&#E2E8F0]'
+    display: '&#94A3B8[&#DBEAFE凛冬唤雪者&#94A3B8]'
     description:
-    - '&#94A3B8限定季节里的雪线守护者。'
+      - '&#94A3B8▪ 限定季节里的雪线守护者。'
     rarity: LIMITED
     default-unlocked: false
     upgrade-groups:
-    - SEASONAL
+      - SEASONAL
   prestige_founder:
-    display: '&#E2E8F0[&#FDE047声望奠基者&#E2E8F0]'
+    display: '&#94A3B8[&#FEF08A声望奠基者&#94A3B8]'
     description:
-    - '&#94A3B8长线贡献者的身份象征。'
+      - '&#94A3B8▪ 长线贡献者的身份象征。'
     rarity: EPIC
     default-unlocked: false
     upgrade-groups:
-    - PRESTIGE
+      - PRESTIGE
   dragon_relic_hunter:
-    display: '&#E2E8F0[&#C084FC龙息遗珍猎手&#E2E8F0]'
+    display: '&#94A3B8[&#D8B4FE龙息遗珍猎手&#94A3B8]'
     description:
-    - '&#94A3B8收集末地龙息与紫颂遗物。'
+      - '&#94A3B8▪ 收集末地龙息与紫颂遗物。'
     rarity: EPIC
     default-unlocked: false
     upgrade-groups:
-    - END
+      - END
   ancient_city_runner:
-    display: '&#E2E8F0[&#64748B古城潜行者&#E2E8F0]'
+    display: '&#94A3B8[&#94A3B8古城潜行者&#94A3B8]'
     description:
-    - '&#94A3B8在古城阴影下保持安静。'
+      - '&#94A3B8▪ 在古城阴影下保持安静。'
     rarity: EPIC
     default-unlocked: false
     upgrade-groups:
-    - ADVENTURE
+      - ADVENTURE

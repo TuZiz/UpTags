@@ -62,24 +62,24 @@ class ShopService(
     fun buy(player: Player, productId: String): Boolean {
         val product = validateProduct(player, productId, ShopProductType.TAG) ?: return false
         if (tagService.isOwned(player, product.targetId)) {
-            messageService.send(player, "tag-already-owned", tagService.tagName(product.targetId))
+            messageService.sendThrottled(player, "tag-already-owned", tagService.tagName(product.targetId))
             return false
         }
 
         val price = product.cost.priceForLevel(1)
         if (product.mode == ShopProductMode.ITEM_EXCHANGE && product.submitItems.isEmpty()) {
-            messageService.send(player, "shop-not-available")
+            messageService.sendThrottled(player, "shop-not-available")
             return false
         }
         if ((product.mode == ShopProductMode.SEASONAL || product.mode == ShopProductMode.PRESTIGE) && product.conditions.isEmpty()) {
-            messageService.send(player, "shop-not-available")
+            messageService.sendThrottled(player, "shop-not-available")
             return false
         }
         if (!validatePaymentAndSubmitItems(player, product, price)) {
             return false
         }
         if (product.mode == ShopProductMode.CHALLENGE_CLAIM && !challengeProgressService.canClaim(player, product.conditions, "shop.yml products.${product.id}.conditions")) {
-            messageService.send(player, "condition-failed")
+            messageService.sendThrottled(player, "condition-failed")
             return false
         }
 
@@ -99,11 +99,11 @@ class ShopService(
                 }
             } else {
                 runOnlinePlayer(player) {
-                    messageService.send(player, "shop-purchase-save-failed")
+                    messageService.sendThrottled(player, "shop-purchase-save-failed")
                 }
             }
         }
-        messageService.send(player, "shop-purchase-pending")
+        messageService.sendThrottled(player, "shop-purchase-pending")
         return true
     }
 
@@ -111,27 +111,27 @@ class ShopService(
         val product = validateProduct(player, productId, ShopProductType.CUSTOM) ?: return false
         val price = product.cost.priceForLevel(1)
         if (!economyBridge.isAvailable(product.cost.type)) {
-            messageService.send(player, "economy-unavailable", economyBridge.displayName(product.cost.type))
+            messageService.sendThrottled(player, "economy-unavailable", economyBridge.displayName(product.cost.type))
             return false
         }
         if (economyBridge.balance(player, product.cost.type) < price) {
-            messageService.send(player, "not-enough", Support.formatDouble(price), economyBridge.displayName(product.cost.type))
+            messageService.sendThrottled(player, "not-enough", Support.formatDouble(price), economyBridge.displayName(product.cost.type))
             return false
         }
 
         customTitleService.cancelDraft(player, notify = false)
         if (!customTitleService.startProductDraft(player, product.targetId, product.cost.type, price, product.id)) {
-            messageService.send(player, "custom-title-invalid-preset")
+            messageService.sendThrottled(player, "custom-title-invalid-preset")
             return false
         }
-        messageService.send(
+        messageService.sendThrottled(
             player,
             "shop-custom-selected",
             Support.stripColor(product.icon.name),
             Support.formatDouble(price),
             economyBridge.displayName(product.cost.type),
         )
-        messageService.send(player, "custom-title-input")
+        messageService.sendThrottled(player, "custom-title-input")
         return true
     }
 
@@ -165,7 +165,7 @@ class ShopService(
         if (product.submitItems.isNotEmpty() && !takeSubmitItems(player, product.submitItems, deductedItems)) {
             order.fail("submit-items-missing")
             saveOrderStrict(player, order) {}
-            messageService.send(player, "shop-submit-items-missing", submitItemsDisplay(product.submitItems))
+            messageService.sendThrottled(player, "shop-submit-items-missing", submitItemsDisplay(product.submitItems))
             return
         }
         order.status = PurchaseOrderStatus.ITEMS_TAKEN
@@ -180,7 +180,7 @@ class ShopService(
                     val compensated = restoreSubmittedItems(player, order)
                     order.failOrRefundPending(compensated, "items-taken-save-failed")
                     saveOrderStrict(player, order) {}
-                    messageService.send(player, "shop-purchase-refund-pending")
+                    messageService.sendThrottled(player, "shop-purchase-refund-pending")
                 }
             }
         }
@@ -195,7 +195,7 @@ class ShopService(
             val compensated = restoreSubmittedItems(player, order)
             order.failOrRefundPending(compensated, "currency-withdraw-failed")
             saveOrderStrict(player, order) {}
-            messageService.send(player, "not-enough", Support.formatDouble(price), economyBridge.displayName(order.currencyType))
+            messageService.sendThrottled(player, "not-enough", Support.formatDouble(price), economyBridge.displayName(order.currencyType))
             return
         }
         order.status = PurchaseOrderStatus.PAID
@@ -208,7 +208,7 @@ class ShopService(
                     val compensated = refundAndRestore(player, order, restoreItems = true, refundCurrency = price > 0.0)
                     order.failOrRefundPending(compensated, "paid-save-failed")
                     saveOrderStrict(player, order) {}
-                    messageService.send(player, "shop-purchase-refund-pending")
+                    messageService.sendThrottled(player, "shop-purchase-refund-pending")
                 }
             }
         }
@@ -225,7 +225,7 @@ class ShopService(
                     val compensated = refundAndRestore(player, order, restoreItems = true, refundCurrency = order.currencyAmount > 0.0)
                     order.failOrRefundPending(compensated, "granting-save-failed")
                     saveOrderStrict(player, order) {}
-                    messageService.send(player, "shop-purchase-refund-pending")
+                    messageService.sendThrottled(player, "shop-purchase-refund-pending")
                 }
             }
         }
@@ -239,7 +239,7 @@ class ShopService(
             val compensated = refundAndRestore(player, order, restoreItems = true, refundCurrency = order.currencyAmount > 0.0)
             order.failOrRefundPending(compensated, "grant-failed")
             saveOrderStrict(player, order) {}
-            messageService.send(player, "shop-purchase-refund-pending")
+            messageService.sendThrottled(player, "shop-purchase-refund-pending")
             return
         }
         order.status = PurchaseOrderStatus.GRANTED
@@ -253,7 +253,7 @@ class ShopService(
                     val compensated = refundAndRestore(player, order, restoreItems = true, refundCurrency = order.currencyAmount > 0.0)
                     order.failOrRefundPending(compensated, "granted-save-failed")
                     saveOrderStrict(player, order) {}
-                    messageService.send(player, "shop-purchase-refund-pending")
+                    messageService.sendThrottled(player, "shop-purchase-refund-pending")
                 }
             }
         }
@@ -322,15 +322,15 @@ class ShopService(
     ): ShopProductDefinition? {
         val product = config.shopProducts[productId] ?: return null
         if (!product.enabled || !hasPermission(player, product)) {
-            messageService.send(player, "shop-not-available")
+            messageService.sendThrottled(player, "shop-not-available")
             return null
         }
         if (!canUseProductConditions(player, product)) {
-            messageService.send(player, "condition-failed")
+            messageService.sendThrottled(player, "condition-failed")
             return null
         }
         if (product.type != expectedType) {
-            messageService.send(player, "shop-not-available")
+            messageService.sendThrottled(player, "shop-not-available")
             return null
         }
         return product
@@ -339,16 +339,16 @@ class ShopService(
     private fun validatePaymentAndSubmitItems(player: Player, product: ShopProductDefinition, price: Double): Boolean {
         if (price > 0.0) {
             if (!economyBridge.isAvailable(product.cost.type)) {
-                messageService.send(player, "economy-unavailable", economyBridge.displayName(product.cost.type))
+                messageService.sendThrottled(player, "economy-unavailable", economyBridge.displayName(product.cost.type))
                 return false
             }
             if (economyBridge.balance(player, product.cost.type) < price) {
-                messageService.send(player, "not-enough", Support.formatDouble(price), economyBridge.displayName(product.cost.type))
+                messageService.sendThrottled(player, "not-enough", Support.formatDouble(price), economyBridge.displayName(product.cost.type))
                 return false
             }
         }
         if (product.submitItems.isNotEmpty() && !hasSubmitItems(player, product.submitItems)) {
-            messageService.send(player, "shop-submit-items-missing", submitItemsDisplay(product.submitItems))
+            messageService.sendThrottled(player, "shop-submit-items-missing", submitItemsDisplay(product.submitItems))
             return false
         }
         return true
@@ -491,9 +491,9 @@ class ShopService(
 
     private fun sendPurchaseSuccess(player: Player, product: ShopProductDefinition, price: Double) {
         if (product.submitItems.isNotEmpty()) {
-            messageService.send(player, "shop-tag-unlocked-submit", tagService.tagName(product.targetId))
+            messageService.sendThrottled(player, "shop-tag-unlocked-submit", tagService.tagName(product.targetId))
         } else if (price > 0.0) {
-            messageService.send(
+            messageService.sendThrottled(
                 player,
                 "shop-tag-bought",
                 tagService.tagName(product.targetId),
@@ -501,7 +501,7 @@ class ShopService(
                 Support.formatDouble(price),
             )
         } else {
-            messageService.send(player, "shop-tag-unlocked", tagService.tagName(product.targetId))
+            messageService.sendThrottled(player, "shop-tag-unlocked", tagService.tagName(product.targetId))
         }
     }
 

@@ -3,14 +3,18 @@ package cn.aing.uptags.config
 import cn.aing.uptags.Support
 import org.bukkit.command.CommandSender
 import org.bukkit.configuration.file.YamlConfiguration
+import org.bukkit.entity.Player
 import org.bukkit.plugin.java.JavaPlugin
 import java.io.File
 import java.io.InputStreamReader
 import java.text.MessageFormat
 import java.util.LinkedHashMap
+import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 
 class MessageService(private val plugin: JavaPlugin) {
     private val messages = LinkedHashMap<String, String>()
+    private val playerMessageCooldowns = ConcurrentHashMap<PlayerMessageKey, Long>()
 
     fun load() {
         messages.clear()
@@ -36,6 +40,34 @@ class MessageService(private val plugin: JavaPlugin) {
 
     fun send(sender: CommandSender, key: String, vararg args: Any?) {
         sender.sendMessage(get(key, *args))
+    }
+
+    fun sendThrottled(player: Player, key: String, vararg args: Any?) {
+        sendThrottled(player, key, DEFAULT_PLAYER_MESSAGE_COOLDOWN_MILLIS, *args)
+    }
+
+    fun sendThrottled(player: Player, key: String, cooldownMillis: Long, vararg args: Any?) {
+        if (!canSend(player.uniqueId, key, cooldownMillis)) {
+            return
+        }
+        send(player, key, *args)
+    }
+
+    private fun canSend(uniqueId: UUID, key: String, cooldownMillis: Long): Boolean {
+        if (cooldownMillis <= 0L) {
+            return true
+        }
+        val now = System.currentTimeMillis()
+        val cooldownKey = PlayerMessageKey(uniqueId, key)
+        val last = playerMessageCooldowns[cooldownKey]
+        if (last != null && now - last < cooldownMillis) {
+            return false
+        }
+        playerMessageCooldowns[cooldownKey] = now
+        if (playerMessageCooldowns.size > 4096) {
+            playerMessageCooldowns.entries.removeIf { now - it.value > cooldownMillis * 8L }
+        }
+        return true
     }
 
     private fun loadBundledDefaults(): Map<String, String> {
@@ -96,5 +128,11 @@ class MessageService(private val plugin: JavaPlugin) {
             "custom-title-manual-count-mismatch" -> "&c当前需要 {0} 个颜色，已选择 {1} 个。"
             else -> null
         }
+    }
+
+    private data class PlayerMessageKey(val uniqueId: UUID, val key: String)
+
+    private companion object {
+        const val DEFAULT_PLAYER_MESSAGE_COOLDOWN_MILLIS = 1_200L
     }
 }
