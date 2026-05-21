@@ -1,4 +1,185 @@
 products:
+  miner_soul:
+    type: TAG
+    target-id: miner_soul
+    mode: CHALLENGE_CLAIM
+    enabled: true
+    conditions:
+    - '%statistic_mine_block%>=256'
+    cost:
+      type: POINTS
+      amount: 0
+    submit-items:
+    icon:
+      material: STONE_PICKAXE
+      name: '&#A3A3A3[矿洞住民]'
+      lore:
+      - '&#94A3B8挖掘方块统计达到 256 后领取。'
+  fisher_daily:
+    type: TAG
+    target-id: fisher_daily
+    mode: CHALLENGE_CLAIM
+    enabled: true
+    conditions:
+    - '%statistic_fish_caught%>=32'
+    cost:
+      type: POINTS
+      amount: 0
+    submit-items:
+    icon:
+      material: FISHING_ROD
+      name: '&#7DD3FC[钓鱼佬]'
+      lore:
+      - '&#94A3B8钓鱼成功统计达到 32 后领取。'
+  redstone_apprentice:
+    type: TAG
+    target-id: redstone_apprentice
+    mode: ITEM_EXCHANGE
+    enabled: true
+    conditions:
+    cost:
+      type: POINTS
+      amount: 0
+    submit-items:
+      redstone:
+        material: REDSTONE
+        amount: 64
+      repeater:
+        material: REPEATER
+        amount: 8
+    icon:
+      material: REDSTONE
+      name: '&#F87171[红石学徒]'
+      lore:
+      - '&#94A3B8提交基础红石材料兑换。'
+  field_keeper:
+    type: TAG
+    target-id: field_keeper
+    mode: ITEM_EXCHANGE
+    enabled: true
+    conditions:
+    cost:
+      type: POINTS
+      amount: 0
+    submit-items:
+      wheat:
+        material: WHEAT
+        amount: 64
+      carrot:
+        material: CARROT
+        amount: 32
+    icon:
+      material: WHEAT
+      name: '&#86EFAC[种田人]'
+      lore:
+      - '&#94A3B8提交农作物兑换。'
+  night_owl:
+    type: TAG
+    target-id: night_owl
+    mode: CHALLENGE_CLAIM
+    enabled: true
+    conditions:
+    - '%statistic_time_since_rest%>=72000'
+    cost:
+      type: POINTS
+      amount: 0
+    submit-items:
+    icon:
+      material: CLOCK
+      name: '&#C084FC[夜猫子]'
+      lore:
+      - '&#94A3B8长时间未睡觉统计达标后领取。'
+  map_runner:
+    type: TAG
+    target-id: map_runner
+    mode: CHALLENGE_CLAIM
+    enabled: true
+    conditions:
+    - '%statistic_walk_one_cm%>=100000'
+    cost:
+      type: POINTS
+      amount: 0
+    submit-items:
+    icon:
+      material: MAP
+      name: '&#FDE68A[跑图选手]'
+      lore:
+      - '&#94A3B8步行距离统计达到 100000cm 后领取。'
+  cave_lighter:
+    type: TAG
+    target-id: cave_lighter
+    mode: ITEM_EXCHANGE
+    enabled: true
+    conditions:
+    cost:
+      type: POINTS
+      amount: 0
+    submit-items:
+      torch:
+        material: TORCH
+        amount: 128
+    icon:
+      material: TORCH
+      name: '&#FBBF24[插火把的人]'
+      lore:
+      - '&#94A3B8提交火把兑换。'
+  chest_sorter:
+    type: TAG
+    target-id: chest_sorter
+    mode: ITEM_EXCHANGE
+    enabled: true
+    conditions:
+    cost:
+      type: POINTS
+      amount: 0
+    submit-items:
+      chest:
+        material: CHEST
+        amount: 16
+      barrel:
+        material: BARREL
+        amount: 8
+    icon:
+      material: CHEST
+      name: '&#38BDF8[箱子整理师]'
+      lore:
+      - '&#94A3B8提交收纳材料兑换。'
+  bread_guard:
+    type: TAG
+    target-id: bread_guard
+    mode: ITEM_EXCHANGE
+    enabled: true
+    conditions:
+    cost:
+      type: POINTS
+      amount: 0
+    submit-items:
+      bread:
+        material: BREAD
+        amount: 32
+    icon:
+      material: BREAD
+      name: '&#FCD34D[面包守卫]'
+      lore:
+      - '&#94A3B8提交应急干粮兑换。'
+  slime_friend:
+    type: TAG
+    target-id: slime_friend
+    mode: ITEM_EXCHANGE
+    enabled: true
+    conditions:
+    cost:
+      type: POINTS
+      amount: 0
+    submit-items:
+      slime_ball:
+        material: SLIME_BALL
+        amount: 32
+    icon:
+      material: SLIME_BALL
+      name: '&#A7F3D0[史莱姆好友]'
+      lore:
+      - '&#94A3B8提交粘液球兑换。'
   abyss_cartographer:
     type: TAG
     target-id: abyss_cartographer
@@ -116,7 +297,7 @@ products:
     target-id: ocean_salvager
     mode: ITEM_EXCHANGE
     enabled: true
-    conditions: []
+    conditions:
     cost:
       type: POINTS
       amount: 0
@@ -137,7 +318,7 @@ products:
     target-id: redstone_architect
     mode: ITEM_EXCHANGE
     enabled: true
-    conditions: []
+    conditions:
     cost:
       type: POINTS
       amount: 0
@@ -183,7 +364,7 @@ products:
     target-id: coral_keeper
     mode: BUY
     enabled: true
-    conditions: []
+    conditions:
     cost:
       type: POINTS
       amount: 1200
@@ -198,7 +379,7 @@ products:
     target-id: obsidian_banker
     mode: BUY
     enabled: true
-    conditions: []
+    conditions:
     cost:
       type: MONEY
       amount: 25000

@@ -3,8 +3,10 @@ package cn.aing.uptags.config
 import kotlin.io.path.createTempDirectory
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
+import org.bukkit.configuration.file.YamlConfiguration
 import org.bukkit.plugin.java.JavaPlugin
 import io.mockk.every
 import io.mockk.mockk
@@ -12,7 +14,7 @@ import java.io.File
 
 class ConfigRegistryShopConfigTest {
     @Test
-    fun loadGeneratesShopProductsFromTagShopSections() {
+    fun loadMigratesLegacyTagShopSectionsIntoShopProductsFile() {
         val pluginDir = createTempDirectory("uptags-config-shop").toFile()
         val plugin = mockPlugin(pluginDir)
         writeMinimalConfig(pluginDir)
@@ -58,6 +60,12 @@ class ConfigRegistryShopConfigTest {
         assertEquals("DIAMOND", product.icon.material)
         assertEquals("&#E2E8F0[&#A3A3A3矿洞住民&#E2E8F0]", product.icon.name)
         assertTrue(product.icon.lore.any { it.contains("普通") })
+
+        val tagsYaml = YamlConfiguration.loadConfiguration(File(pluginDir, "tags.yml"))
+        assertFalse(tagsYaml.isConfigurationSection("tags.miner_soul.shop"))
+        val shopYaml = YamlConfiguration.loadConfiguration(File(pluginDir, "shop.yml"))
+        assertTrue(shopYaml.isConfigurationSection("products.miner_soul"))
+        assertEquals("ITEM_EXCHANGE", shopYaml.getString("products.miner_soul.mode"))
     }
 
     @Test
@@ -111,6 +119,9 @@ class ConfigRegistryShopConfigTest {
         assertEquals(1500.0, product.cost.amount)
         assertEquals("DIAMOND", product.icon.material)
         assertEquals("&#FFFFFF覆盖商品名", product.icon.name)
+
+        val tagsYaml = YamlConfiguration.loadConfiguration(File(pluginDir, "tags.yml"))
+        assertFalse(tagsYaml.isConfigurationSection("tags.miner_soul.shop"))
     }
 
     private fun mockPlugin(pluginDir: File): JavaPlugin {

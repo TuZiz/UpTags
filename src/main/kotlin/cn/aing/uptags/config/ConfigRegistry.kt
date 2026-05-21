@@ -94,6 +94,7 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
         saveDefaultIfAbsent("gui/custom-title-group.yml")
         loadSettings()
         loadTags()
+        migrateLegacyTagShopProducts()
         loadUpgrades()
         loadShop()
         loadCustomTitleSettings()
@@ -401,6 +402,92 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
                 ),
             )
         }
+    }
+
+    private fun migrateLegacyTagShopProducts() {
+        val legacyTags = tags.values.filter { it.shop != null }
+        if (legacyTags.isEmpty()) {
+            return
+        }
+        val shopFile = File(plugin.dataFolder, "shop.yml")
+        val shopYaml = YamlConfiguration.loadConfiguration(shopFile)
+        var migrated = 0
+        legacyTags.forEach { tag ->
+            val shop = tag.shop ?: return@forEach
+            val productPath = "products.${tag.id}"
+            if (!shopYaml.isConfigurationSection(productPath)) {
+                writeLegacyTagShopProduct(shopYaml, productPath, tag, shop)
+                migrated++
+            }
+            tag.shop = null
+        }
+        if (migrated > 0) {
+            try {
+                shopYaml.save(shopFile)
+            } catch (ex: IOException) {
+                plugin.logger.warning("Failed to migrate tag shop sections into shop.yml: ${ex.message}")
+                return
+            }
+        }
+        saveTags()
+        plugin.logger.info("Migrated ${legacyTags.size} legacy tags.yml shop section(s) into shop.yml.")
+    }
+
+    private fun writeLegacyTagShopProduct(
+        yaml: YamlConfiguration,
+        path: String,
+        tag: TagDefinition,
+        shop: TagShopDefinition,
+    ) {
+        yaml.set("$path.type", ShopProductType.TAG.name)
+        yaml.set("$path.target-id", tag.id)
+        yaml.set("$path.mode", legacyShopMode(shop).name)
+        yaml.set("$path.enabled", shop.enabled)
+        yaml.set("$path.permission", shop.permission)
+        yaml.set("$path.conditions", shop.conditions)
+        yaml.set("$path.cost.type", shop.cost.type.name)
+        yaml.set("$path.cost.amount", shop.cost.amount)
+        if (shop.cost.levelAmounts.isNotEmpty()) {
+            shop.cost.levelAmounts.forEach { (level, amount) ->
+                yaml.set("$path.cost.levels.$level", amount)
+            }
+        }
+        yaml.set("$path.cost.conditions", shop.cost.conditions)
+        shop.submitItems.forEachIndexed { index, item ->
+            val itemKey = item.material.lowercase().replace(Regex("[^a-z0-9_]+"), "_").ifBlank { "item" }
+            val itemPath = "$path.submit-items.${itemKey}_$index"
+            yaml.set("$itemPath.material", item.material)
+            yaml.set("$itemPath.amount", item.amount)
+            yaml.set("$itemPath.name", item.name)
+        }
+        val defaultIcon = ItemTemplate(
+            material = "NAME_TAG",
+            name = tag.display,
+            lore = buildList {
+                addAll(tag.description)
+                add(rarityDisplay(tag.rarity))
+            },
+        )
+        val icon = shop.icon?.let {
+            ItemTemplate(
+                material = it.material,
+                name = it.name.takeIf(String::isNotBlank) ?: defaultIcon.name,
+                lore = it.lore.ifEmpty { defaultIcon.lore },
+            )
+        } ?: defaultIcon
+        yaml.set("$path.icon.material", icon.material)
+        yaml.set("$path.icon.name", icon.name)
+        yaml.set("$path.icon.lore", icon.lore)
+    }
+
+    private fun legacyShopMode(shop: TagShopDefinition): ShopProductMode {
+        if (shop.submitItems.isNotEmpty()) {
+            return ShopProductMode.ITEM_EXCHANGE
+        }
+        if (shop.conditions.isNotEmpty()) {
+            return ShopProductMode.CHALLENGE_CLAIM
+        }
+        return ShopProductMode.BUY
     }
 
     private fun parseTagShop(section: ConfigurationSection?): TagShopDefinition? {

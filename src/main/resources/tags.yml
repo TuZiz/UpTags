@@ -27,10 +27,6 @@ tags:
     default-unlocked: false
     upgrade-groups:
     - COMMON
-    shop:
-      enabled: true
-      conditions:
-      - '%statistic_mine_block%>=256'
   fisher_daily:
     display: '&#E2E8F0[&#7DD3FC钓鱼佬&#E2E8F0]'
     description:
@@ -39,10 +35,6 @@ tags:
     default-unlocked: false
     upgrade-groups:
     - COMMON
-    shop:
-      enabled: true
-      conditions:
-      - '%statistic_fish_caught%>=32'
   redstone_apprentice:
     display: '&#E2E8F0[&#F87171红石学徒&#E2E8F0]'
     description:
@@ -51,15 +43,6 @@ tags:
     default-unlocked: false
     upgrade-groups:
     - COMMON
-    shop:
-      enabled: true
-      submit-items:
-        redstone:
-          material: REDSTONE
-          amount: 64
-        repeater:
-          material: REPEATER
-          amount: 8
   field_keeper:
     display: '&#E2E8F0[&#86EFAC种田人&#E2E8F0]'
     description:
@@ -68,15 +51,6 @@ tags:
     default-unlocked: false
     upgrade-groups:
     - COMMON
-    shop:
-      enabled: true
-      submit-items:
-        wheat:
-          material: WHEAT
-          amount: 64
-        carrot:
-          material: CARROT
-          amount: 32
   night_owl:
     display: '&#E2E8F0[&#C084FC夜猫子&#E2E8F0]'
     description:
@@ -85,10 +59,6 @@ tags:
     default-unlocked: false
     upgrade-groups:
     - COMMON
-    shop:
-      enabled: true
-      conditions:
-      - '%statistic_time_since_rest%>=72000'
   map_runner:
     display: '&#E2E8F0[&#FDE68A跑图选手&#E2E8F0]'
     description:
@@ -97,10 +67,6 @@ tags:
     default-unlocked: false
     upgrade-groups:
     - COMMON
-    shop:
-      enabled: true
-      conditions:
-      - '%statistic_walk_one_cm%>=100000'
   cave_lighter:
     display: '&#E2E8F0[&#FBBF24插火把的人&#E2E8F0]'
     description:
@@ -109,12 +75,6 @@ tags:
     default-unlocked: false
     upgrade-groups:
     - COMMON
-    shop:
-      enabled: true
-      submit-items:
-        torch:
-          material: TORCH
-          amount: 128
   chest_sorter:
     display: '&#E2E8F0[&#38BDF8箱子整理师&#E2E8F0]'
     description:
@@ -123,15 +83,6 @@ tags:
     default-unlocked: false
     upgrade-groups:
     - COMMON
-    shop:
-      enabled: true
-      submit-items:
-        chest:
-          material: CHEST
-          amount: 16
-        barrel:
-          material: BARREL
-          amount: 8
   bread_guard:
     display: '&#E2E8F0[&#FCD34D面包守卫&#E2E8F0]'
     description:
@@ -140,12 +91,6 @@ tags:
     default-unlocked: false
     upgrade-groups:
     - COMMON
-    shop:
-      enabled: true
-      submit-items:
-        bread:
-          material: BREAD
-          amount: 32
   slime_friend:
     display: '&#E2E8F0[&#A7F3D0史莱姆好友&#E2E8F0]'
     description:
@@ -154,12 +99,6 @@ tags:
     default-unlocked: false
     upgrade-groups:
     - COMMON
-    shop:
-      enabled: true
-      submit-items:
-        slime_ball:
-          material: SLIME_BALL
-          amount: 32
   abyss_cartographer:
     display: '&#E2E8F0[&#5B7CFA深暗绘图师&#E2E8F0]'
     description:
