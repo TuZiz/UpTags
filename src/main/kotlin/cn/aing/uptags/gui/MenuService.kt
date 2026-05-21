@@ -26,6 +26,8 @@ import cn.aing.uptags.model.config.CurrencyType
 import cn.aing.uptags.model.config.GuiLayout
 import cn.aing.uptags.model.config.GuiTemplate
 import cn.aing.uptags.model.config.ItemTemplate
+import cn.aing.uptags.model.config.ShopProductDefinition
+import cn.aing.uptags.model.config.ShopProductMode
 import cn.aing.uptags.model.runtime.TitleEntry
 import cn.aing.uptags.model.runtime.ScrollSelectionContext
 import cn.aing.uptags.model.runtime.TitleKind
@@ -37,6 +39,7 @@ import cn.aing.uptags.service.title.CustomTitleService
 import cn.aing.uptags.service.message.ClickableMessageService
 import cn.aing.uptags.service.player.PlayerNameService
 import cn.aing.uptags.repository.PlayerDataRepository
+import cn.aing.uptags.util.ItemStacks
 import org.bukkit.Bukkit
 import org.bukkit.Material
 import org.bukkit.OfflinePlayer
@@ -114,10 +117,9 @@ class MenuService(
                 "tag_display" to title.display,
                 "tag_description" to title.description.joinToString("\n"),
                 "tag_rarity" to title.rarityDisplay,
-                "tag_buff_count" to tagService.tagBuffCount(player, title.id).toString(),
-                "tag_particle_count" to tagService.tagParticleCount(player, title.id).toString(),
-                "tag_buffs" to tagService.tagBuffsDisplay(player, title.id),
-                "tag_particles" to tagService.tagParticlesDisplay(player, title.id),
+                "tag_acquisition" to acquisitionDisplay(title),
+                "tag_buff_summary" to tagBuffSummary(player, title.id),
+                "tag_particle_summary" to tagParticleSummary(player, title.id),
             )
             val slot = slots[offset]
             session.inventory.setItem(
@@ -286,14 +288,116 @@ class MenuService(
             "tag_description" to title.description.joinToString("\n"),
             "tag_rarity" to title.rarityDisplay,
             "tag_state" to state,
-            "tag_buff_count" to tagService.tagBuffCount(targetId, title.id).toString(),
-            "tag_particle_count" to tagService.tagParticleCount(targetId, title.id).toString(),
-            "tag_buffs" to tagService.tagBuffsDisplay(targetId, title.id),
-            "tag_particles" to tagService.tagParticlesDisplay(targetId, title.id),
+            "tag_acquisition" to acquisitionDisplay(title),
+            "tag_buff_summary" to tagBuffSummary(targetId, title.id),
+            "tag_particle_summary" to tagParticleSummary(targetId, title.id),
             "admin_left_action" to if (title.owned) "左键为目标佩戴这个称号" else "左键授予目标这个称号",
             "admin_right_action" to if (title.owned) "右键打开目标强化 / 拆卸管理" else "未拥有时不能打开强化页",
         )
     }
+
+    private fun acquisitionDisplay(title: TitleEntry): String {
+        if (title.kind == TitleKind.CUSTOM) {
+            return "&#FDE047获取方式: &#F8FAFC自定义称号创建"
+        }
+        val tag = config.tags[title.id]
+        if (tag?.defaultUnlocked == true) {
+            return "&#FDE047获取方式: &#F8FAFC进服默认解锁"
+        }
+        val products = config.shopProducts.values.filter { product ->
+            product.enabled && product.targetId == title.id
+        }
+        if (products.isEmpty()) {
+            val permission = tag?.permission?.takeIf(String::isNotBlank)
+            return if (permission != null) {
+                "&#FDE047获取方式: &#F8FAFC拥有权限 &#A7F3D0$permission"
+            } else {
+                "&#FDE047获取方式: &#F8FAFC管理员发放或活动解锁"
+            }
+        }
+        return products.joinToString("\n") { product ->
+            "&#FDE047获取方式: &#F8FAFC${productModeDisplay(product)} - ${acquisitionRequirement(product)}"
+        }
+    }
+
+    private fun acquisitionRequirement(product: ShopProductDefinition): String {
+        val parts = ArrayList<String>()
+        val price = product.cost.priceForLevel(1)
+        if (price > 0.0) {
+            parts += "消耗 ${Support.formatDouble(price)} ${currencyName(product.cost.type)}"
+        }
+        if (product.conditions.isNotEmpty()) {
+            parts += product.conditions.joinToString("、") { conditionDisplay(it) }
+        }
+        if (product.submitItems.isNotEmpty()) {
+            parts += submitItemsDisplay(product)
+        }
+        return parts.ifEmpty { listOf("达成后领取") }.joinToString("；")
+    }
+
+    private fun productModeDisplay(product: ShopProductDefinition): String {
+        if (product.submitItems.isNotEmpty()) return "物品兑换"
+        if (product.conditions.isNotEmpty() && product.cost.priceForLevel(1) <= 0.0) return "条件领取"
+        return when (product.mode) {
+            ShopProductMode.BUY -> "商店购买"
+            ShopProductMode.CHALLENGE_CLAIM -> "挑战领取"
+            ShopProductMode.ITEM_EXCHANGE -> "物品兑换"
+            ShopProductMode.SEASONAL -> "季节活动"
+            ShopProductMode.PRESTIGE -> "声望解锁"
+        }
+    }
+
+    private fun submitItemsDisplay(product: ShopProductDefinition): String {
+        return product.submitItems.joinToString("、") { item ->
+            val name = item.name?.takeIf(String::isNotBlank) ?: item.material
+            "提交 ${name.uppercase()} x${item.amount}"
+        }
+    }
+
+    private fun conditionDisplay(condition: String): String {
+        val raw = condition.trim()
+        val parts = raw.split(":")
+        if (parts.firstOrNull()?.equals("challenge", ignoreCase = true) == true) {
+            return when (parts.getOrNull(1)?.lowercase()) {
+                "mine" -> "挖掘 ${parts.getOrNull(2)?.uppercase().orEmpty()} x${parts.getOrNull(3).orEmpty()}"
+                "biome" -> "到达群系 ${parts.getOrNull(2).orEmpty()}"
+                "world" -> "进入维度 ${parts.getOrNull(2).orEmpty()}"
+                "kill" -> "击杀 ${parts.getOrNull(2)?.uppercase().orEmpty()} x${parts.getOrNull(3).orEmpty()}"
+                "height" -> "在 ${parts.getOrNull(2).orEmpty()} 到达高度 ${parts.getOrNull(3).orEmpty()}"
+                "stat" -> "统计 ${parts.getOrNull(2).orEmpty()} 达到 ${parts.getOrNull(3).orEmpty()}"
+                "deep_dark_stay" -> "深暗区域停留 ${parts.getOrNull(2).orEmpty()} 秒"
+                "advancement" -> "完成进度 ${parts.drop(2).joinToString(":")}"
+                else -> raw
+            }
+        }
+        return raw
+    }
+
+    private fun tagBuffSummary(player: Player, tagId: String): String {
+        val count = tagService.tagBuffCount(player, tagId)
+        if (count <= 0) return hiddenLoreLine()
+        return "&#FDE047Buff: &#F8FAFC${count} 个 &#A7F3D0${tagService.tagBuffsDisplay(player, tagId)}"
+    }
+
+    private fun tagBuffSummary(uniqueId: UUID, tagId: String): String {
+        val count = tagService.tagBuffCount(uniqueId, tagId)
+        if (count <= 0) return hiddenLoreLine()
+        return "&#FDE047Buff: &#F8FAFC${count} 个 &#A7F3D0${tagService.tagBuffsDisplay(uniqueId, tagId)}"
+    }
+
+    private fun tagParticleSummary(player: Player, tagId: String): String {
+        val count = tagService.tagParticleCount(player, tagId)
+        if (count <= 0) return hiddenLoreLine()
+        return "&#A78BFA粒子: &#F8FAFC${count} 个 &#C4B5FD${tagService.tagParticlesDisplay(player, tagId)}"
+    }
+
+    private fun tagParticleSummary(uniqueId: UUID, tagId: String): String {
+        val count = tagService.tagParticleCount(uniqueId, tagId)
+        if (count <= 0) return hiddenLoreLine()
+        return "&#A78BFA粒子: &#F8FAFC${count} 个 &#C4B5FD${tagService.tagParticlesDisplay(uniqueId, tagId)}"
+    }
+
+    private fun hiddenLoreLine(): String = ItemStacks.HIDDEN_LORE_LINE
 
     private fun requireAdminAction(player: Player, permission: String, vararg inherited: String): Boolean {
         if (AdminAccess.has(player, permission, *inherited)) {
@@ -318,11 +422,11 @@ class MenuService(
                     " &#E2E8F0当前状态: &#F8FAFC%tag_state%",
                     "%tag_description%",
                     "",
+                    " %tag_acquisition%",
+                    "",
                     " &#93C5FD稀有度: &#F8FAFC%tag_rarity%",
-                    " &#FDE047Buff 数量: &#F8FAFC%tag_buff_count%",
-                    " &#A78BFA粒子数量: &#F8FAFC%tag_particle_count%",
-                    " &#A7F3D0Buff 列表: &#F8FAFC%tag_buffs%",
-                    " &#C4B5FD粒子列表: &#F8FAFC%tag_particles%",
+                    " %tag_buff_summary%",
+                    " %tag_particle_summary%",
                     "",
                     " &#A7F3D0%admin_left_action%",
                     " &#FDBA74%admin_right_action%",

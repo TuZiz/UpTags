@@ -6,6 +6,8 @@ import org.bukkit.inventory.ItemFlag
 import org.bukkit.inventory.ItemStack
 
 object ItemStacks {
+    const val HIDDEN_LORE_LINE: String = "<uptags:hide-lore-line>"
+
     fun material(raw: String?, fallback: Material): Material =
         if (raw.isNullOrBlank()) fallback else Material.matchMaterial(raw) ?: fallback
 
@@ -20,7 +22,10 @@ object ItemStacks {
         val meta = stack.itemMeta ?: return stack
         meta.setDisplayName(TextRenderer.noItalic(Placeholders.apply(name, placeholders)))
         meta.lore = lore.flatMap { line ->
-            Placeholders.apply(line, placeholders).split("\n").map(TextRenderer::noItalic)
+            Placeholders.apply(line, placeholders)
+                .split("\n")
+                .filterNot { HIDDEN_LORE_LINE in it }
+                .map(TextRenderer::noItalic)
         }
         meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES)
         if (glow) {

@@ -41,8 +41,8 @@ GuiKey:
       Name: "&#94A3B8已经是最后一页"
 
 # placeholders:
-# %tag_display% %tag_rarity% %tag_buff_count% %tag_particle_count%
-# %tag_buffs% %tag_particles%
+# %tag_display% %tag_rarity% %tag_acquisition%
+# %tag_buff_summary% %tag_particle_summary%
 templates:
   tag-owned:
     material: "NAME_TAG"
@@ -51,11 +51,11 @@ templates:
       - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
       - "%tag_description%"
       - ""
+      - " %tag_acquisition%"
+      - ""
       - " &#93C5FD稀有度: &#F8FAFC%tag_rarity%"
-      - " &#FDE047Buff 数量: &#F8FAFC%tag_buff_count%"
-      - " &#A78BFA粒子数量: &#F8FAFC%tag_particle_count%"
-      - " &#A7F3D0Buff 列表: &#F8FAFC%tag_buffs%"
-      - " &#C4B5FD粒子列表: &#F8FAFC%tag_particles%"
+      - " %tag_buff_summary%"
+      - " %tag_particle_summary%"
       - ""
       - " &#A7F3D0左键佩戴这个称号"
       - " &#FDBA74右键打开强化 / 卷轴使用页"
@@ -67,6 +67,8 @@ templates:
     lore:
       - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
       - "%tag_description%"
+      - ""
+      - " %tag_acquisition%"
       - ""
       - " &#E2E8F0稀有度: &#F8FAFC%tag_rarity%"
       - " &#F87171当前状态: 未获得"
@@ -82,11 +84,11 @@ templates:
       - " &#E2E8F0当前状态: &#F8FAFC%tag_state%"
       - "%tag_description%"
       - ""
+      - " %tag_acquisition%"
+      - ""
       - " &#93C5FD稀有度: &#F8FAFC%tag_rarity%"
-      - " &#FDE047Buff 数量: &#F8FAFC%tag_buff_count%"
-      - " &#A78BFA粒子数量: &#F8FAFC%tag_particle_count%"
-      - " &#A7F3D0Buff 列表: &#F8FAFC%tag_buffs%"
-      - " &#C4B5FD粒子列表: &#F8FAFC%tag_particles%"
+      - " %tag_buff_summary%"
+      - " %tag_particle_summary%"
       - ""
       - " &#A7F3D0%admin_left_action%"
       - " &#FDBA74%admin_right_action%"
@@ -99,6 +101,8 @@ templates:
       - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
       - " &#E2E8F0目标玩家: &#FDE047%target_name%"
       - "%tag_description%"
+      - ""
+      - " %tag_acquisition%"
       - ""
       - " &#E2E8F0稀有度: &#F8FAFC%tag_rarity%"
       - " &#F87171当前状态: %tag_state%"
