@@ -88,6 +88,37 @@ class ShopServiceTest {
     }
 
     @Test
+    fun playerRequirementDisplayShowsChallengeAndSubmitProgress() {
+        val player = mockk<Player>()
+        val inventory = mockk<PlayerInventory>()
+        val config = mockk<ConfigRegistry>()
+        val tagService = mockk<TagService>()
+        val customTitleService = mockk<CustomTitleService>(relaxed = true)
+        val economy = mockk<EconomyBridge>(relaxed = true)
+        val messages = mockk<MessageService>(relaxed = true)
+        val challenge = mockk<ChallengeProgressService>()
+        val product = ShopProductDefinition(
+            id = "diamond_vein_master",
+            type = ShopProductType.TAG,
+            targetId = "diamond_vein_master",
+            enabled = true,
+            permission = null,
+            conditions = listOf("challenge:mine:deepslate_diamond_ore:96"),
+            cost = CostDefinition(),
+            submitItems = listOf(SubmitItemDefinition("DIAMOND", 16)),
+            icon = ItemTemplate("NAME_TAG", "Diamond", emptyList()),
+        )
+
+        every { player.inventory } returns inventory
+        every { inventory.storageContents } returns arrayOf(ItemStack(Material.DIAMOND, 3))
+        every { challenge.progress(player, "challenge:mine:deepslate_diamond_ore") } returns 12L
+
+        val service = ShopService(config, tagService, customTitleService, economy, messages, challenge, immediateScheduler())
+
+        assertEquals("挖掘深层钻石矿: 12/96 / 钻石: 3/16", service.requirementDisplay(player, product))
+    }
+
+    @Test
     fun customProductStartsDraftWithoutImmediateCharge() {
         val player = mockk<Player>()
         val config = mockk<ConfigRegistry>()

@@ -152,6 +152,26 @@ class ShopService(
         return parts.ifEmpty { listOf("完成后领取") }.joinToString(" / ")
     }
 
+    fun requirementDisplay(player: Player, product: ShopProductDefinition): String {
+        val parts = ArrayList<String>()
+        val price = product.cost.priceForLevel(1)
+        if (price > 0.0) {
+            parts += "${Support.formatDouble(price)} ${currencyDisplay(product.cost.type)}"
+        }
+        val challengeParts = product.conditions
+            .filter(::isChallengeCondition)
+            .mapNotNull { challengeProgressDisplay(player, it) }
+        if (challengeParts.isNotEmpty()) {
+            parts += challengeParts
+        } else if (product.conditions.isNotEmpty()) {
+            parts += "完成条件"
+        }
+        if (product.submitItems.isNotEmpty()) {
+            parts += submitItemsProgressDisplay(player, product.submitItems)
+        }
+        return parts.ifEmpty { listOf("完成后领取") }.joinToString(" / ")
+    }
+
     private fun takeItemsStage(player: Player, product: ShopProductDefinition, order: PurchaseOrderData) {
         if (!player.isOnline) {
             return
@@ -438,6 +458,52 @@ class ShopService(
         return Support.stripColor(actualName).equals(Support.stripColor(expectedName), ignoreCase = true)
     }
 
+    private fun challengeProgressDisplay(player: Player, condition: String): String? {
+        val parsed = parseChallengeCondition(condition) ?: return null
+        val current = challengeProgressService.progress(player, parsed.key).coerceAtLeast(0L)
+        val capped = current.coerceAtMost(parsed.required)
+        return "${parsed.display}: ${formatProgress(capped)}/${formatProgress(parsed.required)}"
+    }
+
+    private fun parseChallengeCondition(condition: String): ChallengeRequirement? {
+        val parts = condition.trim().split(':')
+        if (parts.size < 4 || !parts[0].equals("challenge", ignoreCase = true)) {
+            return null
+        }
+        val required = parts.last().toLongOrNull()?.coerceAtLeast(0L) ?: return null
+        val key = parts.dropLast(1).joinToString(":").lowercase(Locale.ROOT)
+        val type = parts.getOrNull(1)?.lowercase(Locale.ROOT) ?: return null
+        val display = when (type) {
+            "mine" -> "挖掘${materialDisplayName(parts.getOrNull(2).orEmpty())}"
+            "collect" -> "收集${materialDisplayName(parts.getOrNull(2).orEmpty())}"
+            "biome" -> "到达${keyDisplayName(parts.getOrNull(2).orEmpty())}"
+            "world" -> "进入${keyDisplayName(parts.getOrNull(2).orEmpty())}"
+            "kill" -> "击杀${keyDisplayName(parts.getOrNull(2).orEmpty())}"
+            "height" -> "${keyDisplayName(parts.getOrNull(2).orEmpty())}高度"
+            "stat" -> keyDisplayName(parts.getOrNull(2).orEmpty())
+            "deep_dark_stay" -> "深暗停留"
+            "advancement" -> "完成进度"
+            else -> "完成${keyDisplayName(type)}"
+        }
+        return ChallengeRequirement(key, display, required)
+    }
+
+    private fun submitItemsProgressDisplay(player: Player, items: List<SubmitItemDefinition>): String {
+        return items.joinToString(" / ") { item ->
+            val current = player.inventory.storageContents
+                .filterNotNull()
+                .filter { matchesSubmitItem(it, item) }
+                .sumOf { it.amount }
+                .coerceAtMost(item.amount)
+            val name = item.name?.takeIf { it.isNotBlank() } ?: materialDisplayName(item.material)
+            "${Support.stripColor(name)}: $current/${item.amount}"
+        }
+    }
+
+    private fun formatProgress(value: Long): String {
+        return "%,d".format(Locale.US, value)
+    }
+
     private fun refundAndRestore(
         player: Player,
         order: PurchaseOrderData,
@@ -534,6 +600,7 @@ class ShopService(
             Material.SLIME_BALL -> "黏液球"
             Material.SLIME_BLOCK -> "黏液块"
             Material.DEEPSLATE -> "深板岩"
+            Material.DEEPSLATE_DIAMOND_ORE -> "深层钻石矿"
             Material.RAW_IRON -> "粗铁"
             Material.COD -> "鳕鱼"
             Material.SALMON -> "鲑鱼"
@@ -567,6 +634,24 @@ class ShopService(
         }
     }
 
+    private fun keyDisplayName(raw: String): String {
+        return when (raw.trim().lowercase(Locale.ROOT)) {
+            "blaze" -> "烈焰人"
+            "deep_dark" -> "深暗之域"
+            "ender_dragon" -> "末影龙"
+            "fish_caught" -> "钓鱼次数"
+            "mine_block" -> "挖掘方块数"
+            "overworld" -> "主世界"
+            "play_one_minute" -> "在线时间"
+            "the_end" -> "末地"
+            "the_nether" -> "下界"
+            "time_since_rest" -> "未睡眠时间"
+            "walk_one_cm" -> "步行距离"
+            "warden" -> "监守者"
+            else -> materialDisplayName(raw)
+        }
+    }
+
     private fun PurchaseOrderData.fail(reason: String?) {
         status = PurchaseOrderStatus.FAILED
         failureReason = reason
@@ -592,4 +677,10 @@ class ShopService(
             PurchaseOrderStatus.REFUND_PENDING,
         )
     }
+
+    private data class ChallengeRequirement(
+        val key: String,
+        val display: String,
+        val required: Long,
+    )
 }

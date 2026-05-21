@@ -56,7 +56,7 @@ internal class ShopMenuService(
                 "product_lore" to product.icon.lore.joinToString("\n"),
                 "product_price" to Support.formatDouble(product.cost.priceForLevel(1)),
                 "product_currency" to currencyName(product.cost.type),
-                "product_requirement" to shopService.requirementDisplay(product),
+                "product_requirement" to shopService.requirementDisplay(player, product),
             )
             val slot = slots[offset]
             session.inventory.setItem(
