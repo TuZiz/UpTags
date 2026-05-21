@@ -263,6 +263,42 @@ class ShopServiceTest {
     }
 
     @Test
+    fun visibleProductsSplitPlaceholderAndChallengeConditions() {
+        val player = mockk<Player>()
+        val config = mockk<ConfigRegistry>()
+        val tagService = mockk<TagService>()
+        val customTitleService = mockk<CustomTitleService>(relaxed = true)
+        val economy = mockk<EconomyBridge>(relaxed = true)
+        val messages = mockk<MessageService>(relaxed = true)
+        val challenge = mockk<ChallengeProgressService>()
+        val regularCondition = "%server_season%==winter"
+        val challengeCondition = "challenge:kill:warden:1"
+        val product = ShopProductDefinition(
+            id = "winter_warden",
+            type = ShopProductType.TAG,
+            targetId = "winter_warden",
+            mode = ShopProductMode.SEASONAL,
+            enabled = true,
+            permission = null,
+            conditions = listOf(regularCondition, challengeCondition),
+            cost = CostDefinition(),
+            icon = ItemTemplate("NAME_TAG", "Winter Warden", emptyList()),
+        )
+
+        every { config.shopProducts } returns linkedMapOf(product.id to product)
+        every { player.hasPermission(any<String>()) } returns false
+        every { tagService.checkConditions(player, listOf(regularCondition)) } returns true
+        every { challenge.canClaim(player, listOf(challengeCondition)) } returns true
+
+        val service = ShopService(config, tagService, customTitleService, economy, messages, challenge)
+
+        assertEquals(listOf(product), service.visibleProducts(player))
+        verify(exactly = 1) { tagService.checkConditions(player, listOf(regularCondition)) }
+        verify(exactly = 1) { challenge.canClaim(player, listOf(challengeCondition)) }
+        verify(exactly = 0) { tagService.checkConditions(player, product.conditions) }
+    }
+
+    @Test
     fun challengeClaimRequiresChallengeProgress() {
         val player = mockk<Player>()
         val config = mockk<ConfigRegistry>()
@@ -286,12 +322,12 @@ class ShopServiceTest {
         every { config.shopProducts } returns linkedMapOf(product.id to product)
         every { player.uniqueId } returns java.util.UUID.randomUUID()
         every { player.hasPermission(any<String>()) } returns false
-        every { tagService.checkConditions(player, product.conditions) } returns true
         every { tagService.isOwned(player, product.targetId) } returns false
         every { challenge.canClaim(player, product.conditions) } returns false
 
         val service = ShopService(config, tagService, customTitleService, economy, messages, challenge)
 
         assertFalse(service.buy(player, product.id))
+        verify(exactly = 0) { tagService.checkConditions(player, product.conditions) }
     }
 }

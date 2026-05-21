@@ -195,8 +195,19 @@ class ShopService(
     }
 
     private fun canUseProductConditions(player: Player, product: ShopProductDefinition): Boolean {
-        return player.hasPermission(AdminAccess.ADMIN) || tagService.checkConditions(player, product.conditions)
+        if (player.hasPermission(AdminAccess.ADMIN)) {
+            return true
+        }
+        val regularConditions = product.conditions.filterNot(::isChallengeCondition)
+        if (regularConditions.isNotEmpty() && !tagService.checkConditions(player, regularConditions)) {
+            return false
+        }
+        val challengeConditions = product.conditions.filter(::isChallengeCondition)
+        return challengeConditions.isEmpty() || challengeProgressService.canClaim(player, challengeConditions)
     }
+
+    private fun isChallengeCondition(condition: String): Boolean =
+        condition.trim().startsWith("challenge:", ignoreCase = true)
 
     private fun processPendingOrder(player: Player, product: ShopProductDefinition, order: PurchaseOrderData) {
         val price = order.currencyAmount

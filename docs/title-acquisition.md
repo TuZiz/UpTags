@@ -52,16 +52,16 @@
 
 | 中文名 | 称号 ID | 获取方式 | 玩家需要做什么 |
 | --- | --- | --- | --- |
-| 矿洞住民 | `miner_soul` | Placeholder 条件 | 挖掘方块统计达到 `256`，条件为 `%statistic_mine_block%>=256`。 |
-| 钓鱼佬 | `fisher_daily` | Placeholder 条件 | 钓鱼成功统计达到 `32`，条件为 `%statistic_fish_caught%>=32`。 |
-| 红石学徒 | `redstone_apprentice` | 物品提交 | 提交 `REDSTONE x64` 和 `REPEATER x8`。 |
-| 种田人 | `field_keeper` | 物品提交 | 提交 `WHEAT x64` 和 `CARROT x32`。 |
-| 夜猫子 | `night_owl` | Placeholder 条件 | 长时间不睡觉，条件为 `%statistic_time_since_rest%>=72000`。 |
-| 跑图选手 | `map_runner` | Placeholder 条件 | 步行距离统计达到 `100000cm`，条件为 `%statistic_walk_one_cm%>=100000`。 |
-| 插火把的人 | `cave_lighter` | 物品提交 | 提交 `TORCH x128`。 |
-| 箱子整理师 | `chest_sorter` | 物品提交 | 提交 `CHEST x16` 和 `BARREL x8`。 |
-| 面包守卫 | `bread_guard` | 物品提交 | 提交 `BREAD x32`。 |
-| 史莱姆好友 | `slime_friend` | 物品提交 | 提交 `SLIME_BALL x32`。 |
+| 矿洞住民 | `miner_soul` | 统计 + 物品提交 | 挖掘方块统计达到 `2048`，并提交 `DEEPSLATE x256`、`RAW_IRON x32`。 |
+| 钓鱼佬 | `fisher_daily` | 统计 + 物品提交 | 钓鱼成功统计达到 `128`，并提交 `COD x32`、`SALMON x16`、`PUFFERFISH x4`。 |
+| 红石学徒 | `redstone_apprentice` | 物品提交 | 提交 `REDSTONE x192`、`REPEATER x32`、`COMPARATOR x8`、`OBSERVER x8`。 |
+| 种田人 | `field_keeper` | 物品提交 | 提交 `WHEAT x192`、`CARROT x128`、`POTATO x128`、`BEETROOT x64`。 |
+| 夜猫子 | `night_owl` | 统计 + 物品提交 | 长时间不睡觉统计达到 `240000`，并提交 `PHANTOM_MEMBRANE x4`。 |
+| 跑图选手 | `map_runner` | 统计 + 物品提交 | 步行距离统计达到 `1000000cm`，并提交 `COMPASS x4`、`MAP x4`。 |
+| 插火把的人 | `cave_lighter` | 物品提交 | 提交 `TORCH x384`、`COAL x64`、`LANTERN x16`。 |
+| 箱子整理师 | `chest_sorter` | 物品提交 | 提交 `CHEST x64`、`BARREL x32`、`HOPPER x8`。 |
+| 面包守卫 | `bread_guard` | 物品提交 | 提交 `BREAD x128`、`HAY_BLOCK x16`。 |
+| 史莱姆好友 | `slime_friend` | 物品提交 | 提交 `SLIME_BALL x96`、`SLIME_BLOCK x8`。 |
 
 Placeholder 条件会按 fail-closed 处理：条件非法、无法解析或 PlaceholderAPI 返回异常时，不会默认放行，并且应该记录 warning，避免玩家绕过条件。
 
@@ -75,14 +75,14 @@ Placeholder 条件会按 fail-closed 处理：条件非法、无法解析或 Pla
 
 | 中文名 | 称号 ID | 获取条件 | 主题 |
 | --- | --- | --- | --- |
-| 深暗绘图师 | `abyss_cartographer` | 到达或记录一次深暗群系，条件为 `challenge:biome:deep_dark:1`。 | 深暗探索 |
-| 下界巡路人 | `nether_pathfinder` | 进入一次下界，条件为 `challenge:world:the_nether:1`。 | 下界探索 |
-| 末地远航者 | `end_voyager` | 进入一次末地，条件为 `challenge:world:the_end:1`。 | 末地探索 |
-| 监守回声 | `warden_echo` | 击杀 `WARDEN x1`，条件为 `challenge:kill:warden:1`。 | Boss 挑战 |
-| 深层钻脉师 | `diamond_vein_master` | 挖掘 `DEEPSLATE_DIAMOND_ORE x64`，条件为 `challenge:mine:deepslate_diamond_ore:64`。 | 挖矿挑战 |
-| 天际构筑者 | `sky_limit_builder` | 在主世界到达高度 `250`，条件为 `challenge:height:overworld:250`。 | 建筑高度 |
-| 远行长路 | `long_marcher` | 步行统计达到 `100000cm`，条件为 `challenge:stat:walk_one_cm:100000`。 | 长途探索 |
-| 古城潜行者 | `ancient_city_runner` | 在深暗区域累计停留 `300` 秒，条件为 `challenge:deep_dark_stay:300`。 | 古城潜行 |
+| 深暗绘图师 | `abyss_cartographer` | 到达深暗群系，深暗停留 `180` 秒，并提交 `SCULK x32`。 | 深暗探索 |
+| 下界巡路人 | `nether_pathfinder` | 进入下界，击杀 `BLAZE x16`，并提交 `MAGMA_CREAM x16`。 | 下界探索 |
+| 末地远航者 | `end_voyager` | 进入末地，并提交 `ENDER_PEARL x16`。 | 末地探索 |
+| 监守回声 | `warden_echo` | 深暗累计停留 `600` 秒，并击杀 `WARDEN x1`。 | Boss 挑战 |
+| 深层钻脉师 | `diamond_vein_master` | 挖掘 `DEEPSLATE_DIAMOND_ORE x96`，并提交 `DIAMOND x16`。 | 挖矿挑战 |
+| 天际构筑者 | `sky_limit_builder` | 在主世界到达高度 `300`，并提交 `SCAFFOLDING x256`。 | 建筑高度 |
+| 远行长路 | `long_marcher` | 步行统计达到 `1000000cm`。 | 长途探索 |
+| 古城潜行者 | `ancient_city_runner` | 到达深暗群系，深暗累计停留 `900` 秒，并提交 `ECHO_SHARD x4`、`SCULK_CATALYST x2`。 | 古城潜行 |
 
 挑战进度不是临时内存数据，会存入 `PlayerTagData`。服务器重启后，已经完成的挑战进度不会丢失。
 
@@ -92,10 +92,10 @@ Placeholder 条件会按 fail-closed 处理：条件非法、无法解析或 Pla
 
 | 中文名 | 称号 ID | 兑换要求 | 附加条件 |
 | --- | --- | --- | --- |
-| 深海打捞员 | `ocean_salvager` | `PRISMARINE_SHARD x64`、`NAUTILUS_SHELL x4` | 无。 |
-| 红石建筑师 | `redstone_architect` | `COMPARATOR x16`、`OBSERVER x16`、`REDSTONE_BLOCK x8` | 无。 |
-| 要塞掠行者 | `fortress_raider` | `BLAZE_ROD x32`、`NETHER_BRICK x64` | 需要先进入过下界：`challenge:world:the_nether:1`。 |
-| 龙息遗珍猎手 | `dragon_relic_hunter` | `CHORUS_FRUIT x64`、`DRAGON_BREATH x8` | 需要先进入过末地：`challenge:world:the_end:1`。 |
+| 深海打捞员 | `ocean_salvager` | `PRISMARINE_SHARD x128`、`NAUTILUS_SHELL x8`、`HEART_OF_THE_SEA x1` | 无。 |
+| 红石建筑师 | `redstone_architect` | `COMPARATOR x32`、`OBSERVER x32`、`REDSTONE_BLOCK x16`、`PISTON x32`、`REPEATER x32` | 无。 |
+| 要塞掠行者 | `fortress_raider` | `BLAZE_ROD x64`、`NETHER_BRICK x128`、`WITHER_SKELETON_SKULL x1` | 需要进入下界并击杀 `BLAZE x32`。 |
+| 龙息遗珍猎手 | `dragon_relic_hunter` | `CHORUS_FRUIT x128`、`DRAGON_BREATH x16`、`ENDER_PEARL x16` | 需要进入末地并击杀 `ENDER_DRAGON x1`。 |
 
 如果材料不足，购买流程会直接拒绝，不会扣金币、点券或称号币。
 
@@ -105,8 +105,8 @@ Placeholder 条件会按 fail-closed 处理：条件非法、无法解析或 Pla
 
 | 中文名 | 称号 ID | 消耗 | 说明 |
 | --- | --- | --- | --- |
-| 珊瑚守望 | `coral_keeper` | `POINTS x1200` | 海洋主题称号，使用点券购买。 |
-| 黑曜金库 | `obsidian_banker` | `MONEY x25000` | 财富主题称号，使用经济插件金币购买。 |
+| 珊瑚守望 | `coral_keeper` | `POINTS x3000`、`TUBE_CORAL_BLOCK x16`、`SEA_LANTERN x16` | 海洋主题称号，使用点券和材料购买。 |
+| 黑曜金库 | `obsidian_banker` | `MONEY x75000`、`OBSIDIAN x128` | 财富主题称号，使用经济插件金币和材料购买。 |
 
 ### 4. 季节与声望类
 
@@ -114,8 +114,8 @@ Placeholder 条件会按 fail-closed 处理：条件非法、无法解析或 Pla
 
 | 中文名 | 称号 ID | 模式 | 获取要求 |
 | --- | --- | --- | --- |
-| 凛冬唤雪者 | `season_snowcaller` | `SEASONAL` | 满足 `%server_season%==winter`，消耗 `POINTS x500`，提交 `SNOW_BLOCK x64`。 |
-| 声望奠基者 | `prestige_founder` | `PRESTIGE` | 拥有权限 `uptags.prestige.founder`，在线时长统计 `challenge:stat:play_one_minute:72000` 达标，消耗 `TITLE_COIN x100`。 |
+| 凛冬唤雪者 | `season_snowcaller` | `SEASONAL` | 满足 `%server_season%==winter`，消耗 `POINTS x1000`，提交 `SNOW_BLOCK x128`、`BLUE_ICE x16`。 |
+| 声望奠基者 | `prestige_founder` | `PRESTIGE` | 拥有权限 `uptags.prestige.founder`，在线时长统计 `challenge:stat:play_one_minute:432000` 达标，消耗 `TITLE_COIN x250`。 |
 
 `SEASONAL` 适合限时节日活动，`PRESTIGE` 适合长期声望、赞助、赛季结算、老玩家身份等场景。
 
