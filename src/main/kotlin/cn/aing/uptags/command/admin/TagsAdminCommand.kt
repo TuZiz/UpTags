@@ -13,6 +13,8 @@ import org.bukkit.entity.Player
 import java.util.Locale
 
 internal class TagsAdminCommand(private val context: TagsCommandContext) {
+    private val createWizard = AdminCreateWizard(context)
+
     fun handle(sender: CommandSender, args: Array<out String>): Boolean {
         if (!AdminAccess.hasAnyAdmin(sender)) {
             context.messageService.send(sender, "no-permission")
@@ -35,11 +37,64 @@ internal class TagsAdminCommand(private val context: TagsCommandContext) {
             "custom" -> handleCustom(sender, args)
             "scroll" -> handleScroll(sender, args)
             "tag" -> handleTag(sender, args)
+            "product" -> handleProduct(sender, args)
+            "createwizard" -> handleCreateWizard(sender)
+            "validate" -> handleValidate(sender)
             else -> {
                 context.messageService.send(sender, "admin-help")
                 true
             }
         }
+    }
+
+    private fun handleProduct(sender: CommandSender, args: Array<out String>): Boolean {
+        if (!context.requirePermission(sender, AdminAccess.PRODUCT_CREATE, AdminAccess.PRODUCT_ALL)) {
+            return true
+        }
+        if (args.size < 4 || !args[2].equals("create", true)) {
+            sender.sendMessage(Support.color("&#FDE047用法: /tags admin product create <tagId>"))
+            return true
+        }
+        val tagId = args[3]
+        if (!context.plugin.config.tags.containsKey(tagId)) {
+            context.messageService.send(sender, "tag-not-found", tagId)
+            return true
+        }
+        if (context.plugin.config.createShopProductForTag(tagId)) {
+            sender.sendMessage(Support.color("&#A7F3D0已为称号 '$tagId' 创建轻量商店商品，写入 shop.yml。"))
+        } else {
+            sender.sendMessage(Support.color("&#F87171创建商品失败，请查看控制台日志。"))
+        }
+        return true
+    }
+
+    private fun handleCreateWizard(sender: CommandSender): Boolean {
+        val player = sender as? Player ?: run {
+            context.messageService.send(sender, "player-only")
+            return true
+        }
+        if (!context.requirePermission(sender, AdminAccess.CREATE_WIZARD, AdminAccess.TAG_CREATE, AdminAccess.TAG_ALL)) {
+            return true
+        }
+        createWizard.start(player)
+        return true
+    }
+
+    private fun handleValidate(sender: CommandSender): Boolean {
+        if (!context.requirePermission(sender, AdminAccess.VALIDATE)) {
+            return true
+        }
+        val issues = context.plugin.config.configurationIssues()
+        if (issues.isEmpty()) {
+            sender.sendMessage(Support.color("&#A7F3D0配置校验通过，未发现问题。"))
+            return true
+        }
+        sender.sendMessage(Support.color("&#FDE047发现 ${issues.size} 个配置问题:"))
+        issues.forEachIndexed { index, issue ->
+            sender.sendMessage(Support.color("&#F87171${index + 1}. [${issue.severity}] ${issue.source} ${issue.path}"))
+            sender.sendMessage(Support.color("&#94A3B8   ${issue.message}"))
+        }
+        return true
     }
 
     private fun handleGive(sender: CommandSender, args: Array<out String>): Boolean {

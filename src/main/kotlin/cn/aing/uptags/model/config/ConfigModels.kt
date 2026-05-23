@@ -49,6 +49,18 @@ enum class ShopProductMode {
     }
 }
 
+enum class ConfigIssueSeverity {
+    WARNING,
+    ERROR,
+}
+
+data class ConfigIssue(
+    val severity: ConfigIssueSeverity,
+    val source: String,
+    val path: String,
+    val message: String,
+)
+
 data class CostDefinition(
     val type: CurrencyType = CurrencyType.POINTS,
     val amount: Double = 0.0,

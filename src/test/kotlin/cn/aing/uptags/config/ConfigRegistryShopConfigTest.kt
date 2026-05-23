@@ -127,6 +127,132 @@ class ConfigRegistryShopConfigTest {
     }
 
     @Test
+    fun shopLightweightSyntaxUsesTagDefaultsAndShortcuts() {
+        val pluginDir = createTempDirectory("uptags-config-shop-light").toFile()
+        val plugin = mockPlugin(pluginDir)
+        writeMinimalConfig(pluginDir)
+        File(pluginDir, "tags.yml").writeText(
+            """
+            rarity-display: {}
+            rarity-upgrade-group:
+              COMMON: COMMON
+            tag-template:
+              rarity: COMMON
+              default-unlocked: false
+            tags:
+              redstone_apprentice:
+                display: '&#FF8FD8红石学徒'
+                description:
+                  - '&#94A3B8提交一套基础红石工程材料。'
+                rarity: COMMON
+            """.trimIndent(),
+            Charsets.UTF_8,
+        )
+        File(pluginDir, "shop.yml").writeText(
+            """
+            products:
+              redstone_apprentice:
+                price: "MONEY:75000"
+                icon: STONE_PICKAXE
+                submit-items:
+                  REDSTONE: 192
+                  REPEATER: 32
+            """.trimIndent(),
+            Charsets.UTF_8,
+        )
+
+        val registry = ConfigRegistry(plugin)
+        registry.load()
+
+        val product = assertNotNull(registry.shopProducts["redstone_apprentice"])
+        assertEquals("redstone_apprentice", product.targetId)
+        assertEquals(cn.aing.uptags.model.config.ShopProductType.TAG, product.type)
+        assertTrue(product.enabled)
+        assertEquals(cn.aing.uptags.model.config.CurrencyType.MONEY, product.cost.type)
+        assertEquals(75000.0, product.cost.amount)
+        assertEquals("STONE_PICKAXE", product.icon.material)
+        assertEquals("&#FF8FD8红石学徒", product.icon.name)
+        assertEquals(listOf("&#94A3B8提交一套基础红石工程材料。"), product.icon.lore)
+        assertEquals(listOf("REDSTONE" to 192, "REPEATER" to 32), product.submitItems.map { it.material to it.amount })
+    }
+
+    @Test
+    fun shopValidationCollectsWarningsButKeepsLoading() {
+        val pluginDir = createTempDirectory("uptags-config-shop-validation").toFile()
+        val plugin = mockPlugin(pluginDir)
+        writeMinimalConfig(pluginDir)
+        File(pluginDir, "tags.yml").writeText(
+            """
+            rarity-display: {}
+            rarity-upgrade-group: {}
+            tag-template:
+              rarity: COMMON
+              default-unlocked: false
+            tags: {}
+            """.trimIndent(),
+            Charsets.UTF_8,
+        )
+        File(pluginDir, "shop.yml").writeText(
+            """
+            products:
+              ghost_product:
+                target-id: missing_tag
+                category: missing_category
+                price: "BAD_COIN:10"
+                submit-items:
+                  NOT_A_MATERIAL: 3
+            """.trimIndent(),
+            Charsets.UTF_8,
+        )
+
+        val registry = ConfigRegistry(plugin)
+        registry.load()
+
+        assertNotNull(registry.shopProducts["ghost_product"])
+        val messages = registry.configurationIssues().map { it.message }
+        assertTrue(messages.any { it.contains("missing_tag") })
+        assertTrue(messages.any { it.contains("missing_category") })
+        assertTrue(messages.any { it.contains("BAD_COIN") })
+        assertTrue(messages.any { it.contains("NOT_A_MATERIAL") })
+    }
+
+    @Test
+    fun createShopProductForTagSavesLightweightShopEntry() {
+        val pluginDir = createTempDirectory("uptags-config-shop-save-light").toFile()
+        val plugin = mockPlugin(pluginDir)
+        writeMinimalConfig(pluginDir)
+        File(pluginDir, "tags.yml").writeText(
+            """
+            rarity-display: {}
+            rarity-upgrade-group: {}
+            tag-template:
+              rarity: COMMON
+              default-unlocked: false
+            tags:
+              miner_soul:
+                display: '&f矿魂'
+                description:
+                  - '&7默认描述'
+                rarity: COMMON
+            """.trimIndent(),
+            Charsets.UTF_8,
+        )
+        File(pluginDir, "shop.yml").writeText("products: {}\n", Charsets.UTF_8)
+
+        val registry = ConfigRegistry(plugin)
+        registry.load()
+        assertTrue(registry.createShopProductForTag("miner_soul"))
+
+        val saved = File(pluginDir, "shop.yml").readText(Charsets.UTF_8)
+        assertTrue(saved.contains("miner_soul"))
+        assertFalse(saved.contains("target-id"))
+        assertFalse(saved.contains("type: TAG"))
+        assertFalse(saved.contains("enabled: true"))
+        assertFalse(saved.contains("name:"))
+        assertFalse(saved.contains("lore:"))
+    }
+
+    @Test
     fun shopLocalizationSupportsCodePrefixedKeys() {
         val pluginDir = createTempDirectory("uptags-config-shop-text").toFile()
         val plugin = mockPlugin(pluginDir)

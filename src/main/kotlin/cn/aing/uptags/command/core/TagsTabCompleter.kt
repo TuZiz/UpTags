@@ -55,6 +55,7 @@ internal class TagsTabCompleter(private val context: TagsCommandContext) : TabCo
             args[0].equals("admin", true) && args[1].equals("custom", true) -> context.filter(adminCustomActions(sender), args[2])
             args[0].equals("admin", true) && args[1].equals("scroll", true) && AdminAccess.has(sender, AdminAccess.SCROLL_GIVE) -> context.filter(listOf("give"), args[2])
             args[0].equals("admin", true) && args[1].equals("tag", true) -> context.filter(adminTagActions(sender), args[2])
+            args[0].equals("admin", true) && args[1].equals("product", true) -> context.filter(adminProductActions(sender), args[2])
             else -> emptyList()
         }
     }
@@ -69,6 +70,7 @@ internal class TagsTabCompleter(private val context: TagsCommandContext) : TabCo
             args[0].equals("admin", true) && args[1].equals("scroll", true) && args[2].equals("give", true) -> context.filter(Bukkit.getOnlinePlayers().map(Player::getName), args[3])
             args[0].equals("admin", true) && args[1].equals("tag", true) && args[2].equals("delete", true) -> context.filter(context.plugin.config.tags.keys.toList(), args[3])
             args[0].equals("admin", true) && args[1].equals("tag", true) && args[2].startsWith("set") -> context.filter(context.plugin.config.tags.keys.toList(), args[3])
+            args[0].equals("admin", true) && args[1].equals("product", true) && args[2].equals("create", true) -> context.filter(context.plugin.config.tags.keys.toList(), args[3])
             else -> emptyList()
         }
     }
@@ -119,6 +121,9 @@ internal class TagsTabCompleter(private val context: TagsCommandContext) : TabCo
         if (AdminAccess.has(sender, AdminAccess.CUSTOM_ALL) || adminCustomActions(sender).isNotEmpty()) values += "custom"
         if (AdminAccess.has(sender, AdminAccess.SCROLL_GIVE)) values += "scroll"
         if (AdminAccess.has(sender, AdminAccess.TAG_ALL) || adminTagActions(sender).isNotEmpty()) values += "tag"
+        if (AdminAccess.has(sender, AdminAccess.PRODUCT_ALL) || adminProductActions(sender).isNotEmpty()) values += "product"
+        if (AdminAccess.has(sender, AdminAccess.CREATE_WIZARD)) values += "createwizard"
+        if (AdminAccess.has(sender, AdminAccess.VALIDATE)) values += "validate"
         return values
     }
 
@@ -159,6 +164,10 @@ internal class TagsTabCompleter(private val context: TagsCommandContext) : TabCo
         "setrarity".takeIf { AdminAccess.has(sender, AdminAccess.TAG_SET_RARITY, AdminAccess.TAG_ALL, AdminAccess.TAG_EDIT) },
         "setgroups".takeIf { AdminAccess.has(sender, AdminAccess.TAG_SET_GROUPS, AdminAccess.TAG_ALL, AdminAccess.TAG_EDIT) },
         "setdefault".takeIf { AdminAccess.has(sender, AdminAccess.TAG_SET_DEFAULT, AdminAccess.TAG_ALL, AdminAccess.TAG_EDIT) },
+    )
+
+    private fun adminProductActions(sender: CommandSender): List<String> = listOfNotNull(
+        "create".takeIf { AdminAccess.has(sender, AdminAccess.PRODUCT_CREATE, AdminAccess.PRODUCT_ALL) },
     )
 
     private companion object {

@@ -27,6 +27,9 @@ permissions:
       uptags.admin.take: true
       uptags.admin.scroll.give: true
       uptags.admin.tag.*: true
+      uptags.admin.product.*: true
+      uptags.admin.createwizard: true
+      uptags.admin.validate: true
       uptags.admin.manage: true
       uptags.admin.info: true
       uptags.admin.equip: true
@@ -79,6 +82,19 @@ permissions:
   uptags.admin.tag.setgroups:
     default: false
   uptags.admin.tag.setdefault:
+    default: false
+  uptags.admin.product.*:
+    description: Manage shop products.
+    default: false
+    children:
+      uptags.admin.product.create: true
+  uptags.admin.product.create:
+    default: false
+  uptags.admin.createwizard:
+    description: Create tags with the interactive admin wizard.
+    default: false
+  uptags.admin.validate:
+    description: Validate UpTags configuration.
     default: false
   uptags.admin.info:
     description: View player UpTags data.

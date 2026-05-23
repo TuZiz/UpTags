@@ -18,6 +18,10 @@ object AdminAccess {
     const val TAG_SET_RARITY = "uptags.admin.tag.setrarity"
     const val TAG_SET_GROUPS = "uptags.admin.tag.setgroups"
     const val TAG_SET_DEFAULT = "uptags.admin.tag.setdefault"
+    const val PRODUCT_ALL = "uptags.admin.product.*"
+    const val PRODUCT_CREATE = "uptags.admin.product.create"
+    const val CREATE_WIZARD = "uptags.admin.createwizard"
+    const val VALIDATE = "uptags.admin.validate"
     const val MANAGE = "uptags.admin.manage"
     const val INFO = "uptags.admin.info"
     const val EQUIP = "uptags.admin.equip"
@@ -59,6 +63,10 @@ object AdminAccess {
         TAG_SET_RARITY,
         TAG_SET_GROUPS,
         TAG_SET_DEFAULT,
+        PRODUCT_ALL,
+        PRODUCT_CREATE,
+        CREATE_WIZARD,
+        VALIDATE,
         MANAGE,
         INFO,
         EQUIP,

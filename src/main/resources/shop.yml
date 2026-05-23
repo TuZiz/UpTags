@@ -525,7 +525,6 @@ products:
       name: '&#BFDBFE&l✦ &#DBEAFE凛冬唤雪者 &#BFDBFE&l✦'
       lore:
         - '&#94A3B8▪ 冬季活动限定，需要满足活动条件和冰雪材料。'
-        - '&#FDE68A⚠ 需要 PlaceholderAPI 提供 %server_season% 变量。'
   prestige_founder:
     type: TAG
     target-id: prestige_founder

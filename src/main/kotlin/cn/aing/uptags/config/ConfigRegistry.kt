@@ -1,7 +1,10 @@
 package cn.aing.uptags.config
 
 import cn.aing.uptags.Support
+import cn.aing.uptags.config.shop.ShopProductParser
+import cn.aing.uptags.config.shop.TagProductResolver
 import cn.aing.uptags.model.config.BuffDefinition
+import cn.aing.uptags.model.config.ConfigIssue
 import cn.aing.uptags.model.config.CostDefinition
 import cn.aing.uptags.model.config.CurrencyType
 import cn.aing.uptags.model.config.CustomTitlePreset
@@ -35,6 +38,7 @@ import org.bukkit.plugin.java.JavaPlugin
 import org.bukkit.potion.PotionEffectType
 import java.io.File
 import java.io.IOException
+import java.nio.file.Files
 import java.io.InputStreamReader
 import java.util.LinkedHashMap
 import java.util.LinkedHashSet
@@ -48,6 +52,8 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
     val scrolls: MutableMap<String, ScrollDefinition> = LinkedHashMap()
     val upgradeGroups: MutableMap<String, UpgradeGroupDefinition> = LinkedHashMap()
     val shopProducts: MutableMap<String, ShopProductDefinition> = LinkedHashMap()
+    private val explicitShopProductIds: MutableSet<String> = LinkedHashSet()
+    private val configurationIssues: MutableList<ConfigIssue> = ArrayList()
     val rarityDisplays: MutableMap<String, String> = LinkedHashMap()
     val rarityUpgradeGroups: MutableMap<String, String> = LinkedHashMap()
     private val displayNames: MutableMap<String, String> = LinkedHashMap()
@@ -90,6 +96,8 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
         private set
 
     fun load() {
+        configurationIssues.clear()
+        explicitShopProductIds.clear()
         saveDefaultIfAbsent("config.yml")
         saveDefaultIfAbsent(DEFAULT_LANGUAGE_PATH)
         saveDefaultIfAbsent(DEFAULT_NAMES_PATH)
@@ -125,9 +133,10 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
         customTitleGroupLayout = loadGuiLayout("gui/custom-title-group.yml")
     }
 
-    fun saveTags() {
+    fun saveTags(): Boolean {
         val file = File(plugin.dataFolder, "tags.yml")
         val yaml = YamlConfiguration()
+        yaml.options().header("UpTags title catalog. Keep tags under tags.<id>; shop listing can live in shop.yml.")
         if (rarityDisplays.isNotEmpty()) {
             rarityDisplays.forEach { (key, value) -> yaml.set("rarity-display.$key", value) }
         }
@@ -171,8 +180,10 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
         }
         try {
             yaml.save(file)
+            return true
         } catch (ex: IOException) {
             plugin.logger.warning("Failed to save tags.yml: ${ex.message}")
+            return false
         }
     }
 
@@ -225,6 +236,57 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
     fun shopCategory(id: String): ShopCategoryTextDefinition {
         val normalized = id.trim().lowercase(Locale.ROOT)
         return shopCategories[normalized] ?: ShopCategoryTextDefinition(normalized, normalized, normalized)
+    }
+
+    fun hasShopCategory(id: String): Boolean = shopCategories.containsKey(id.trim().lowercase(Locale.ROOT))
+
+    fun configurationIssues(): List<ConfigIssue> = configurationIssues.toList()
+
+    fun createShopProductForTag(tagId: String): Boolean {
+        val product = TagProductResolver(tags, ::rarityDisplay).defaultProductForTag(tagId) ?: return false
+        shopProducts[product.id] = product
+        explicitShopProductIds += product.id
+        return saveShop()
+    }
+
+    fun applyTagAndProductAtomic(tag: TagDefinition, product: ShopProductDefinition?): Boolean {
+        val tagsFile = File(plugin.dataFolder, "tags.yml")
+        val shopFile = File(plugin.dataFolder, "shop.yml")
+        val previousTag = tags[tag.id]
+        val previousProduct = product?.let { shopProducts[it.id] }
+        val previousExplicit = product?.let { it.id in explicitShopProductIds } ?: false
+        val tagsBackup = tagsFile.readBytesIfExists()
+        val shopBackup = shopFile.readBytesIfExists()
+
+        tags[tag.id] = tag
+        if (product != null) {
+            shopProducts[product.id] = product
+            explicitShopProductIds += product.id
+        }
+
+        val saved = saveTags() && saveShop()
+        if (saved) {
+            return true
+        }
+
+        if (previousTag == null) {
+            tags.remove(tag.id)
+        } else {
+            tags[tag.id] = previousTag
+        }
+        if (product != null) {
+            if (previousProduct == null) {
+                shopProducts.remove(product.id)
+            } else {
+                shopProducts[product.id] = previousProduct
+            }
+            if (!previousExplicit) {
+                explicitShopProductIds.remove(product.id)
+            }
+        }
+        tagsFile.restoreBytes(tagsBackup)
+        shopFile.restoreBytes(shopBackup)
+        return false
     }
 
     private fun saveDefaultIfAbsent(resourcePath: String) {
@@ -490,61 +552,110 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
 
     private fun loadShop() {
         shopProducts.clear()
+        explicitShopProductIds.clear()
+        val resolver = TagProductResolver(tags, ::rarityDisplay)
         tags.values.forEach { tag ->
             val shop = tag.shop ?: return@forEach
-            val defaultIcon = ItemTemplate(
-                material = "NAME_TAG",
-                name = tag.display,
-                lore = buildList {
-                    addAll(tag.description)
-                    add(rarityDisplay(tag.rarity))
-                },
-            )
-            val icon = shop.icon?.let {
-                ItemTemplate(
-                    material = it.material,
-                    name = it.name.takeIf(String::isNotBlank) ?: defaultIcon.name,
-                    lore = it.lore.ifEmpty { defaultIcon.lore },
-                )
-            } ?: defaultIcon
-            shopProducts[tag.id] = ShopProductDefinition(
-                id = tag.id,
-                type = ShopProductType.TAG,
-                targetId = tag.id,
-                mode = ShopProductMode.BUY,
-                category = null,
-                enabled = shop.enabled,
-                permission = shop.permission,
-                conditions = shop.conditions,
-                cost = shop.cost,
-                submitItems = shop.submitItems,
-                icon = icon,
-            )
+            shopProducts[tag.id] = resolver.productFromLegacyTagShop(tag, shop)
         }
         val yaml = YamlConfiguration.loadConfiguration(File(plugin.dataFolder, "shop.yml"))
-        yaml.getConfigurationSection("products")?.getKeys(false)?.forEach { productId ->
-            val section = yaml.getConfigurationSection("products.$productId") ?: return@forEach
-            val iconSection = section.getConfigurationSection("icon")
-            val targetId = section.getString("target-id", productId) ?: productId
-            val tag = tags[targetId]
-            shopProducts[productId] = ShopProductDefinition(
-                id = productId,
-                type = ShopProductType.from(section.getString("type")),
-                targetId = targetId,
-                mode = ShopProductMode.from(section.getString("mode")),
-                category = section.getString("category")?.trim()?.takeIf { it.isNotBlank() },
-                enabled = section.getBoolean("enabled", true),
-                permission = section.getString("permission")?.takeIf { it.isNotBlank() },
-                conditions = section.getStringList("conditions"),
-                cost = parseCost(section.getConfigurationSection("cost")),
-                submitItems = parseSubmitItems(section.getConfigurationSection("submit-items")),
-                icon = ItemTemplate(
-                    material = iconSection?.getString("material", "NAME_TAG") ?: "NAME_TAG",
-                    name = iconSection?.getString("name", tag?.display ?: productId) ?: tag?.display ?: productId,
-                    lore = iconSection?.getStringList("lore") ?: tag?.description.orEmpty(),
-                ),
-            )
+        val parsed = ShopProductParser(
+            resolver = resolver,
+            tagExists = tags::containsKey,
+            categoryExists = ::hasShopCategory,
+            issueSink = ::recordConfigIssue,
+        ).parse(yaml)
+        shopProducts.putAll(parsed.products)
+        explicitShopProductIds += parsed.explicitProductIds
+    }
+
+    fun saveShop(): Boolean {
+        val file = File(plugin.dataFolder, "shop.yml")
+        val yaml = YamlConfiguration()
+        yaml.options().header("UpTags shop catalog. Omitted fields use defaults from tags.yml where possible.")
+        val resolver = TagProductResolver(tags, ::rarityDisplay)
+        explicitShopProductIds.forEach { productId ->
+            val product = shopProducts[productId] ?: return@forEach
+            val path = "products.${product.id}"
+            yaml.createSection(path)
+            if (product.type != ShopProductType.TAG) {
+                yaml.set("$path.type", product.type.name)
+            }
+            if (product.targetId != product.id) {
+                yaml.set("$path.target-id", product.targetId)
+            }
+            if (product.mode != ShopProductMode.BUY) {
+                yaml.set("$path.mode", product.mode.name)
+            }
+            product.category?.let { yaml.set("$path.category", it) }
+            if (!product.enabled) {
+                yaml.set("$path.enabled", false)
+            }
+            product.permission?.let { yaml.set("$path.permission", it) }
+            if (product.conditions.isNotEmpty()) {
+                yaml.set("$path.conditions", product.conditions)
+            }
+            writeCost(yaml, path, product.cost)
+            writeSubmitItems(yaml, path, product.submitItems)
+            writeIcon(yaml, path, product, resolver)
         }
+        return try {
+            yaml.save(file)
+            true
+        } catch (ex: IOException) {
+            plugin.logger.warning("Failed to save shop.yml: ${ex.message}")
+            false
+        }
+    }
+
+    private fun writeCost(yaml: YamlConfiguration, path: String, cost: CostDefinition) {
+        val defaultCost = CostDefinition()
+        if (cost == defaultCost) {
+            return
+        }
+        if (cost.levelAmounts.isEmpty() && cost.conditions.isEmpty()) {
+            yaml.set("$path.price", "${cost.type.name}:${Support.formatDouble(cost.amount)}")
+            return
+        }
+        yaml.set("$path.cost.type", cost.type.name)
+        yaml.set("$path.cost.amount", cost.amount)
+        cost.levelAmounts.forEach { (level, amount) -> yaml.set("$path.cost.levels.$level", amount) }
+        if (cost.conditions.isNotEmpty()) {
+            yaml.set("$path.cost.conditions", cost.conditions)
+        }
+    }
+
+    private fun writeSubmitItems(yaml: YamlConfiguration, path: String, items: List<SubmitItemDefinition>) {
+        items.forEachIndexed { index, item ->
+            val key = item.material.uppercase(Locale.ROOT).replace(Regex("[^A-Z0-9_]+"), "_").ifBlank { "ITEM" }
+            val itemPath = "$path.submit-items.$key"
+            if (item.name == null && items.count { other -> other.material.equals(item.material, ignoreCase = true) } == 1) {
+                yaml.set(itemPath, item.amount)
+            } else {
+                yaml.set("$itemPath-$index.material", item.material)
+                yaml.set("$itemPath-$index.amount", item.amount)
+                yaml.set("$itemPath-$index.name", item.name)
+            }
+        }
+    }
+
+    private fun writeIcon(
+        yaml: YamlConfiguration,
+        path: String,
+        product: ShopProductDefinition,
+        resolver: TagProductResolver,
+    ) {
+        val defaultIcon = resolver.defaultIcon(product.targetId, product.id)
+        if (product.icon == defaultIcon) {
+            return
+        }
+        if (product.icon.name == defaultIcon.name && product.icon.lore == defaultIcon.lore) {
+            yaml.set("$path.icon", product.icon.material)
+            return
+        }
+        yaml.set("$path.icon.material", product.icon.material)
+        yaml.set("$path.icon.name", product.icon.name)
+        yaml.set("$path.icon.lore", product.icon.lore)
     }
 
     private fun migrateLegacyTagShopProducts() {
@@ -631,6 +742,11 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
             return ShopProductMode.CHALLENGE_CLAIM
         }
         return ShopProductMode.BUY
+    }
+
+    private fun recordConfigIssue(issue: ConfigIssue) {
+        configurationIssues += issue
+        plugin.logger.warning("[${issue.source}] ${issue.path}: ${issue.message}")
     }
 
     private fun parseTagShop(section: ConfigurationSection?): TagShopDefinition? {
@@ -843,4 +959,18 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
         return Registry.EFFECT.get(NamespacedKey.minecraft(key))
     }
 
+}
+
+private fun File.readBytesIfExists(): ByteArray? =
+    if (exists()) Files.readAllBytes(toPath()) else null
+
+private fun File.restoreBytes(bytes: ByteArray?) {
+    if (bytes == null) {
+        if (exists()) {
+            delete()
+        }
+        return
+    }
+    parentFile?.mkdirs()
+    Files.write(toPath(), bytes)
 }

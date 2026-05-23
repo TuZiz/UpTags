@@ -19,6 +19,10 @@ internal class TagConditionChecker {
             val left = matcher.group(1).trim()
             val operator = matcher.group(2)
             val right = matcher.group(3).trim()
+            if (containsUnresolvedPlaceholder(left) || containsUnresolvedPlaceholder(right)) {
+                Bukkit.getLogger().warning("Unresolved PlaceholderAPI variable in UpTags condition '$condition' for ${player.uniqueId}; failing closed.")
+                return false
+            }
             if (!compare(left, operator, right)) {
                 return false
             }
@@ -46,6 +50,13 @@ internal class TagConditionChecker {
                 else -> false
             }
         }
+    }
+
+    companion object {
+        private val unresolvedPlaceholderPattern = Pattern.compile("%[^%\\s]+%")
+
+        internal fun containsUnresolvedPlaceholder(value: String): Boolean =
+            unresolvedPlaceholderPattern.matcher(value).find()
     }
 }
 
