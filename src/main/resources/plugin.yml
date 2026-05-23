@@ -11,7 +11,7 @@ softdepend:
 commands:
   tags:
     description: 打开称号仓库
-    usage: /tags [reload|equip|unequip|upgrade|admin ...]
+    usage: /tags [reload|equip|unequip|upgrade|shop|collection|admin ...]
     aliases: [tag, uptags]
 permissions:
   uptags.use:

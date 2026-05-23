@@ -1,11 +1,11 @@
-Title: "&#93C5FD称号&#C4B5FD强化中心"
+﻿Title: "&#93C5FD称号&#C4B5FD强化中心"
 GuiPlain:
   - "X#######X"
   - "#@@@@@@@#"
   - "#@@@@@@@#"
   - "#@@@@@@@#"
   - "#@@@@@@@#"
-  - "L##D#B##N"
+  - "L#D#B###N"
 GuiKey:
   "@":
     IconFunction: "item"
@@ -51,7 +51,6 @@ templates:
     material: "ENCHANTED_BOOK"
     name: "&#93C5FD%entry_display% &#E2E8F0Lv.&#FDE047%entry_current%&#94A3B8/&#FDE047%entry_max%"
     lore:
-      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
       - " &#E2E8F0状态: &#F8FAFC%entry_status% &#64748B| &#F8FAFC%entry_equip_state%"
       - " &#E2E8F0下一阶段强化:"
       - " %entry_buffs%"
@@ -60,22 +59,18 @@ templates:
       - " &#A7F3D0%entry_action%"
       - " &#FDBA74%entry_right_action%"
       - " &#FDE68A%entry_detach_action%"
-      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
     lore-maxed:
-      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
       - " &#E2E8F0状态: &#F8FAFC%entry_status% &#64748B| &#F8FAFC%entry_equip_state%"
       - " &#E2E8F0当前强化:"
       - " %entry_buffs%"
       - ""
       - " &#FDBA74%entry_right_action%"
       - " &#FDE68A%entry_detach_action%"
-      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
 
   particle:
     material: "NETHER_STAR"
     name: "&#C4B5FD%entry_display%"
     lore:
-      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
       - " &#E2E8F0状态: &#F8FAFC%entry_status% &#64748B| &#F8FAFC%entry_equip_state%"
       - " &#E2E8F0粒子效果: &#F8FAFC%entry_display%"
       - ""
@@ -83,21 +78,17 @@ templates:
       - " &#A7F3D0%entry_action%"
       - " &#FDBA74%entry_right_action%"
       - " &#FDE68A%entry_detach_action%"
-      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
     lore-maxed:
-      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
       - " &#E2E8F0状态: &#F8FAFC%entry_status% &#64748B| &#F8FAFC%entry_equip_state%"
       - " &#E2E8F0粒子效果: &#F8FAFC%entry_display%"
       - ""
       - " &#FDBA74%entry_right_action%"
       - " &#FDE68A%entry_detach_action%"
-      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
 
   admin-buff:
     material: "ENCHANTED_BOOK"
     name: "&#60A5FA管理 Buff &#F8FAFC%entry_display% &#E2E8F0Lv.&#FDE047%entry_current%&#94A3B8/&#FDE047%entry_max%"
     lore:
-      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
       - " &#E2E8F0目标玩家: &#FDE047%target_name%"
       - " &#E2E8F0状态: &#F8FAFC%entry_status% &#64748B| &#F8FAFC%entry_equip_state%"
       - " &#E2E8F0当前效果: %entry_buffs%"
@@ -105,9 +96,7 @@ templates:
       - " &#A7F3D0%entry_action%"
       - " &#FDBA74%entry_right_action%"
       - " &#FDE68A%entry_detach_action%"
-      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
     lore-maxed:
-      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
       - " &#E2E8F0目标玩家: &#FDE047%target_name%"
       - " &#E2E8F0状态: &#F8FAFC%entry_status% &#64748B| &#F8FAFC%entry_equip_state%"
       - " &#E2E8F0当前效果: %entry_buffs%"
@@ -115,13 +104,11 @@ templates:
       - " &#A7F3D0%entry_action%"
       - " &#FDBA74%entry_right_action%"
       - " &#FDE68A%entry_detach_action%"
-      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
 
   admin-particle:
     material: "NETHER_STAR"
     name: "&#60A5FA管理粒子 &#F8FAFC%entry_display%"
     lore:
-      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
       - " &#E2E8F0目标玩家: &#FDE047%target_name%"
       - " &#E2E8F0状态: &#F8FAFC%entry_status% &#64748B| &#F8FAFC%entry_equip_state%"
       - " &#E2E8F0粒子效果: &#F8FAFC%entry_display%"
@@ -129,4 +116,3 @@ templates:
       - " &#A7F3D0%entry_action%"
       - " &#FDBA74%entry_right_action%"
       - " &#FDE68A%entry_detach_action%"
-      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"

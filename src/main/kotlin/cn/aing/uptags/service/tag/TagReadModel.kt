@@ -381,7 +381,7 @@ internal class TagReadModel(
         tagDisplay: (TagDefinition) -> String,
     ): List<TitleEntry> {
         val entries = ArrayList<TitleEntry>(config.tags.size + data.customTitles.size)
-        config.tags.values.forEach { tag ->
+        config.tags.values.filterNot { it.hidden && it.id !in data.ownedTags }.forEach { tag ->
             entries += TitleEntry(
                 id = tag.id,
                 display = tagDisplay(tag),

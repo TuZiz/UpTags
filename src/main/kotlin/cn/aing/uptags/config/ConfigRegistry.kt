@@ -15,12 +15,15 @@ import cn.aing.uptags.model.config.ItemTemplate
 import cn.aing.uptags.model.config.ParticleDefinition
 import cn.aing.uptags.model.config.PluginSettings
 import cn.aing.uptags.model.config.ScrollDefinition
+import cn.aing.uptags.model.config.ShopCategoryTextDefinition
 import cn.aing.uptags.model.config.ShopProductDefinition
 import cn.aing.uptags.model.config.ShopProductMode
 import cn.aing.uptags.model.config.ShopProductType
 import cn.aing.uptags.model.config.SubmitItemDefinition
 import cn.aing.uptags.model.config.TagDefinition
 import cn.aing.uptags.model.config.TagShopDefinition
+import cn.aing.uptags.model.config.TitleCollectionCategoryDefinition
+import cn.aing.uptags.model.config.TitleCollectionSettings
 import cn.aing.uptags.model.config.UpgradeGroupDefinition
 import cn.aing.uptags.model.runtime.ScrollKind
 import cn.aing.uptags.util.UnicodeText
@@ -32,8 +35,10 @@ import org.bukkit.plugin.java.JavaPlugin
 import org.bukkit.potion.PotionEffectType
 import java.io.File
 import java.io.IOException
+import java.io.InputStreamReader
 import java.util.LinkedHashMap
 import java.util.LinkedHashSet
+import java.util.Locale
 
 class ConfigRegistry(private val plugin: JavaPlugin) {
     private val legacyCustomTagPrefix = "custom-"
@@ -45,6 +50,9 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
     val shopProducts: MutableMap<String, ShopProductDefinition> = LinkedHashMap()
     val rarityDisplays: MutableMap<String, String> = LinkedHashMap()
     val rarityUpgradeGroups: MutableMap<String, String> = LinkedHashMap()
+    private val displayNames: MutableMap<String, String> = LinkedHashMap()
+    private val shopTexts: MutableMap<String, String> = LinkedHashMap()
+    private val shopCategories: MutableMap<String, ShopCategoryTextDefinition> = LinkedHashMap()
     var settings: PluginSettings = PluginSettings(20, true, "newbie")
         private set
     lateinit var warehouseLayout: GuiLayout
@@ -56,6 +64,8 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
     lateinit var scrollSelectLayout: GuiLayout
         private set
     lateinit var shopLayout: GuiLayout
+        private set
+    lateinit var collectionLayout: GuiLayout
         private set
     lateinit var customTitleCurrencyLayout: GuiLayout
         private set
@@ -69,6 +79,8 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
         private set
     lateinit var detach: DetachSettings
         private set
+    var collection: TitleCollectionSettings = TitleCollectionSettings()
+        private set
 
     lateinit var customTitleSettings: CustomTitleSettings
         private set
@@ -79,7 +91,8 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
 
     fun load() {
         saveDefaultIfAbsent("config.yml")
-        saveDefaultIfAbsent("messages.yml")
+        saveDefaultIfAbsent(DEFAULT_LANGUAGE_PATH)
+        saveDefaultIfAbsent(DEFAULT_NAMES_PATH)
         saveDefaultIfAbsent("tags.yml")
         saveDefaultIfAbsent("upgrades.yml")
         saveDefaultIfAbsent("shop.yml")
@@ -89,10 +102,13 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
         saveDefaultIfAbsent("gui/detach.yml")
         saveDefaultIfAbsent("gui/scroll-select.yml")
         saveDefaultIfAbsent("gui/shop.yml")
+        saveDefaultIfAbsent("gui/collection.yml")
         saveDefaultIfAbsent("gui/custom-title-currency.yml")
         saveDefaultIfAbsent("gui/custom-title-color.yml")
         saveDefaultIfAbsent("gui/custom-title-group.yml")
         loadSettings()
+        loadLocalization()
+        loadCollectionSettings()
         loadTags()
         migrateLegacyTagShopProducts()
         loadUpgrades()
@@ -103,6 +119,7 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
         detachLayout = loadGuiLayout("gui/detach.yml")
         scrollSelectLayout = loadGuiLayout("gui/scroll-select.yml")
         shopLayout = loadGuiLayout("gui/shop.yml")
+        collectionLayout = loadGuiLayout("gui/collection.yml")
         customTitleCurrencyLayout = loadGuiLayout("gui/custom-title-currency.yml")
         customTitleColorLayout = loadGuiLayout("gui/custom-title-color.yml")
         customTitleGroupLayout = loadGuiLayout("gui/custom-title-group.yml")
@@ -127,6 +144,7 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
             yaml.set("$path.default-unlocked", definition.defaultUnlocked)
             yaml.set("$path.upgrade-groups", definition.upgradeGroups)
             yaml.set("$path.permission", definition.permission)
+            yaml.set("$path.hidden", definition.hidden)
             definition.shop?.let { shop ->
                 yaml.set("$path.shop.enabled", shop.enabled)
                 yaml.set("$path.shop.permission", shop.permission)
@@ -194,6 +212,21 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
 
     fun firstUpgradeGroup(): String? = upgradeGroups.keys.firstOrNull()
 
+    fun displayName(raw: String): String {
+        val normalized = displayLookupKey(raw)
+        return displayNames[normalized] ?: raw.trim()
+    }
+
+    fun shopText(key: String): String = shopTexts[key] ?: key
+
+    fun shopText(key: String, placeholders: Map<String, String>): String =
+        Support.apply(shopText(key), placeholders)
+
+    fun shopCategory(id: String): ShopCategoryTextDefinition {
+        val normalized = id.trim().lowercase(Locale.ROOT)
+        return shopCategories[normalized] ?: ShopCategoryTextDefinition(normalized, normalized, normalized)
+    }
+
     private fun saveDefaultIfAbsent(resourcePath: String) {
         val file = File(plugin.dataFolder, resourcePath)
         if (!file.exists()) {
@@ -252,6 +285,113 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
         )
     }
 
+    private fun loadLocalization() {
+        displayNames.clear()
+        shopTexts.clear()
+        shopCategories.clear()
+        loadDisplayNamesYaml(resourceYaml(DEFAULT_NAMES_PATH))
+        loadShopLocalizationYaml(resourceYaml(DEFAULT_LANGUAGE_PATH))
+        val legacyDisplayNames = File(plugin.dataFolder, LEGACY_DISPLAY_NAMES_PATH)
+        if (legacyDisplayNames.exists()) {
+            loadDisplayNamesYaml(YamlConfiguration.loadConfiguration(legacyDisplayNames))
+            loadShopLocalizationYaml(YamlConfiguration.loadConfiguration(legacyDisplayNames))
+        }
+        val namesFile = File(plugin.dataFolder, DEFAULT_NAMES_PATH)
+        if (namesFile.exists()) {
+            loadDisplayNamesYaml(YamlConfiguration.loadConfiguration(namesFile))
+        }
+        val languageFile = File(plugin.dataFolder, DEFAULT_LANGUAGE_PATH)
+        if (languageFile.exists()) {
+            loadShopLocalizationYaml(YamlConfiguration.loadConfiguration(languageFile))
+        }
+    }
+
+    private fun resourceYaml(path: String): YamlConfiguration? {
+        val stream = plugin.getResource(path) ?: return null
+        return runCatching {
+            InputStreamReader(stream, Charsets.UTF_8).use { reader ->
+                YamlConfiguration.loadConfiguration(reader)
+            }
+        }.getOrNull()
+    }
+
+    private fun loadDisplayNamesYaml(yaml: YamlConfiguration?) {
+        if (yaml == null) {
+            return
+        }
+        yaml.getConfigurationSection("names")?.getKeys(false)?.forEach { key ->
+            val value = yaml.getString("names.$key")?.takeIf { it.isNotBlank() } ?: return@forEach
+            displayNames[displayLookupKey(key)] = value
+        }
+    }
+
+    private fun loadShopLocalizationYaml(yaml: YamlConfiguration?) {
+        if (yaml == null) {
+            return
+        }
+        yaml.getConfigurationSection("shop.text")?.let { collectShopTexts(it, "") }
+        yaml.getConfigurationSection("shop.categories")?.getKeys(false)?.forEach { key ->
+            val section = yaml.getConfigurationSection("shop.categories.$key") ?: return@forEach
+            val id = key.trim().lowercase(Locale.ROOT)
+            shopCategories[id] = ShopCategoryTextDefinition(
+                id = id,
+                display = section.getString("display", id) ?: id,
+                hint = section.getString("hint", id) ?: id,
+            )
+        }
+    }
+
+    private fun displayLookupKey(raw: String): String =
+        raw.trim().replace('-', '_').replace(' ', '_').uppercase(Locale.ROOT)
+
+    private fun collectShopTexts(section: ConfigurationSection, prefix: String) {
+        section.getKeys(false).forEach { key ->
+            val path = if (prefix.isBlank()) key else "$prefix.$key"
+            val nested = section.getConfigurationSection(key)
+            if (nested != null) {
+                collectShopTexts(nested, path)
+            } else {
+                val value = section.getString(key) ?: return@forEach
+                val normalized = value.replace("\\n", "\n")
+                shopTexts[path] = normalized
+                shopTexts["shop.$path"] = normalized
+            }
+        }
+    }
+
+    private companion object {
+        const val DEFAULT_LANGUAGE_PATH = "lang/zh_cn.yml"
+        const val DEFAULT_NAMES_PATH = "names.yml"
+        const val LEGACY_DISPLAY_NAMES_PATH = "display-names.yml"
+    }
+
+    private fun loadCollectionSettings() {
+        val yaml = YamlConfiguration.loadConfiguration(File(plugin.dataFolder, "config.yml"))
+        val root = yaml.getConfigurationSection("collection.categories")
+            ?: yaml.getConfigurationSection("codex.categories")
+        val categories = ArrayList<TitleCollectionCategoryDefinition>()
+        root?.getKeys(false)?.forEach { categoryId ->
+            val section = root.getConfigurationSection(categoryId) ?: return@forEach
+            categories += TitleCollectionCategoryDefinition(
+                id = categoryId,
+                display = section.getString("display", categoryId) ?: categoryId,
+                material = section.getString("material", "BOOK") ?: "BOOK",
+                completedMaterial = section.getString("completed-material")?.takeIf { it.isNotBlank() },
+                description = section.getStringList("description"),
+                productCategories = section.getStringList("product-categories")
+                    .map { it.trim().lowercase() }
+                    .filter(String::isNotBlank)
+                    .toSet(),
+                modes = section.getStringList("modes")
+                    .map(ShopProductMode::from)
+                    .toSet(),
+                tagIds = section.getStringList("tags").map(String::trim).filter(String::isNotBlank).toSet(),
+                rewardTagId = section.getString("reward-tag")?.takeIf { it.isNotBlank() },
+            )
+        }
+        collection = TitleCollectionSettings(categories)
+    }
+
     private fun loadTags() {
         tags.clear()
         rarityDisplays.clear()
@@ -283,6 +423,7 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
                 upgradeGroups = groups.toMutableList(),
                 permission = section.getString("permission")?.takeIf { it.isNotBlank() },
                 shop = parseTagShop(section.getConfigurationSection("shop")),
+                hidden = section.getBoolean("hidden", false),
             )
         }
         if (skippedLegacyCustomTags) {

@@ -44,6 +44,54 @@ sync:
     uri: "redis://127.0.0.1:6379"
     channel: "uptags:player-sync"
 
+collection:
+  categories:
+    challenge:
+      display: "挑战称号"
+      material: "DIAMOND_PICKAXE"
+      completed-material: "NETHER_STAR"
+      description:
+        - "&#94A3B8统计、探索、击杀、维度等挑战来源"
+      product-categories:
+        - "challenge"
+      modes:
+        - "CHALLENGE_CLAIM"
+      reward-tag: "challenge_collector"
+    exchange:
+      display: "兑换称号"
+      material: "CHEST"
+      completed-material: "ENDER_CHEST"
+      description:
+        - "&#94A3B8通过提交材料解锁的称号"
+      product-categories:
+        - "exchange"
+      modes:
+        - "ITEM_EXCHANGE"
+      reward-tag: "exchange_collector"
+    buy:
+      display: "购买称号"
+      material: "EMERALD"
+      completed-material: "EMERALD_BLOCK"
+      description:
+        - "&#94A3B8通过点券、金币或称号币购买"
+      product-categories:
+        - "buy"
+      modes:
+        - "BUY"
+      reward-tag: ""
+    limited:
+      display: "限定称号"
+      material: "NETHER_STAR"
+      completed-material: "BEACON"
+      description:
+        - "&#94A3B8赛季、活动、声望和特殊来源"
+      product-categories:
+        - "limited"
+      modes:
+        - "SEASONAL"
+        - "PRESTIGE"
+      reward-tag: "limited_collector"
+
 # PlaceholderAPI 变量说明（前缀统一为 %tags_...%）
 # %tags_current%
 # %tags_current_id%

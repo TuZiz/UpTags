@@ -69,6 +69,7 @@ class ShopServiceTest {
         val customTitleService = mockk<CustomTitleService>(relaxed = true)
         val economy = mockk<EconomyBridge>(relaxed = true)
         val messages = mockk<MessageService>(relaxed = true)
+        stubShopLocalization(config)
         val product = ShopProductDefinition(
             id = "cave_lighter",
             type = ShopProductType.TAG,
@@ -97,6 +98,7 @@ class ShopServiceTest {
         val economy = mockk<EconomyBridge>(relaxed = true)
         val messages = mockk<MessageService>(relaxed = true)
         val challenge = mockk<ChallengeProgressService>()
+        stubShopLocalization(config)
         val product = ShopProductDefinition(
             id = "diamond_vein_master",
             type = ShopProductType.TAG,
@@ -115,7 +117,45 @@ class ShopServiceTest {
 
         val service = ShopService(config, tagService, customTitleService, economy, messages, challenge, immediateScheduler())
 
-        assertEquals("挖掘深层钻石矿: 12/96 / 钻石: 3/16", service.requirementDisplay(player, product))
+        assertEquals("挖掘深层钻石矿: 12/96\n钻石: 3/16", service.requirementDisplay(player, product))
+    }
+
+    @Test
+    fun submitItemProgressCanUseIndexedLineTemplates() {
+        val player = mockk<Player>()
+        val inventory = mockk<PlayerInventory>()
+        val config = mockk<ConfigRegistry>()
+        val tagService = mockk<TagService>()
+        val customTitleService = mockk<CustomTitleService>(relaxed = true)
+        val economy = mockk<EconomyBridge>(relaxed = true)
+        val messages = mockk<MessageService>(relaxed = true)
+        stubShopLocalization(config)
+        every { config.shopText("shop.requirement.item-progress-1") } returns "第一行 %item% %current%/%required%"
+        every { config.shopText("shop.requirement.item-progress-2") } returns "第二行 %item% %current%/%required%"
+        val product = ShopProductDefinition(
+            id = "builder_pack",
+            type = ShopProductType.TAG,
+            targetId = "builder_pack",
+            enabled = true,
+            permission = null,
+            conditions = emptyList(),
+            cost = CostDefinition(),
+            submitItems = listOf(
+                SubmitItemDefinition("TORCH", 8),
+                SubmitItemDefinition("BREAD", 4),
+            ),
+            icon = ItemTemplate("NAME_TAG", "Builder Pack", emptyList()),
+        )
+
+        every { player.inventory } returns inventory
+        every { inventory.storageContents } returns arrayOf(
+            ItemStack(Material.TORCH, 3),
+            ItemStack(Material.BREAD, 1),
+        )
+
+        val service = ShopService(config, tagService, customTitleService, economy, messages, mockk(relaxed = true), immediateScheduler())
+
+        assertEquals("第一行 火把 3/8\n第二行 面包 1/4", service.requirementDisplay(player, product))
     }
 
     @Test
@@ -338,6 +378,7 @@ class ShopServiceTest {
         val customTitleService = mockk<CustomTitleService>(relaxed = true)
         val economy = mockk<EconomyBridge>(relaxed = true)
         val messages = mockk<MessageService>(relaxed = true)
+        stubShopLocalization(config)
         val product = ShopProductDefinition(
             id = "bread_guard",
             type = ShopProductType.TAG,
@@ -445,5 +486,47 @@ class ShopServiceTest {
             handle
         }
         return scheduler
+    }
+
+    private fun stubShopLocalization(config: ConfigRegistry) {
+        every { config.displayName(any()) } answers {
+            when (val raw = firstArg<String>().trim().uppercase()) {
+                "BREAD" -> "面包"
+                "DEEPSLATE_DIAMOND_ORE" -> "深层钻石矿"
+                "DIAMOND" -> "钻石"
+                "TORCH" -> "火把"
+                else -> raw
+            }
+        }
+        every { config.shopText(any()) } answers {
+            when (firstArg<String>()) {
+                "shop.requirement.separator" -> "\n"
+                "shop.requirement.inline-separator" -> ", "
+                "shop.requirement.empty" -> "完成后领取"
+                "shop.requirement.conditions" -> "完成条件"
+                "shop.challenge.deep-dark-stay" -> "深暗停留"
+                "shop.challenge.advancement" -> "完成进度"
+                else -> firstArg<String>()
+            }
+        }
+        every { config.shopText(any(), any<Map<String, String>>()) } answers {
+            val pattern = when (firstArg<String>()) {
+                "shop.requirement.price" -> "%amount% %currency%"
+                "shop.requirement.item" -> "%amount%x %item%"
+                "shop.requirement.item-progress" -> "%item%: %current%/%required%"
+                "shop.requirement.progress" -> "%name%: %current%/%required%"
+                "shop.challenge.mine" -> "挖掘%target%"
+                "shop.challenge.collect" -> "收集%target%"
+                "shop.challenge.biome" -> "到达%target%"
+                "shop.challenge.world" -> "进入%target%"
+                "shop.challenge.kill" -> "击杀%target%"
+                "shop.challenge.height" -> "%target%高度"
+                "shop.challenge.default" -> "完成%target%"
+                else -> firstArg<String>()
+            }
+            secondArg<Map<String, String>>().entries.fold(pattern) { text, (key, value) ->
+                text.replace("%$key%", value)
+            }
+        }
     }
 }

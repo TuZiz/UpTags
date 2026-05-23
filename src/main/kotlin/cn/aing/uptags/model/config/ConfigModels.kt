@@ -70,6 +70,28 @@ data class PluginSettings(
     val disableBuffsInPvp: Boolean = false,
 )
 
+data class TitleCollectionSettings(
+    val categories: List<TitleCollectionCategoryDefinition> = emptyList(),
+)
+
+data class TitleCollectionCategoryDefinition(
+    val id: String,
+    val display: String,
+    val material: String,
+    val completedMaterial: String? = null,
+    val description: List<String>,
+    val productCategories: Set<String> = emptySet(),
+    val modes: Set<ShopProductMode> = emptySet(),
+    val tagIds: Set<String> = emptySet(),
+    val rewardTagId: String? = null,
+)
+
+data class ShopCategoryTextDefinition(
+    val id: String,
+    val display: String,
+    val hint: String,
+)
+
 data class DetachSettings(
     val enabled: Boolean,
     val buff: DetachCostSettings,
@@ -96,6 +118,7 @@ data class TagDefinition(
     var upgradeGroups: MutableList<String>,
     var permission: String? = null,
     var shop: TagShopDefinition? = null,
+    var hidden: Boolean = false,
 )
 
 data class TagShopDefinition(

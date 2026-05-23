@@ -144,6 +144,39 @@ class MenuService(
         player.openInventory(session.inventory)
     }
 
+    fun openCollection(player: Player) {
+        if (!ensureLoaded(player)) return
+        val layout = config.collectionLayout
+        val summary = tagService.collectionSummary(player)
+        val session = createSession(MenuType.COLLECTION, layout, 0, null, null)
+        fillStatic(player, layout, session, 0, summary.categories.size)
+        val slots = layout.entrySlots()
+        summary.categories.take(slots.size).forEachIndexed { index, category ->
+            val template = layout.templates["category"] ?: return@forEachIndexed
+            val rewardName = category.rewardTagId?.let(tagService::tagName) ?: "无"
+            val placeholders = linkedMapOf(
+                "category_name" to category.display,
+                "category_description" to category.description.joinToString("\n"),
+                "category_owned" to category.owned.toString(),
+                "category_total" to category.total.toString(),
+                "category_percent" to Support.formatDouble(category.percent),
+                "category_state" to if (category.completed) "已完成" else "收集中",
+                "category_reward" to rewardName,
+                "category_reward_state" to when {
+                    category.rewardTagId == null -> "无隐藏奖励"
+                    category.rewardOwned -> "已领取"
+                    category.completed -> "已自动领取"
+                    else -> "集齐后自动发放"
+                },
+            )
+            session.inventory.setItem(
+                slots[index],
+                Support.createItem(category.displayMaterial, template.name, template.lore, placeholders, category.completed),
+            )
+        }
+        player.openInventory(session.inventory)
+    }
+
     fun openAdminWarehouse(admin: Player, target: OfflinePlayer, page: Int) {
         openAdminWarehouse(admin, target.uniqueId, playerNameService.label(target), page)
     }
@@ -321,7 +354,7 @@ class MenuService(
             }
         }
         return products.joinToString("\n") { product ->
-            "&#FDE047获取方式: &#F8FAFC${productModeDisplay(product)} - ${acquisitionRequirement(product)}"
+            "&#FDE047获取方式: &#F8FAFC${productModeDisplay(product)}"
         }
     }
 
@@ -499,7 +532,6 @@ class MenuService(
                 "NAME_TAG",
                 "&#60A5FA管理 &#F8FAFC%tag_display%",
                 listOf(
-                    "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━",
                     " &#E2E8F0目标玩家: &#FDE047%target_name%",
                     " &#E2E8F0当前状态: &#F8FAFC%tag_state%",
                     "%tag_description%",
@@ -512,7 +544,6 @@ class MenuService(
                     "",
                     " &#A7F3D0%admin_left_action%",
                     " &#FDBA74%admin_right_action%",
-                    "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━",
                 ),
                 emptyList(),
             )
@@ -521,7 +552,6 @@ class MenuService(
                 "BARRIER",
                 "&#94A3B8未授予 &#F8FAFC%tag_display%",
                 listOf(
-                    "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━",
                     " &#E2E8F0目标玩家: &#FDE047%target_name%",
                     "%tag_description%",
                     "",
@@ -529,7 +559,6 @@ class MenuService(
                     " &#F87171当前状态: %tag_state%",
                     " &#A7F3D0%admin_left_action%",
                     " &#94A3B8%admin_right_action%",
-                    "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━",
                 ),
                 emptyList(),
             )
@@ -589,6 +618,7 @@ class MenuService(
                 val placeholders = when {
                     function.equals("custom", true) -> customMenus.customButtonPlaceholders(player)
                     function.equals("detach", true) -> effectMenus.detachButtonPlaceholders(player, session)
+                    function.equals("collection-summary", true) -> collectionSummaryPlaceholders(player)
                     else -> emptyMap()
                 }
                 when {
@@ -613,6 +643,7 @@ class MenuService(
                             session.actions[slot] = { openShop(player, 0) }
                         }
                     }
+                    function.equals("collection", true) -> session.actions[slot] = { openCollection(player) }
                     function.equals("back", true) -> session.actions[slot] = { goBack(player, session) }
                     function.equals("custom", true) -> session.actions[slot] = { startCustomTitleFlow(player) }
                     function.equals("detach", true) -> {
@@ -643,6 +674,19 @@ class MenuService(
         customMenus.startFlow(player)
     }
 
+    private fun collectionSummaryPlaceholders(player: Player): Map<String, String> {
+        val summary = tagService.collectionSummary(player)
+        val completed = summary.categories.count { it.completed }
+        return linkedMapOf(
+            "collection_owned" to summary.owned.toString(),
+            "collection_total" to summary.total.toString(),
+            "collection_percent" to Support.formatDouble(summary.percent),
+            "collection_custom_owned" to summary.customOwned.toString(),
+            "collection_category_completed" to completed.toString(),
+            "collection_category_total" to summary.categories.size.toString(),
+        )
+    }
+
     private fun templateItem(
         template: GuiTemplate?,
         placeholders: Map<String, String>,
@@ -658,9 +702,11 @@ class MenuService(
             val targetName = session.adminTargetName ?: adminTargetId.toString()
             when (session.type) {
                 MenuType.WAREHOUSE -> openAdminWarehouse(player, adminTargetId, targetName, page)
+                MenuType.COLLECTION -> openWarehouse(player, 0)
                 MenuType.UPGRADE -> openAdminUpgrade(player, adminTargetId, targetName, session.tagId ?: return, page)
                 MenuType.DETACH -> openAdminDetach(player, adminTargetId, targetName, session.tagId ?: return, page)
                 MenuType.SHOP,
+                MenuType.COLLECTION,
                 MenuType.SCROLL_SELECT,
                 MenuType.CUSTOM_CURRENCY,
                 MenuType.CUSTOM_TITLE_COLOR,
@@ -673,6 +719,7 @@ class MenuService(
         }
         when (session.type) {
             MenuType.WAREHOUSE -> openWarehouse(player, page)
+            MenuType.COLLECTION -> openCollection(player)
             MenuType.SHOP -> openShop(player, page, session.tagId ?: ShopMenuService.DEFAULT_CATEGORY_ID)
             MenuType.UPGRADE -> openUpgrade(player, session.tagId ?: return, page)
             MenuType.DETACH -> openDetach(player, session.tagId ?: return, page)
@@ -695,6 +742,7 @@ class MenuService(
                 MenuType.DETACH -> openAdminUpgrade(player, adminTargetId, targetName, session.tagId ?: return, 0)
                 MenuType.WAREHOUSE -> player.closeInventory()
                 MenuType.SHOP,
+                MenuType.COLLECTION,
                 MenuType.SCROLL_SELECT,
                 MenuType.CUSTOM_CURRENCY,
                 MenuType.CUSTOM_TITLE_COLOR,
@@ -706,6 +754,7 @@ class MenuService(
         when (session.type) {
             MenuType.UPGRADE,
             MenuType.SHOP,
+            MenuType.COLLECTION,
             MenuType.CUSTOM_CURRENCY,
             MenuType.CUSTOM_TITLE_COLOR,
             MenuType.CUSTOM_TITLE_GROUP,

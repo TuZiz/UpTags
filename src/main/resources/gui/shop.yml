@@ -1,126 +1,142 @@
-Title: "&#C4B5FD&l✨ &#A78BFA称号商店 &#C4B5FD&l| &#E2E8F0Title Shop"
+Title: "&#C4B5FD&l✨ &#A78BFA称号商店 &#C4B5FD&l✨"
 GuiPlain:
-  - "X#HTIPS#X"
-  - "#@@@@@@@#"
-  - "#@@@@@@@#"
-  - "#@@@@@@@#"
-  - "#@@@@@@@#"
-  - "L#XCXBX#N"
+  - "XHXXXXXXC"
+  - "T@@@@@@@#"
+  - "I@@@@@@@#"
+  - "P@@@@@@@#"
+  - "S@@@@@@@#"
+  - "LXXXBXXXN"
+
 GuiKey:
   "@":
     IconFunction: "item"
   "#":
     Material: "BLACK_STAINED_GLASS_PANE"
-    Name: " "
+    Name: "&r"
   "X":
     Material: "GRAY_STAINED_GLASS_PANE"
-    Name: " "
+    Name: "&r"
+
   "C":
     IconFunction: "custom"
-    Material: "BOOK"
-    Name: "&#FF8FD8&l✦ &#FFA6F0自定义称号 &#FF8FD8&l✦"
+    Material: "KNOWLEDGE_BOOK"
+    Name: "&#FF8FD8&l✦ &#FFA6F0高级定制 · 专属称号 &#FF8FD8&l✦"
     Lore:
-      - "&#475569&m━━━━━━━━━━━━━━━━━━━━━━━━"
+      - "&#8892B0&m                               "
       - "&#E2E8F0%custom_entry_hint%"
       - "&#E2E8F0%custom_price_summary%"
       - "&#E2E8F0%custom_flow_summary%"
-      - ""
-      - "&#A7F3D0▶ 点击开始定制专属称号"
-      - "&#475569&m━━━━━━━━━━━━━━━━━━━━━━━━"
+      - "&#8892B0&m                               "
+      - "&#A7F3D0► [点击] 开始定制你的专属称号"
+
   "H":
     IconFunction: "shop-category:featured"
     Material: "COMPASS"
-    Name: "&#A7F3D0&l❖ &#F8FAFC%category_name% &#A7F3D0&l❖"
+    Name: "&#A7F3D0&l✦ &#BBF7D0本周精选推荐 &#A7F3D0&l✦"
     Lore:
-      - "&#475569&m━━━━━━━━━━━━━━━━━━━━━━━━"
+      - "&#8892B0&m                               "
       - "&#E2E8F0%category_hint%"
       - ""
-      - "&#94A3B8▪ &#E2E8F0可见商品: &#FDE047%category_count% &#E2E8F0件"
-      - "&#94A3B8▪ &#E2E8F0浏览状态: %category_state%"
-      - "&#475569&m━━━━━━━━━━━━━━━━━━━━━━━━"
+      - "&#94A3B8▪ &#E2E8F0在售商品: &#FDE047%category_count% &#E2E8F0件"
+      - "&#94A3B8▪ &#E2E8F0当前状态: %category_state%"
+      - "&#8892B0&m                               "
+      - "&#A7F3D0► [点击] 浏览该分类"
+
   "T":
     IconFunction: "shop-category:challenge"
     Material: "DIAMOND_PICKAXE"
-    Name: "&#60A5FA&l❖ &#F8FAFC%category_name% &#60A5FA&l❖"
+    Name: "&#60A5FA&l✦ &#BFDBFE硬核挑战称号 &#60A5FA&l✦"
     Lore:
-      - "&#475569&m━━━━━━━━━━━━━━━━━━━━━━━━"
+      - "&#8892B0&m                               "
       - "&#E2E8F0%category_hint%"
       - ""
-      - "&#94A3B8▪ &#E2E8F0可见商品: &#FDE047%category_count% &#E2E8F0件"
-      - "&#94A3B8▪ &#E2E8F0浏览状态: %category_state%"
-      - "&#475569&m━━━━━━━━━━━━━━━━━━━━━━━━"
+      - "&#94A3B8▪ &#E2E8F0在售商品: &#FDE047%category_count% &#E2E8F0件"
+      - "&#94A3B8▪ &#E2E8F0当前状态: %category_state%"
+      - "&#8892B0&m                               "
+      - "&#60A5FA► [点击] 浏览该分类"
+
   "I":
     IconFunction: "shop-category:exchange"
-    Material: "CHEST"
-    Name: "&#86EFAC&l❖ &#F8FAFC%category_name% &#86EFAC&l❖"
+    Material: "ENDER_CHEST"
+    Name: "&#86EFAC&l✦ &#BBF7D0物资兑换称号 &#86EFAC&l✦"
     Lore:
-      - "&#475569&m━━━━━━━━━━━━━━━━━━━━━━━━"
+      - "&#8892B0&m                               "
       - "&#E2E8F0%category_hint%"
       - ""
-      - "&#94A3B8▪ &#E2E8F0可见商品: &#FDE047%category_count% &#E2E8F0件"
-      - "&#94A3B8▪ &#E2E8F0浏览状态: %category_state%"
-      - "&#475569&m━━━━━━━━━━━━━━━━━━━━━━━━"
+      - "&#94A3B8▪ &#E2E8F0在售商品: &#FDE047%category_count% &#E2E8F0件"
+      - "&#94A3B8▪ &#E2E8F0当前状态: %category_state%"
+      - "&#8892B0&m                               "
+      - "&#86EFAC► [点击] 浏览该分类"
+
   "P":
     IconFunction: "shop-category:buy"
     Material: "EMERALD"
-    Name: "&#FDE047&l❖ &#F8FAFC%category_name% &#FDE047&l❖"
+    Name: "&#FDE047&l✦ &#FEF08A直购精美称号 &#FDE047&l✦"
     Lore:
-      - "&#475569&m━━━━━━━━━━━━━━━━━━━━━━━━"
+      - "&#8892B0&m                               "
       - "&#E2E8F0%category_hint%"
       - ""
-      - "&#94A3B8▪ &#E2E8F0可见商品: &#FDE047%category_count% &#E2E8F0件"
-      - "&#94A3B8▪ &#E2E8F0浏览状态: %category_state%"
-      - "&#475569&m━━━━━━━━━━━━━━━━━━━━━━━━"
+      - "&#94A3B8▪ &#E2E8F0在售商品: &#FDE047%category_count% &#E2E8F0件"
+      - "&#94A3B8▪ &#E2E8F0当前状态: %category_state%"
+      - "&#8892B0&m                               "
+      - "&#FDE047► [点击] 浏览该分类"
+
   "S":
     IconFunction: "shop-category:limited"
     Material: "NETHER_STAR"
-    Name: "&#FF8FD8&l❖ &#F8FAFC%category_name% &#FF8FD8&l❖"
+    Name: "&#FF8FD8&l✦ &#FFA6F0绝版限定称号 &#FF8FD8&l✦"
     Lore:
-      - "&#475569&m━━━━━━━━━━━━━━━━━━━━━━━━"
+      - "&#8892B0&m                               "
       - "&#E2E8F0%category_hint%"
       - ""
-      - "&#94A3B8▪ &#E2E8F0可见商品: &#FDE047%category_count% &#E2E8F0件"
-      - "&#94A3B8▪ &#E2E8F0浏览状态: %category_state%"
-      - "&#475569&m━━━━━━━━━━━━━━━━━━━━━━━━"
+      - "&#94A3B8▪ &#E2E8F0在售商品: &#FDE047%category_count% &#E2E8F0件"
+      - "&#94A3B8▪ &#E2E8F0当前状态: %category_state%"
+      - "&#8892B0&m                               "
+      - "&#FF8FD8► [点击] 浏览该分类"
+
   "B":
     IconFunction: "back"
-    Material: "BARRIER"
-    Name: "&#F87171&l[✖] &#FCA5A5返回仓库"
+    Material: "DARK_OAK_DOOR"
+    Name: "&#F87171&l[ ✖ ] &#FCA5A5返回仓库"
+
   "L":
     IconFunction: "last"
     has:
-      Material: "ARROW"
-      Name: "&#FDE047&l[←] &#FEF08A上一页"
+      Material: "SPECTRAL_ARROW"
+      Name: "&#FDE047&l« &#FEF08A上一页"
     normal:
       Material: "GRAY_STAINED_GLASS_PANE"
-      Name: "&#64748B&l[←] &#94A3B8已经是第一页"
+      Name: "&#64748B&l« &#94A3B8已是第一页"
+
   "N":
     IconFunction: "next"
     has:
-      Material: "ARROW"
-      Name: "&#FDE047&l[→] &#FEF08A下一页"
+      Material: "SPECTRAL_ARROW"
+      Name: "&#FDE047&l» &#FEF08A下一页"
     normal:
       Material: "GRAY_STAINED_GLASS_PANE"
-      Name: "&#64748B&l[→] &#94A3B8已经是最后一页"
+      Name: "&#64748B&l» &#94A3B8已是最后一页"
 
 templates:
   product-available:
     material: "NAME_TAG"
-    name: "%product_name%"
+    name: "&#FDE047✨ %product_name% &#FDE047✨"
     lore:
-      - "&#475569&m━━━━━━━━━━━━━━━━━━━━━━━━"
+      - "&#8892B0&m                               "
       - "%product_lore%"
-      - ""
-      - "&#94A3B8▪ &#E2E8F0解锁需求: &#FDE047%product_requirement%"
-      - ""
-      - "&#A7F3D0▶ 左键点击解锁"
-      - "&#475569&m━━━━━━━━━━━━━━━━━━━━━━━━"
+      - "&#8892B0&m                               "
+      - "&#94A3B8▪ &#E2E8F0解锁条件"
+      - "%product_requirement%"
+      - "&#8892B0&m                               "
+      - "&#A7F3D0► [左键] 立即解锁此称号"
+      - "&#8892B0&m                               "
+
   product-locked:
     material: "BARRIER"
-    name: "%product_name%"
+    name: "&#7F1D1D✖ &#991B1B%product_name%"
     lore:
-      - "&#475569&m━━━━━━━━━━━━━━━━━━━━━━━━"
+      - "&#8892B0&m                               "
       - "%product_lore%"
-      - ""
-      - "&#F87171✖ 当前不可解锁 (未满足条件)"
-      - "&#475569&m━━━━━━━━━━━━━━━━━━━━━━━━"
+      - "&#8892B0&m                               "
+      - "&#F87171⚠ 当前不可解锁 (未满足条件)"
+      - "&#8892B0&m                               "

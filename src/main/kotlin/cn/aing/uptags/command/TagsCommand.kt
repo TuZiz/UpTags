@@ -68,6 +68,7 @@ class TagsCommand(
             "unequip" -> handleUnequip(sender)
             "upgrade" -> handleUpgrade(sender, args)
             "shop" -> handleShop(sender)
+            "collection", "codex" -> handleCollection(sender)
             "custom" -> customCommand.handle(sender, args)
             "create" -> handleQuickCreate(sender, args)
             "admin" -> adminCommand.handle(sender, args)
@@ -176,6 +177,18 @@ class TagsCommand(
             return true
         }
         context.menuService.openShop(player, 0)
+        return true
+    }
+
+    private fun handleCollection(sender: CommandSender): Boolean {
+        val player = sender as? Player ?: run {
+            context.messageService.send(sender, "player-only")
+            return true
+        }
+        if (!context.requireUse(sender)) {
+            return true
+        }
+        context.menuService.openCollection(player)
         return true
     }
 

@@ -94,12 +94,15 @@ internal class ShopMenuService(
                 val category = categoryFromKey(key) ?: return@forEachIndexed
                 val template = key.base ?: return@forEachIndexed
                 val count = products.count(category::matches)
-                val selectedText = if (category == selected) "&#A7F3D0当前分类" else "&#94A3B8点击切换"
+                val categoryText = config.shopCategory(category.id)
+                val selectedText = config.shopText(
+                    if (category == selected) "shop.category.selected" else "shop.category.switch",
+                )
                 val placeholders = mapOf(
-                    "category_name" to category.display,
+                    "category_name" to categoryText.display,
                     "category_count" to count.toString(),
                     "category_state" to selectedText,
-                    "category_hint" to category.hint,
+                    "category_hint" to categoryText.hint,
                 )
                 session.inventory.setItem(
                     slot,
@@ -127,32 +130,22 @@ internal class ShopMenuService(
 
 private enum class ShopCategory(
     val id: String,
-    val display: String,
-    val hint: String,
     private val predicate: (ShopProductDefinition) -> Boolean,
 ) {
     FEATURED(
         "featured",
-        "首页",
-        "只显示未归入分类的常驻商品；更多称号请先选择上方分类",
         { product -> product.category.isNullOrBlank() },
     ),
     CHALLENGE(
         "challenge",
-        "挑战",
-        "统计、维度、群系、击杀、挖掘等挑战领取",
         { product -> product.category.equals("challenge", ignoreCase = true) || product.category.isNullOrBlank() && product.mode == ShopProductMode.CHALLENGE_CLAIM },
     ),
     EXCHANGE(
         "exchange",
-        "兑换",
-        "提交物品兑换称号",
         { product -> product.category.equals("exchange", ignoreCase = true) || product.category.isNullOrBlank() && product.mode == ShopProductMode.ITEM_EXCHANGE },
     ),
     BUY(
         "buy",
-        "购买",
-        "消耗点券、金币或称号币购买",
         {
             product -> product.category.equals("buy", ignoreCase = true) ||
                 product.category.isNullOrBlank() && product.mode == ShopProductMode.BUY && product.cost.priceForLevel(1) > 0.0
@@ -160,8 +153,6 @@ private enum class ShopCategory(
     ),
     LIMITED(
         "limited",
-        "限定",
-        "季节活动、声望与特殊条件商品",
         {
             product -> product.category.equals("limited", ignoreCase = true) ||
                 product.category.isNullOrBlank() && (product.mode == ShopProductMode.SEASONAL || product.mode == ShopProductMode.PRESTIGE)

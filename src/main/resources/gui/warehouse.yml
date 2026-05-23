@@ -1,11 +1,11 @@
-Title: "&#A78BFA称号&#C4B5FD仓库"
+﻿Title: "&#A78BFA称号&#C4B5FD仓库"
 GuiPlain:
   - "X#######X"
   - "#@@@@@@@#"
   - "#@@@@@@@#"
   - "#@@@@@@@#"
   - "#@@@@@@@#"
-  - "L#S#B#N#"
+  - "L#S#D#B#N"
 GuiKey:
   "@":
     IconFunction: "item"
@@ -19,6 +19,15 @@ GuiKey:
     IconFunction: "shop"
     Material: "EMERALD"
     Name: "&#FDE047打开商店"
+  "D":
+    IconFunction: "collection"
+    Material: "WRITABLE_BOOK"
+    Name: "&#A7F3D0称号图鉴"
+    Lore:
+      - "&#94A3B8查看你的称号收藏进度"
+      - "&#94A3B8包含各分类完成度与隐藏奖励"
+      - ""
+      - "&#A7F3D0点击打开"
   "B":
     IconFunction: "back"
     Material: "BARRIER"
@@ -48,7 +57,6 @@ templates:
     material: "NAME_TAG"
     name: "&#C4B5FD已拥有 &#F8FAFC%tag_display%"
     lore:
-      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
       - "%tag_description%"
       - ""
       - " %tag_acquisition%"
@@ -58,14 +66,12 @@ templates:
       - " %tag_particle_summary%"
       - ""
       - " &#A7F3D0左键佩戴这个称号"
-      - " &#FDBA74右键打开强化 / 卷轴使用页"
-      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
+      - " &#FDBA74右键打开强化"
 
   tag-locked:
     material: "BARRIER"
     name: "&#94A3B8未解锁 &#F8FAFC%tag_display%"
     lore:
-      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
       - "%tag_description%"
       - ""
       - " %tag_acquisition%"
@@ -73,13 +79,11 @@ templates:
       - " &#E2E8F0稀有度: &#F8FAFC%tag_rarity%"
       - " &#F87171当前状态: 未获得"
       - " &#94A3B8获取后才能升级 Buff 与粒子"
-      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
 
   admin-tag-owned:
     material: "NAME_TAG"
     name: "&#60A5FA管理 &#F8FAFC%tag_display%"
     lore:
-      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
       - " &#E2E8F0目标玩家: &#FDE047%target_name%"
       - " &#E2E8F0当前状态: &#F8FAFC%tag_state%"
       - "%tag_description%"
@@ -92,13 +96,11 @@ templates:
       - ""
       - " &#A7F3D0%admin_left_action%"
       - " &#FDBA74%admin_right_action%"
-      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
 
   admin-tag-locked:
     material: "BARRIER"
     name: "&#94A3B8未授予 &#F8FAFC%tag_display%"
     lore:
-      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
       - " &#E2E8F0目标玩家: &#FDE047%target_name%"
       - "%tag_description%"
       - ""
@@ -108,7 +110,6 @@ templates:
       - " &#F87171当前状态: %tag_state%"
       - " &#A7F3D0%admin_left_action%"
       - " &#94A3B8%admin_right_action%"
-      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
 
   admin-unequip-button:
     material: "SHEARS"

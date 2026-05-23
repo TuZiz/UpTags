@@ -1,4 +1,4 @@
-Title: "&#FF8FD8卷轴选择 &8| &#E2E8F0选择称号"
+﻿Title: "&#FF8FD8卷轴选择 &8| &#E2E8F0选择称号"
 GuiPlain:
   - "X#######X"
   - "#@@@@@@@#"
@@ -20,9 +20,7 @@ GuiKey:
     Material: "BARRIER"
     Name: "&#F87171关闭菜单"
     Lore:
-      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
       - " &#E2E8F0返回并保留手上的卷轴"
-      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
   "L":
     IconFunction: "last"
     has:
@@ -45,11 +43,9 @@ templates:
     material: "NAME_TAG"
     name: "&#F8FAFC%tag_display%"
     lore:
-      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"
       - " &#E2E8F0称号名称: &#F8FAFC%tag_name%"
       - " &#E2E8F0卷轴类型: &#FDE68A%scroll_type%"
       - " &#E2E8F0目标内容: &#F8FAFC%scroll_target%"
       - " &#E2E8F0卷轴等级: &#FDE047%scroll_level%"
       - ""
       - " &#A7F3D0左键对这个称号使用卷轴"
-      - "&#64748B&m━━━━━━━━━━━━━━━━━━━━━━━━"

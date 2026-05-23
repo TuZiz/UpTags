@@ -48,7 +48,6 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach 
 
 tasks.processResources {
     filteringCharset = "UTF-8"
-    exclude("lang/**")
     filesMatching("plugin.yml") {
         expand(mapOf("version" to project.version))
     }

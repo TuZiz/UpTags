@@ -11,6 +11,9 @@ import cn.aing.uptags.model.config.CurrencyType
 import cn.aing.uptags.model.config.ParticleDefinition
 import cn.aing.uptags.model.config.TagDefinition
 import cn.aing.uptags.model.runtime.CustomTitleData
+import cn.aing.uptags.model.config.TitleCollectionCategoryDefinition
+import cn.aing.uptags.model.runtime.CollectionCategoryProgress
+import cn.aing.uptags.model.runtime.CollectionSummaryProgress
 import cn.aing.uptags.model.runtime.PlayerTagData
 import cn.aing.uptags.model.runtime.PurchaseOrderData
 import cn.aing.uptags.model.runtime.ScrollKind
@@ -105,6 +108,124 @@ class TagService(
             ensureProgress(definition, data)
         }
         return unlocked
+    }
+
+    fun collectionSummary(player: Player): CollectionSummaryProgress {
+        preparePlayer(player, false)
+        val data = data(player)
+        grantCompletedCollectionRewards(data)
+        repository.saveAsync(data)
+        return collectionSummary(data)
+    }
+
+    fun collectionSummary(uniqueId: UUID): CollectionSummaryProgress = collectionSummary(data(uniqueId))
+
+    private fun collectionSummary(data: PlayerTagData): CollectionSummaryProgress {
+        val visibleTags = config.tags.values.filterNot { it.hidden }
+        val categories = collectionCategories(data)
+        return CollectionSummaryProgress(
+            owned = visibleTags.count { it.id in data.ownedTags },
+            total = visibleTags.size,
+            customOwned = data.customTitles.size,
+            categories = categories,
+        )
+    }
+
+    private fun collectionCategories(data: PlayerTagData): List<CollectionCategoryProgress> {
+        val configured = config.collection.categories
+        val categories = if (configured.isNotEmpty()) configured else defaultCollectionCategories()
+        return categories.map { category ->
+            val tagIds = categoryTagIds(category)
+            val owned = tagIds.count { it in data.ownedTags }
+            CollectionCategoryProgress(
+                id = category.id,
+                display = category.display,
+                material = category.material,
+                completedMaterial = category.completedMaterial,
+                description = category.description,
+                owned = owned,
+                total = tagIds.size,
+                rewardTagId = category.rewardTagId,
+                rewardOwned = category.rewardTagId?.let { it in data.ownedTags } ?: false,
+            )
+        }
+    }
+
+    private fun grantCompletedCollectionRewards(data: PlayerTagData): Int {
+        var granted = 0
+        val categories = if (config.collection.categories.isNotEmpty()) config.collection.categories else defaultCollectionCategories()
+        for (category in categories) {
+            val rewardId = category.rewardTagId?.takeIf { it.isNotBlank() } ?: continue
+            val reward = config.tags[rewardId] ?: continue
+            if (reward.id in data.ownedTags) continue
+            val tagIds = categoryTagIds(category)
+            if (tagIds.isNotEmpty() && tagIds.all { it in data.ownedTags }) {
+                data.ownedTags += reward.id
+                ensureProgress(reward, data)
+                granted++
+            }
+        }
+        return granted
+    }
+
+    private fun categoryTagIds(category: TitleCollectionCategoryDefinition): Set<String> {
+        val ids = LinkedHashSet<String>()
+        ids += category.tagIds.filter { config.tags[it]?.hidden != true }
+        config.shopProducts.values.forEach { product ->
+            val tag = config.tags[product.targetId] ?: return@forEach
+            if (tag.hidden) return@forEach
+            val productCategory = product.category?.trim()?.lowercase().orEmpty()
+            val matchesCategory = productCategory.isNotBlank() && productCategory in category.productCategories
+            val matchesMode = product.mode in category.modes
+            if (matchesCategory || matchesMode) {
+                ids += tag.id
+            }
+        }
+        return ids
+    }
+
+    private fun defaultCollectionCategories(): List<TitleCollectionCategoryDefinition> {
+        return listOf(
+            TitleCollectionCategoryDefinition(
+                id = "challenge",
+                display = "挑战称号",
+                material = "DIAMOND_PICKAXE",
+                completedMaterial = "NETHER_STAR",
+                description = listOf("统计、探索、击杀、维度等挑战来源"),
+                productCategories = setOf("challenge"),
+                modes = setOf(cn.aing.uptags.model.config.ShopProductMode.CHALLENGE_CLAIM),
+            ),
+            TitleCollectionCategoryDefinition(
+                id = "exchange",
+                display = "兑换称号",
+                material = "CHEST",
+                completedMaterial = "ENDER_CHEST",
+                description = listOf("通过提交材料解锁的称号"),
+                productCategories = setOf("exchange"),
+                modes = setOf(cn.aing.uptags.model.config.ShopProductMode.ITEM_EXCHANGE),
+            ),
+            TitleCollectionCategoryDefinition(
+                id = "buy",
+                display = "购买称号",
+                material = "EMERALD",
+                completedMaterial = "EMERALD_BLOCK",
+                description = listOf("通过点券、金币或称号币购买"),
+                productCategories = setOf("buy"),
+                modes = setOf(cn.aing.uptags.model.config.ShopProductMode.BUY),
+            ),
+            TitleCollectionCategoryDefinition(
+                id = "limited",
+                display = "限定称号",
+                material = "NETHER_STAR",
+                completedMaterial = "BEACON",
+                description = listOf("赛季、活动、声望和特殊来源"),
+                productCategories = setOf("limited"),
+                modes = setOf(
+                    cn.aing.uptags.model.config.ShopProductMode.SEASONAL,
+                    cn.aing.uptags.model.config.ShopProductMode.PRESTIGE,
+                ),
+            ),
+        )
     }
 
     private fun hasPermissionTag(player: Player, definition: TagDefinition): Boolean {

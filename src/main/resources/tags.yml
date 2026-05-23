@@ -211,6 +211,33 @@ tags:
     default-unlocked: false
     upgrade-groups:
       - PRESTIGE
+  challenge_collector:
+    display: '&#94A3B8[&#A7F3D0挑战全勤者&#94A3B8]'
+    description:
+      - '&#94A3B8▪ 完成全部挑战类称号后的隐藏纪念称号。'
+    rarity: EPIC
+    default-unlocked: false
+    hidden: true
+    upgrade-groups:
+      - ADVENTURE
+  exchange_collector:
+    display: '&#94A3B8[&#FDE68A收藏仓管员&#94A3B8]'
+    description:
+      - '&#94A3B8▪ 集齐全部兑换类称号后的隐藏纪念称号。'
+    rarity: EPIC
+    default-unlocked: false
+    hidden: true
+    upgrade-groups:
+      - COMMON
+  limited_collector:
+    display: '&#94A3B8[&#FF8FD8限定追忆者&#94A3B8]'
+    description:
+      - '&#94A3B8▪ 收集限定与声望称号后的隐藏纪念称号。'
+    rarity: LIMITED
+    default-unlocked: false
+    hidden: true
+    upgrade-groups:
+      - SEASONAL
   dragon_relic_hunter:
     display: '&#94A3B8[&#D8B4FE龙息遗珍猎手&#94A3B8]'
     description:

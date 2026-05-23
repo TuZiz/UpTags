@@ -34,6 +34,37 @@ data class TitleEntry(
     val kind: TitleKind,
 )
 
+data class CollectionCategoryProgress(
+    val id: String,
+    val display: String,
+    val material: String,
+    val completedMaterial: String?,
+    val description: List<String>,
+    val owned: Int,
+    val total: Int,
+    val rewardTagId: String?,
+    val rewardOwned: Boolean,
+) {
+    val completed: Boolean
+        get() = total > 0 && owned >= total
+
+    val percent: Double
+        get() = if (total <= 0) 0.0 else owned * 100.0 / total
+
+    val displayMaterial: String
+        get() = if (completed) completedMaterial?.takeIf(String::isNotBlank) ?: material else material
+}
+
+data class CollectionSummaryProgress(
+    val owned: Int,
+    val total: Int,
+    val customOwned: Int,
+    val categories: List<CollectionCategoryProgress>,
+) {
+    val percent: Double
+        get() = if (total <= 0) 0.0 else owned * 100.0 / total
+}
+
 data class ScrollSelectionContext(
     val scrollKey: String,
     val kind: ScrollKind,

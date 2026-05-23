@@ -1,0 +1,46 @@
+﻿Title: "&#34D399&l✨ 称号图鉴 &#94A3B8| &#F8FAFC收藏进度"
+GuiPlain:
+  - "####S####"
+  - "#@@@@@@@#"
+  - "#@@@@@@@#"
+  - "#@@@@@@@#"
+  - "####B####"
+GuiKey:
+  "@":
+    IconFunction: "item"
+  "#":
+    Material: "BLACK_STAINED_GLASS_PANE"
+    Name: "&f"
+  "S":
+    IconFunction: "collection-summary"
+    Material: "KNOWLEDGE_BOOK"
+    Name: "&#A7F3D0&l✦ 个人收藏总览 ✦"
+    Lore:
+      - "&#E2E8F0▪ &f已拥有称号: &#FDE047%collection_owned% &#94A3B8/ &#F8FAFC%collection_total%"
+      - "&#E2E8F0▪ &f总收集进度: &#34D399&l%collection_percent%%"
+      - "&#E2E8F0▪ &f自定义称号: &#C4B5FD%collection_custom_owned% &#94A3B8个"
+      - ""
+      - "&#E2E8F0▪ &f已完成分类: &#A7F3D0%collection_category_completed% &#94A3B8/ &#F8FAFC%collection_category_total%"
+      - ""
+      - "&#94A3B8&o💡 提示: 集齐某一分类的所有称号后,"
+      - "&#94A3B8&o   即可自动解锁专属的隐藏纪念称号！"
+  "B":
+    IconFunction: "back"
+    Material: "DARK_OAK_DOOR"
+    Name: "&#F87171&l[✖] 返回仓库"
+    Lore:
+      - "&#94A3B8点击返回上一级菜单"
+
+templates:
+  category:
+    material: "BOOK"
+    name: "&#F8FAFC&l%category_name% &#94A3B8| &#A7F3D0%category_percent%%"
+    lore:
+      - "&#D1D5DB%category_description%"
+      - ""
+      - "&#E2E8F0▸ &f收藏进度: &#FDE047%category_owned% &#94A3B8/ &#F8FAFC%category_total%"
+      - "&#E2E8F0▸ &f当前状态: &#A7F3D0%category_state%"
+      - "&#E2E8F0▸ &f完成表现: &#FDE047满收集后图标发光并升级材质"
+      - ""
+      - "&#E2E8F0★ &f隐藏奖励: &#FDE047%category_reward%"
+      - "&#E2E8F0★ &f奖励状态: &#A7F3D0%category_reward_state%"

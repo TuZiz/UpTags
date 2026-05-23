@@ -8,10 +8,16 @@ import cn.aing.uptags.model.config.CostDefinition
 import cn.aing.uptags.model.config.CurrencyType
 import cn.aing.uptags.model.config.DetachCostSettings
 import cn.aing.uptags.model.config.DetachSettings
+import cn.aing.uptags.model.config.ItemTemplate
 import cn.aing.uptags.model.config.ParticleDefinition
 import cn.aing.uptags.model.config.PluginSettings
 import cn.aing.uptags.model.config.ScrollDefinition
+import cn.aing.uptags.model.config.ShopProductDefinition
+import cn.aing.uptags.model.config.ShopProductMode
+import cn.aing.uptags.model.config.ShopProductType
 import cn.aing.uptags.model.config.TagDefinition
+import cn.aing.uptags.model.config.TitleCollectionCategoryDefinition
+import cn.aing.uptags.model.config.TitleCollectionSettings
 import cn.aing.uptags.model.config.UpgradeGroupDefinition
 import cn.aing.uptags.model.runtime.CustomTitleData
 import cn.aing.uptags.model.runtime.PlayerTagData
@@ -264,6 +270,65 @@ class TagServiceTest {
         verify { fixture.inventory.addItem(any<ItemStack>()) }
     }
 
+    @Test
+    fun collectionSummaryGrantsHiddenRewardWhenCategoryIsCompleted() {
+        val playerId = UUID.randomUUID()
+        val player = mockk<Player>()
+        val plugin = mockk<UpTagsPlugin>(relaxed = true)
+        val config = mockk<ConfigRegistry>()
+        val repository = mockk<PlayerDataRepository>(relaxed = true)
+        val economy = mockk<EconomyBridge>(relaxed = true)
+        val messages = mockk<MessageService>(relaxed = true)
+        val data = PlayerTagData(playerId).apply {
+            ownedTags += "mine_a"
+            ownedTags += "mine_b"
+        }
+
+        every { player.uniqueId } returns playerId
+        every { player.hasPermission(any<String>()) } returns false
+        every { repository.get(playerId) } returns data
+        every { config.settings } returns PluginSettings(
+            effectTickInterval = 20L,
+            forceDefaultTag = false,
+            forcedTagId = "newbie",
+        )
+        every { config.tags } returns linkedMapOf(
+            "mine_a" to tag("mine_a"),
+            "mine_b" to tag("mine_b"),
+            "challenge_collector" to tag("challenge_collector").copy(hidden = true),
+        )
+        every { config.shopProducts } returns linkedMapOf(
+            "mine_a" to product("mine_a", "challenge"),
+            "mine_b" to product("mine_b", "challenge"),
+        )
+        every { config.collection } returns TitleCollectionSettings(
+            categories = listOf(
+                TitleCollectionCategoryDefinition(
+                    id = "challenge",
+                    display = "挑战称号",
+                    material = "DIAMOND_PICKAXE",
+                    completedMaterial = "NETHER_STAR",
+                    description = listOf("挑战来源"),
+                    productCategories = setOf("challenge"),
+                    rewardTagId = "challenge_collector",
+                ),
+            ),
+        )
+        every { config.rarityDisplay(any()) } returns "COMMON"
+
+        val service = TagService(plugin, config, repository, economy, messages)
+        val summary = service.collectionSummary(player)
+
+        assertEquals(2, summary.owned)
+        assertEquals(2, summary.total)
+        assertTrue("challenge_collector" in data.ownedTags)
+        assertEquals(1, summary.categories.size)
+        assertTrue(summary.categories.single().completed)
+        assertEquals("NETHER_STAR", summary.categories.single().displayMaterial)
+        assertEquals(2, summary.categories.single().owned)
+        verify { repository.saveAsync(data) }
+    }
+
     private fun tag(id: String): TagDefinition {
         return TagDefinition(
             id = id,
@@ -273,6 +338,22 @@ class TagServiceTest {
             defaultUnlocked = true,
             upgradeGroups = mutableListOf(),
             permission = null,
+        )
+    }
+
+    private fun product(tagId: String, category: String): ShopProductDefinition {
+        return ShopProductDefinition(
+            id = tagId,
+            type = ShopProductType.TAG,
+            targetId = tagId,
+            mode = ShopProductMode.CHALLENGE_CLAIM,
+            category = category,
+            enabled = true,
+            permission = null,
+            conditions = emptyList(),
+            cost = CostDefinition(),
+            submitItems = emptyList(),
+            icon = ItemTemplate("NAME_TAG", tagId, emptyList()),
         )
     }
 

@@ -1,4 +1,4 @@
-Title: "&#FF8FD8自定义称号 - 手动组合"
+﻿Title: "&#FF8FD8自定义称号 - 手动组合"
 GuiPlain:
   - "X#######X"
   - "#@@@@@@@#"
@@ -19,7 +19,6 @@ GuiKey:
     Material: "NAME_TAG"
     Name: "&#A7F3D0当前组合预览"
     Lore:
-      - "&#64748B&m------------------------"
       - " &#E2E8F0称号文本: &#F8FAFC%title_text%"
       - " &#E2E8F0目标颜色数: &#FDE047%title_target_count%"
       - " &#E2E8F0已选颜色: &#FDE047%title_selected_count% &#64748B/ &#FDE047%title_target_count%"
@@ -29,84 +28,65 @@ GuiKey:
       - " &#E2E8F0状态: &#A7F3D0%title_status%"
       - " &#E2E8F0最新颜色: &#FDE047%title_color%"
       - " &#E2E8F0最终效果: %title_preview%"
-      - "&#64748B&m------------------------"
 
 templates:
   hex:
     material: "WHITE_WOOL"
     name: "&#FDE047HEX %title_digit%"
     lore:
-      - "&#64748B&m------------------------"
       - " &#E2E8F0点击追加这一位 HEX 字符"
       - " &#E2E8F0当前输入: &#FACC15#%title_input%"
-      - "&#64748B&m------------------------"
 
   add:
     material: "EMERALD"
     name: "&#A7F3D0加入颜色"
     lore:
-      - "&#64748B&m------------------------"
       - " &#E2E8F0把当前 6 位 HEX 颜色加入方案"
       - " &#E2E8F0当前还需: &#FACC15%title_remaining_count% 个颜色"
-      - "&#64748B&m------------------------"
 
   replace:
     material: "LIME_DYE"
     name: "&#60A5FA替换尾色"
     lore:
-      - "&#64748B&m------------------------"
       - " &#E2E8F0用当前输入替换最后一个已选颜色"
       - " &#E2E8F0已选方案: &#FDE68A%title_palette%"
-      - "&#64748B&m------------------------"
 
   remove:
     material: "RED_DYE"
     name: "&#F87171移除尾色"
     lore:
-      - "&#64748B&m------------------------"
       - " &#E2E8F0删除最后一个已选颜色"
       - " &#E2E8F0已选方案: &#FDE68A%title_palette%"
-      - "&#64748B&m------------------------"
 
   backspace:
     material: "SHEARS"
     name: "&#FDE047退格"
     lore:
-      - "&#64748B&m------------------------"
       - " &#E2E8F0删除当前输入的最后一位"
       - " &#E2E8F0当前输入: &#FACC15#%title_input%"
-      - "&#64748B&m------------------------"
 
   clear-input:
     material: "PAPER"
     name: "&#94A3B8清空输入"
     lore:
-      - "&#64748B&m------------------------"
       - " &#E2E8F0只清空当前 6 位 HEX 输入"
-      - "&#64748B&m------------------------"
 
   clear-palette:
     material: "BARRIER"
     name: "&#F87171清空重选"
     lore:
-      - "&#64748B&m------------------------"
       - " &#E2E8F0清空已选颜色并重新开始"
       - " &#E2E8F0目标颜色数: &#FDE047%title_target_count%"
-      - "&#64748B&m------------------------"
 
   confirm:
     material: "NETHER_STAR"
     name: "&#A7F3D0确认选色"
     lore:
-      - "&#64748B&m------------------------"
       - " &#E2E8F0选满目标颜色数量后确认当前组合"
       - " &#E2E8F0状态: &#A7F3D0%title_status%"
-      - "&#64748B&m------------------------"
 
   back:
     material: "ARROW"
     name: "&#F87171返回预览"
     lore:
-      - "&#64748B&m------------------------"
       - " &#E2E8F0返回聊天栏预览，不取消本次定制"
-      - "&#64748B&m------------------------"

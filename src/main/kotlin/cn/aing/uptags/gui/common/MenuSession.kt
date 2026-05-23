@@ -8,6 +8,7 @@ import java.util.UUID
 
 internal enum class MenuType {
     WAREHOUSE,
+    COLLECTION,
     SHOP,
     UPGRADE,
     DETACH,

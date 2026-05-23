@@ -141,22 +141,35 @@ class ShopService(
         val parts = ArrayList<String>()
         val price = product.cost.priceForLevel(1)
         if (price > 0.0) {
-            parts += "${Support.formatDouble(price)} ${currencyDisplay(product.cost.type)}"
+            parts += config.shopText(
+                "shop.requirement.price",
+                mapOf(
+                    "amount" to Support.formatDouble(price),
+                    "currency" to currencyDisplay(product.cost.type),
+                ),
+            )
         }
         if (product.conditions.isNotEmpty()) {
-            parts += "完成条件"
+            parts += config.shopText("shop.requirement.conditions")
         }
         if (product.submitItems.isNotEmpty()) {
-            parts += submitItemsDisplay(product.submitItems)
+            parts += submitItemRequirementLines(product.submitItems)
         }
-        return parts.ifEmpty { listOf("完成后领取") }.joinToString(" / ")
+        return parts.ifEmpty { listOf(config.shopText("shop.requirement.empty")) }
+            .joinToString(config.shopText("shop.requirement.separator"))
     }
 
     fun requirementDisplay(player: Player, product: ShopProductDefinition): String {
         val parts = ArrayList<String>()
         val price = product.cost.priceForLevel(1)
         if (price > 0.0) {
-            parts += "${Support.formatDouble(price)} ${currencyDisplay(product.cost.type)}"
+            parts += config.shopText(
+                "shop.requirement.price",
+                mapOf(
+                    "amount" to Support.formatDouble(price),
+                    "currency" to currencyDisplay(product.cost.type),
+                ),
+            )
         }
         val challengeParts = product.conditions
             .filter(::isChallengeCondition)
@@ -164,12 +177,13 @@ class ShopService(
         if (challengeParts.isNotEmpty()) {
             parts += challengeParts
         } else if (product.conditions.isNotEmpty()) {
-            parts += "完成条件"
+            parts += config.shopText("shop.requirement.conditions")
         }
         if (product.submitItems.isNotEmpty()) {
             parts += submitItemsProgressDisplay(player, product.submitItems)
         }
-        return parts.ifEmpty { listOf("完成后领取") }.joinToString(" / ")
+        return parts.ifEmpty { listOf(config.shopText("shop.requirement.empty")) }
+            .joinToString(config.shopText("shop.requirement.separator"))
     }
 
     private fun takeItemsStage(player: Player, product: ShopProductDefinition, order: PurchaseOrderData) {
@@ -462,7 +476,14 @@ class ShopService(
         val parsed = parseChallengeCondition(condition) ?: return null
         val current = challengeProgressService.progress(player, parsed.key).coerceAtLeast(0L)
         val capped = current.coerceAtMost(parsed.required)
-        return "${parsed.display}: ${formatProgress(capped)}/${formatProgress(parsed.required)}"
+        return config.shopText(
+            "shop.requirement.progress",
+            mapOf(
+                "name" to parsed.display,
+                "current" to formatProgress(capped),
+                "required" to formatProgress(parsed.required),
+            ),
+        )
     }
 
     private fun parseChallengeCondition(condition: String): ChallengeRequirement? {
@@ -473,30 +494,38 @@ class ShopService(
         val required = parts.last().toLongOrNull()?.coerceAtLeast(0L) ?: return null
         val key = parts.dropLast(1).joinToString(":").lowercase(Locale.ROOT)
         val type = parts.getOrNull(1)?.lowercase(Locale.ROOT) ?: return null
+        val target = keyDisplayName(parts.getOrNull(2).orEmpty())
         val display = when (type) {
-            "mine" -> "挖掘${materialDisplayName(parts.getOrNull(2).orEmpty())}"
-            "collect" -> "收集${materialDisplayName(parts.getOrNull(2).orEmpty())}"
-            "biome" -> "到达${keyDisplayName(parts.getOrNull(2).orEmpty())}"
-            "world" -> "进入${keyDisplayName(parts.getOrNull(2).orEmpty())}"
-            "kill" -> "击杀${keyDisplayName(parts.getOrNull(2).orEmpty())}"
-            "height" -> "${keyDisplayName(parts.getOrNull(2).orEmpty())}高度"
-            "stat" -> keyDisplayName(parts.getOrNull(2).orEmpty())
-            "deep_dark_stay" -> "深暗停留"
-            "advancement" -> "完成进度"
-            else -> "完成${keyDisplayName(type)}"
+            "mine" -> config.shopText("shop.challenge.mine", mapOf("target" to target))
+            "collect" -> config.shopText("shop.challenge.collect", mapOf("target" to target))
+            "biome" -> config.shopText("shop.challenge.biome", mapOf("target" to target))
+            "world" -> config.shopText("shop.challenge.world", mapOf("target" to target))
+            "kill" -> config.shopText("shop.challenge.kill", mapOf("target" to target))
+            "height" -> config.shopText("shop.challenge.height", mapOf("target" to target))
+            "stat" -> target
+            "deep_dark_stay" -> config.shopText("shop.challenge.deep-dark-stay")
+            "advancement" -> config.shopText("shop.challenge.advancement")
+            else -> config.shopText("shop.challenge.default", mapOf("target" to keyDisplayName(type)))
         }
         return ChallengeRequirement(key, display, required)
     }
 
-    private fun submitItemsProgressDisplay(player: Player, items: List<SubmitItemDefinition>): String {
-        return items.joinToString(" / ") { item ->
+    private fun submitItemsProgressDisplay(player: Player, items: List<SubmitItemDefinition>): List<String> {
+        return items.mapIndexed { index, item ->
             val current = player.inventory.storageContents
                 .filterNotNull()
                 .filter { matchesSubmitItem(it, item) }
                 .sumOf { it.amount }
                 .coerceAtMost(item.amount)
-            val name = item.name?.takeIf { it.isNotBlank() } ?: materialDisplayName(item.material)
-            "${Support.stripColor(name)}: $current/${item.amount}"
+            requirementLineText(
+                "shop.requirement.item-progress",
+                index,
+                mapOf(
+                    "item" to Support.stripColor(itemDisplayName(item)),
+                    "current" to current.toString(),
+                    "required" to item.amount.toString(),
+                ),
+            )
         }
     }
 
@@ -572,85 +601,34 @@ class ShopService(
     }
 
     private fun submitItemsDisplay(items: List<SubmitItemDefinition>): String {
-        return items.joinToString(", ") { item ->
-            val name = item.name?.takeIf { it.isNotBlank() } ?: materialDisplayName(item.material)
-            "${item.amount}x ${Support.stripColor(name)}"
-        }
+        return submitItemRequirementLines(items).joinToString(config.shopText("shop.requirement.inline-separator"))
     }
 
-    private fun materialDisplayName(raw: String): String {
-        val material = Material.matchMaterial(raw)
-        return when (material) {
-            Material.REDSTONE -> "红石粉"
-            Material.REPEATER -> "红石中继器"
-            Material.COMPARATOR -> "红石比较器"
-            Material.OBSERVER -> "侦测器"
-            Material.WHEAT -> "小麦"
-            Material.CARROT -> "胡萝卜"
-            Material.POTATO -> "马铃薯"
-            Material.BEETROOT -> "甜菜根"
-            Material.TORCH -> "火把"
-            Material.COAL -> "煤炭"
-            Material.LANTERN -> "灯笼"
-            Material.CHEST -> "箱子"
-            Material.BARREL -> "木桶"
-            Material.HOPPER -> "漏斗"
-            Material.BREAD -> "面包"
-            Material.HAY_BLOCK -> "干草块"
-            Material.SLIME_BALL -> "黏液球"
-            Material.SLIME_BLOCK -> "黏液块"
-            Material.DEEPSLATE -> "深板岩"
-            Material.DEEPSLATE_DIAMOND_ORE -> "深层钻石矿"
-            Material.RAW_IRON -> "粗铁"
-            Material.COD -> "鳕鱼"
-            Material.SALMON -> "鲑鱼"
-            Material.PUFFERFISH -> "河豚"
-            Material.PHANTOM_MEMBRANE -> "幻翼膜"
-            Material.COMPASS -> "指南针"
-            Material.MAP -> "地图"
-            Material.SCULK -> "幽匿块"
-            Material.MAGMA_CREAM -> "岩浆膏"
-            Material.ENDER_PEARL -> "末影珍珠"
-            Material.ECHO_SHARD -> "回响碎片"
-            Material.DIAMOND -> "钻石"
-            Material.SCAFFOLDING -> "脚手架"
-            Material.PRISMARINE_SHARD -> "海晶碎片"
-            Material.NAUTILUS_SHELL -> "鹦鹉螺壳"
-            Material.HEART_OF_THE_SEA -> "海洋之心"
-            Material.REDSTONE_BLOCK -> "红石块"
-            Material.PISTON -> "活塞"
-            Material.BLAZE_ROD -> "烈焰棒"
-            Material.NETHER_BRICK -> "下界砖"
-            Material.WITHER_SKELETON_SKULL -> "凋灵骷髅头颅"
-            Material.TUBE_CORAL_BLOCK -> "管珊瑚块"
-            Material.SEA_LANTERN -> "海晶灯"
-            Material.OBSIDIAN -> "黑曜石"
-            Material.SNOW_BLOCK -> "雪块"
-            Material.BLUE_ICE -> "蓝冰"
-            else -> raw.lowercase(Locale.ROOT)
-                .split('_')
-                .filter(String::isNotBlank)
-                .joinToString(" ") { it.replaceFirstChar(Char::uppercaseChar) }
+    private fun submitItemRequirementLines(items: List<SubmitItemDefinition>): List<String> =
+        items.mapIndexed { index, item ->
+            requirementLineText(
+                "shop.requirement.item",
+                index,
+                mapOf(
+                    "amount" to item.amount.toString(),
+                    "item" to Support.stripColor(itemDisplayName(item)),
+                ),
+            )
         }
+
+    private fun requirementLineText(baseKey: String, index: Int, placeholders: Map<String, String>): String {
+        val indexedKey = "$baseKey-${index + 1}"
+        val indexedPattern = config.shopText(indexedKey)
+        if (indexedPattern != indexedKey) {
+            return Support.apply(indexedPattern, placeholders)
+        }
+        return config.shopText(baseKey, placeholders)
     }
 
-    private fun keyDisplayName(raw: String): String {
-        return when (raw.trim().lowercase(Locale.ROOT)) {
-            "blaze" -> "烈焰人"
-            "deep_dark" -> "深暗之域"
-            "ender_dragon" -> "末影龙"
-            "fish_caught" -> "钓鱼次数"
-            "mine_block" -> "挖掘方块数"
-            "overworld" -> "主世界"
-            "play_one_minute" -> "在线时间"
-            "the_end" -> "末地"
-            "the_nether" -> "下界"
-            "time_since_rest" -> "未睡眠时间"
-            "walk_one_cm" -> "步行距离"
-            "warden" -> "监守者"
-            else -> materialDisplayName(raw)
-        }
-    }
+    private fun itemDisplayName(item: SubmitItemDefinition): String =
+        item.name?.takeIf { it.isNotBlank() } ?: config.displayName(item.material)
+
+    private fun keyDisplayName(raw: String): String = config.displayName(raw)
 
     private fun PurchaseOrderData.fail(reason: String?) {
         status = PurchaseOrderStatus.FAILED

@@ -99,7 +99,7 @@ internal class TagsTabCompleter(private val context: TagsCommandContext) : TabCo
     private fun topLevelCompletions(sender: CommandSender): List<String> {
         val values = mutableListOf("help")
         if (AdminAccess.has(sender, AdminAccess.RELOAD)) values += "reload"
-        if (AdminAccess.hasUse(sender)) values += listOf("equip", "unequip", "upgrade", "shop", "custom")
+        if (AdminAccess.hasUse(sender)) values += listOf("equip", "unequip", "upgrade", "shop", "collection", "custom")
         if (AdminAccess.has(sender, AdminAccess.CREATE)) values += "create"
         if (AdminAccess.hasAnyAdmin(sender)) values += "admin"
         return values

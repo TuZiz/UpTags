@@ -126,6 +126,52 @@ class ConfigRegistryShopConfigTest {
         assertFalse(tagsYaml.isConfigurationSection("tags.miner_soul.shop"))
     }
 
+    @Test
+    fun shopLocalizationSupportsCodePrefixedKeys() {
+        val pluginDir = createTempDirectory("uptags-config-shop-text").toFile()
+        val plugin = mockPlugin(pluginDir)
+        writeMinimalConfig(pluginDir)
+        File(pluginDir, "tags.yml").writeText(
+            """
+            rarity-display: {}
+            rarity-upgrade-group: {}
+            tag-template:
+              rarity: COMMON
+              default-unlocked: false
+            tags: {}
+            """.trimIndent(),
+            Charsets.UTF_8,
+        )
+        File(pluginDir, "shop.yml").writeText("products: {}\n", Charsets.UTF_8)
+        File(pluginDir, "names.yml").writeText("names:\n  REDSTONE: \"红石粉\"\n", Charsets.UTF_8)
+        File(pluginDir, "lang/zh_cn.yml").writeText(
+            """
+            shop:
+              text:
+                requirement:
+                  separator: "\\n"
+                  item-progress: "&r%item%&8: &#10B981%current%&8/&#FDE047%required%"
+                category:
+                  selected: "&#A7F3D0&l▶ 当前分类"
+            """.trimIndent(),
+            Charsets.UTF_8,
+        )
+
+        val registry = ConfigRegistry(plugin)
+        registry.load()
+
+        assertEquals("\n", registry.shopText("shop.requirement.separator"))
+        assertEquals("\n", registry.shopText("requirement.separator"))
+        assertEquals(
+            "&r红石粉&8: &#10B98114&8/&#FDE04764",
+            registry.shopText(
+                "shop.requirement.item-progress",
+                mapOf("item" to "红石粉", "current" to "14", "required" to "64"),
+            ),
+        )
+        assertEquals("&#A7F3D0&l▶ 当前分类", registry.shopText("shop.category.selected"))
+    }
+
     private fun mockPlugin(pluginDir: File): JavaPlugin {
         val plugin = mockk<JavaPlugin>(relaxed = true)
         every { plugin.dataFolder } returns pluginDir
@@ -179,7 +225,7 @@ class ConfigRegistryShopConfigTest {
             Charsets.UTF_8,
         )
         listOf(
-            "messages.yml",
+            "lang/zh_cn.yml",
             "gui/warehouse.yml",
             "gui/upgrade.yml",
             "gui/detach.yml",
