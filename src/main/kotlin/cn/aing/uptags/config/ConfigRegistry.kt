@@ -311,6 +311,8 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
             disabledBuffWorlds = yaml.getStringList("settings.buffs.disabled-worlds").map { it.lowercase() }.toSet(),
             disabledBuffPermission = yaml.getString("settings.buffs.disabled-permission")?.takeIf { it.isNotBlank() },
             disableBuffsInPvp = yaml.getBoolean("settings.buffs.disable-in-pvp", false),
+            challengeProgressSaveIntervalMillis = yaml.getLong("settings.challenge-progress-save-interval-seconds", 30L)
+                .coerceAtLeast(5L) * 1_000L,
         )
         storage = StorageSettings(
             mode = StorageMode.from(yaml.getString("storage.mode", "yml")),

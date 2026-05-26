@@ -80,6 +80,7 @@ data class PluginSettings(
     val disabledBuffWorlds: Set<String> = emptySet(),
     val disabledBuffPermission: String? = null,
     val disableBuffsInPvp: Boolean = false,
+    val challengeProgressSaveIntervalMillis: Long = 30_000L,
 )
 
 data class TitleCollectionSettings(

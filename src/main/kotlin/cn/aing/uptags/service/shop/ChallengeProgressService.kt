@@ -12,12 +12,16 @@ import org.bukkit.event.player.PlayerAdvancementDoneEvent
 import org.bukkit.plugin.java.JavaPlugin
 import java.util.Locale
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 
 class ChallengeProgressService(
     private val repository: PlayerDataRepository,
     private val moveSampleIntervalMillis: Long = 1_000L,
+    private val progressSaveIntervalMillis: Long = 30_000L,
     private val plugin: JavaPlugin? = null,
 ) {
+    private val lastProgressSaveAt = ConcurrentHashMap<UUID, Long>()
+
     fun increment(player: Player, key: String, amount: Long = 1L) {
         mutate(player.uniqueId) { data ->
             data.challengeProgress.values.merge(key.normalized(), amount.coerceAtLeast(0L), Long::plus)
@@ -123,6 +127,18 @@ class ChallengeProgressService(
             return
         }
         block(data)
+        repository.markDirty(data)
+        saveProgressIfDue(data)
+    }
+
+    private fun saveProgressIfDue(data: cn.aing.uptags.model.runtime.PlayerTagData) {
+        val interval = progressSaveIntervalMillis.coerceAtLeast(0L)
+        val now = System.currentTimeMillis()
+        val last = lastProgressSaveAt[data.uniqueId] ?: 0L
+        if (now - last < interval) {
+            return
+        }
+        lastProgressSaveAt[data.uniqueId] = now
         repository.saveAsync(data)
     }
 

@@ -2,6 +2,7 @@ name: UpTags
 version: ${version}
 main: cn.aing.uptags.UpTagsPlugin
 api-version: '1.20'
+folia-supported: true
 author: Codex
 description: Kotlin 重构的称号插件，兼容 Spigot / Folia
 softdepend:
