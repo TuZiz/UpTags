@@ -11,7 +11,7 @@ import java.util.Locale
 internal class TagCatalogEditor(
     private val config: ConfigRegistry,
     private val repository: PlayerDataRepository,
-    private val enforceDefaultTag: (Player, PlayerTagData) -> Unit,
+    private val enforceDefaultTag: (Player, PlayerTagData) -> Boolean,
 ) {
     fun updateDisplay(tagId: String, display: String): Boolean {
         val definition = config.tags[tagId] ?: return false

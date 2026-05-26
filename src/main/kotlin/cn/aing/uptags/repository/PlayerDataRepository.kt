@@ -159,19 +159,30 @@ class PlayerDataRepository(
             version = expectedVersion + 1,
             updatedAt = System.currentTimeMillis(),
         )
+        var flushed = false
         when (val result = store.save(snapshot, expectedVersion)) {
             is SaveResult.Success -> {
                 replace(snapshot.copy(version = result.version, updatedAt = result.updatedAt))
                 publishInvalidation(data.uniqueId, result.version, result.updatedAt)
+                flushed = true
             }
-            is SaveResult.Conflict -> result.latest?.let(::replace)
+            is SaveResult.Conflict -> {
+                result.latest?.let {
+                    replace(it)
+                    flushed = true
+                }
+            }
             is SaveResult.Failure -> plugin.logger.warning(result.message)
         }
-        dirty.remove(data.uniqueId)
+        if (flushed) {
+            dirty.remove(data.uniqueId)
+        }
     }
 
     fun saveAllSync() {
-        cache.values.forEach { entry -> saveSync(entry.data) }
+        dirty.toList().forEach { uniqueId ->
+            cache[uniqueId]?.let { entry -> saveSync(entry.data) }
+        }
     }
 
     fun invalidate(uniqueId: UUID) {

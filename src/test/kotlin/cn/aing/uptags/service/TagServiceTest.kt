@@ -53,6 +53,8 @@ class TagServiceTest {
             ownedTags += "newbie"
             ownedTags += "vip"
             equippedTagId = "vip"
+            tagProgress["newbie"] = TagProgress()
+            tagProgress["vip"] = TagProgress()
         }
 
         every { player.uniqueId } returns playerId
@@ -71,7 +73,7 @@ class TagServiceTest {
         service.preparePlayer(player, announce = false)
 
         assertEquals("vip", data.equippedTagId)
-        verify(exactly = 1) { repository.saveAsync(data) }
+        verify(exactly = 0) { repository.saveAsync(data) }
     }
 
     @Test

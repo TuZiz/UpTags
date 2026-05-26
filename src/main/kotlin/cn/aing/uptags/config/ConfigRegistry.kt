@@ -325,6 +325,12 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
                 password = yaml.getString("storage.mysql.password", "") ?: "",
                 table = yaml.getString("storage.mysql.table", "uptags_player_data") ?: "uptags_player_data",
             ),
+            orderRetention = OrderRetentionSettings(
+                completedDays = yaml.getInt("storage.order-retention.completed-days", 7).coerceAtLeast(0),
+                failedDays = yaml.getInt("storage.order-retention.failed-days", 7).coerceAtLeast(0),
+                refundedDays = yaml.getInt("storage.order-retention.refunded-days", 30).coerceAtLeast(0),
+                maxPerPlayer = yaml.getInt("storage.order-retention.max-per-player", 50).coerceAtLeast(1),
+            ),
         )
         detach = DetachSettings(
             enabled = yaml.getBoolean("detach.enabled", true),

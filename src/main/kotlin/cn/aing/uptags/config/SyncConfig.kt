@@ -18,6 +18,7 @@ data class StorageSettings(
     val mode: StorageMode,
     val yml: YamlStorageSettings,
     val mysql: MysqlSettings,
+    val orderRetention: OrderRetentionSettings = OrderRetentionSettings(),
 )
 
 data class YamlStorageSettings(
@@ -29,6 +30,13 @@ data class MysqlSettings(
     val username: String,
     val password: String,
     val table: String,
+)
+
+data class OrderRetentionSettings(
+    val completedDays: Int = 7,
+    val failedDays: Int = 7,
+    val refundedDays: Int = 30,
+    val maxPerPlayer: Int = 50,
 )
 
 data class SyncSettings(

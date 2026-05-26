@@ -23,6 +23,11 @@ storage:
     username: "root"
     password: "change-me"
     table: "uptags_player_data"
+  order-retention:
+    completed-days: 7
+    failed-days: 7
+    refunded-days: 30
+    max-per-player: 50
 
 detach:
   enabled: true

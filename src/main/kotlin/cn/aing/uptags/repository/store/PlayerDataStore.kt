@@ -9,6 +9,8 @@ interface PlayerDataStore {
 
     fun load(uniqueId: UUID): PlayerDataSnapshot?
 
+    fun loadOrders(uniqueId: UUID): PlayerOrdersSnapshot = PlayerOrdersSnapshot()
+
     fun save(snapshot: PlayerDataSnapshot, expectedVersion: Long?): SaveResult
 
     fun loadAll(): List<PlayerDataSnapshot> = emptyList()

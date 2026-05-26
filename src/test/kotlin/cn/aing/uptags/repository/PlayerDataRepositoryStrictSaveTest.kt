@@ -60,6 +60,39 @@ class PlayerDataRepositoryStrictSaveTest {
         assertTrue(store.saved[0].data !== strictData)
     }
 
+    @Test
+    fun saveAllSyncOnlyFlushesDirtyPlayers() {
+        val firstId = UUID.randomUUID()
+        val secondId = UUID.randomUUID()
+        val store = RecordingStore()
+        val tasks = ArrayDeque<() -> Unit>()
+        val scheduler = mockk<PlatformScheduler>()
+        val plugin = mockk<JavaPlugin>(relaxed = true)
+
+        every { plugin.logger } returns Logger.getLogger("PlayerDataRepositoryStrictSaveTest")
+        every { scheduler.runAsync(any()) } answers {
+            tasks += firstArg<() -> Unit>()
+            mockk<TaskHandle>(relaxed = true)
+        }
+
+        val repository = PlayerDataRepository(plugin, scheduler, store)
+        repository.preparePlayerAsync(firstId)
+        repository.preparePlayerAsync(secondId)
+        while (tasks.isNotEmpty()) {
+            tasks.removeFirst().invoke()
+        }
+
+        val first = repository.get(firstId)
+        first.ownedTags += "dirty"
+        repository.markDirty(first)
+
+        repository.saveAllSync()
+
+        assertEquals(1, store.saved.size)
+        assertEquals(firstId, store.saved.single().data.uniqueId)
+    }
+
+
     private fun order(orderId: String, status: CustomTitleOrderStatus): CustomTitlePurchaseOrderData {
         return CustomTitlePurchaseOrderData(
             orderId = orderId,

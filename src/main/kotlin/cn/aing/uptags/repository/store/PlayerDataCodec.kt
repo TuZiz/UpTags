@@ -14,7 +14,7 @@ import java.util.UUID
 object PlayerDataCodec {
     private const val schemaVersion = "schema_version=2"
 
-    fun serialize(data: PlayerTagData): String {
+    fun serialize(data: PlayerTagData, includeOrders: Boolean = true): String {
         val tagParts = data.tagProgress.entries.joinToString(";;") { (tagId, progress) ->
             listOf(
                 encode(tagId),
@@ -43,7 +43,7 @@ object PlayerDataCodec {
                 encode(custom.groupId ?: ""),
             ).joinToString("|")
         }
-        val orderParts = data.customTitleOrders.values.joinToString(";;") { order ->
+        val orderParts = if (includeOrders) data.customTitleOrders.values.joinToString(";;") { order ->
             listOf(
                 encode(order.orderId),
                 encode(order.titleId),
@@ -59,8 +59,8 @@ object PlayerDataCodec {
                 encode(order.previousEquippedTagId ?: ""),
                 encode(order.previousEquippedCustomTitleId ?: ""),
             ).joinToString("|")
-        }
-        val purchaseOrderParts = data.purchaseOrders.values.joinToString(";;") { order ->
+        } else ""
+        val purchaseOrderParts = if (includeOrders) data.purchaseOrders.values.joinToString(";;") { order ->
             listOf(
                 encode(order.orderId),
                 encode(order.productId),
@@ -74,7 +74,7 @@ object PlayerDataCodec {
                 order.updatedAt.toString(),
                 encode(order.failureReason ?: ""),
             ).joinToString("|")
-        }
+        } else ""
         val challengeParts = data.challengeProgress.values.entries.joinToString(";;") { (key, value) ->
             "${encode(key)}:$value"
         }

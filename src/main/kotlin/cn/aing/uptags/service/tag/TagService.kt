@@ -76,16 +76,25 @@ class TagService(
 
     fun preparePlayer(player: Player, announce: Boolean) {
         val data = repository.get(player.uniqueId)
-        migrateLegacyCustomTitles(data)
+        var changed = migrateLegacyCustomTitles(data)
         if (data.tagColorOverrides.isNotEmpty()) {
             data.tagColorOverrides.clear()
+            changed = true
         }
-        val unlocked = syncAutoUnlocks(player, data)
+        val autoUnlocks = syncAutoUnlocksDetailed(player, data)
+        val unlocked = autoUnlocks.unlocked
+        if (autoUnlocks.changed) {
+            changed = true
+        }
         if (announce && unlocked > 0) {
             messageService.send(player, "default-unlocked", unlocked)
         }
-        enforceDefaultTag(player, data)
-        repository.saveAsync(data)
+        if (enforceDefaultTag(player, data)) {
+            changed = true
+        }
+        if (changed) {
+            repository.saveAsync(data)
+        }
     }
 
     fun data(uniqueId: UUID): PlayerTagData = repository.get(uniqueId)
@@ -97,24 +106,33 @@ class TagService(
     fun requireLoaded(player: Player): PlayerTagData? = repository.requireLoaded(player)
 
     fun syncAutoUnlocks(player: Player, data: PlayerTagData): Int {
+        return syncAutoUnlocksDetailed(player, data).unlocked
+    }
+
+    private fun syncAutoUnlocksDetailed(player: Player, data: PlayerTagData): AutoUnlockResult {
         var unlocked = 0
+        var changed = false
         for (definition in config.tags.values) {
             if (!definition.defaultUnlocked && !hasPermissionTag(player, definition)) {
                 continue
             }
             if (data.ownedTags.add(definition.id)) {
                 unlocked++
+                changed = true
             }
-            ensureProgress(definition, data)
+            if (ensureProgressChanged(definition.id, data)) {
+                changed = true
+            }
         }
-        return unlocked
+        return AutoUnlockResult(unlocked, changed)
     }
 
     fun collectionSummary(player: Player): CollectionSummaryProgress {
         preparePlayer(player, false)
         val data = data(player)
-        grantCompletedCollectionRewards(data)
-        repository.saveAsync(data)
+        if (grantCompletedCollectionRewards(data) > 0) {
+            repository.saveAsync(data)
+        }
         return collectionSummary(data)
     }
 
@@ -239,19 +257,23 @@ class TagService(
         }
     }
 
-    private fun enforceDefaultTag(player: Player, data: PlayerTagData) {
+    private fun enforceDefaultTag(player: Player, data: PlayerTagData): Boolean {
         val settings = config.settings
         if (!settings.forceDefaultTag) {
-            return
+            return false
         }
-        val forcedTag = config.tags[settings.forcedTagId] ?: return
-        data.ownedTags += forcedTag.id
-        ensureProgress(forcedTag, data)
+        val forcedTag = config.tags[settings.forcedTagId] ?: return false
+        var changed = data.ownedTags.add(forcedTag.id)
+        if (ensureProgressChanged(forcedTag.id, data)) {
+            changed = true
+        }
         val equippedTagId = data.equippedTagId
         val equippedTagValid = equippedTagId != null && equippedTagId in data.ownedTags && equippedTagId in config.tags
         if (data.equippedCustomTitleId == null && !equippedTagValid) {
             data.equippedTagId = forcedTag.id
+            changed = true
         }
+        return changed
     }
 
     private fun ensureProgress(definition: TagDefinition, data: PlayerTagData): TagProgress = ensureProgress(definition.id, data)
@@ -264,10 +286,19 @@ class TagService(
         return progress
     }
 
-    private fun migrateLegacyCustomTitles(data: PlayerTagData) {
+    private fun ensureProgressChanged(titleId: String, data: PlayerTagData): Boolean {
+        val existing = data.tagProgress[titleId]
+        val beforeSelected = existing?.selectedParticleId
+        val progress = ensureProgress(titleId, data)
+        return existing == null || beforeSelected != progress.selectedParticleId
+    }
+
+    private fun migrateLegacyCustomTitles(data: PlayerTagData): Boolean {
+        var changed = false
         val legacyOwned = data.ownedTags.filter { it.startsWith(legacyCustomTagPrefix, ignoreCase = true) && it in data.customTitles }
         if (legacyOwned.isNotEmpty()) {
             data.ownedTags.removeAll(legacyOwned.toSet())
+            changed = true
         }
         val legacyEquipped = data.equippedTagId?.takeIf {
             it.startsWith(legacyCustomTagPrefix, ignoreCase = true) && it in data.customTitles
@@ -275,7 +306,9 @@ class TagService(
         if (legacyEquipped != null) {
             data.equippedCustomTitleId = legacyEquipped
             data.equippedTagId = null
+            changed = true
         }
+        return changed
     }
 
     fun equippedTag(player: Player): TagDefinition? {
@@ -639,4 +672,9 @@ class TagService(
         catalogEditor.createQuick(tagId, permission, buffGroup, particleGroup)
 
     fun deleteTag(tagId: String): Boolean = catalogEditor.delete(tagId)
+
+    private data class AutoUnlockResult(
+        val unlocked: Int,
+        val changed: Boolean,
+    )
 }

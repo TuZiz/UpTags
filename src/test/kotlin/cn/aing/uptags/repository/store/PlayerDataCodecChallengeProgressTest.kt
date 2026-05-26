@@ -41,4 +41,30 @@ class PlayerDataCodecChallengeProgressTest {
         assertEquals(listOf("32xbread"), decoded.purchaseOrders["order-1"]?.submittedItems?.toList())
         assertEquals(listOf("1xbread"), decoded.purchaseOrders["order-1"]?.compensatedItems?.toList())
     }
+
+    @Test
+    fun mainTableSerializationCanOmitOrdersWhileKeepingCurrentState() {
+        val uniqueId = UUID.randomUUID()
+        val data = PlayerTagData(uniqueId).apply {
+            ownedTags += "vip"
+            equippedTagId = "vip"
+            challengeProgress.values["challenge:stat:walk_one_cm"] = 100L
+            purchaseOrders["order-1"] = PurchaseOrderData(
+                orderId = "order-1",
+                productId = "vip",
+                targetId = "vip",
+                status = PurchaseOrderStatus.PENDING,
+                currencyType = CurrencyType.POINTS,
+                currencyAmount = 10.0,
+            )
+        }
+
+        val decoded = PlayerDataCodec.deserialize(uniqueId, PlayerDataCodec.serialize(data, includeOrders = false))
+
+        assertEquals(setOf("vip"), decoded.ownedTags)
+        assertEquals("vip", decoded.equippedTagId)
+        assertEquals(100L, decoded.challengeProgress.values["challenge:stat:walk_one_cm"])
+        assertEquals(emptyMap(), decoded.purchaseOrders)
+        assertEquals(emptyMap(), decoded.customTitleOrders)
+    }
 }

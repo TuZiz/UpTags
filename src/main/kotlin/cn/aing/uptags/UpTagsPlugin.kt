@@ -154,6 +154,7 @@ class UpTagsPlugin : JavaPlugin() {
             username = config.storage.mysql.username,
             password = config.storage.mysql.password,
             table = config.storage.mysql.table,
+            orderRetention = config.storage.orderRetention,
         )
         importYamlData(mysqlStore)
         return mysqlStore
