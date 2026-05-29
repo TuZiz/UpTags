@@ -1,7 +1,7 @@
 settings:
   effect-tick-interval: 20
   # 挑战进度会先写入内存，再按间隔合并保存，避免 1 秒级移动/统计事件频繁更新整份 JSON。
-  challenge-progress-save-interval-seconds: 30
+  challenge-progress-save-interval-seconds: 300
   particles:
     frequency-ticks: 20
     count-multiplier: 1
@@ -23,6 +23,8 @@ storage:
     username: "root"
     password: "change-me"
     table: "uptags_player_data"
+    normal-save-debounce-seconds: 60
+    max-save-delay-seconds: 300
   order-retention:
     completed-days: 7
     failed-days: 7

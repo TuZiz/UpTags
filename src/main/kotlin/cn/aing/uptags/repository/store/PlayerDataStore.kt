@@ -13,6 +13,13 @@ interface PlayerDataStore {
 
     fun save(snapshot: PlayerDataSnapshot, expectedVersion: Long?): SaveResult
 
+    fun save(
+        snapshot: PlayerDataSnapshot,
+        expectedVersion: Long?,
+        serializedMainData: String,
+        mainDataChanged: Boolean,
+    ): SaveResult = save(snapshot, expectedVersion)
+
     fun loadAll(): List<PlayerDataSnapshot> = emptyList()
 
     fun loadVersions(uniqueIds: Collection<UUID>): Map<UUID, Long> = emptyMap()

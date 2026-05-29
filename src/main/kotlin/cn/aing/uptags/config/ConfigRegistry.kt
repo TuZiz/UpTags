@@ -311,7 +311,7 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
             disabledBuffWorlds = yaml.getStringList("settings.buffs.disabled-worlds").map { it.lowercase() }.toSet(),
             disabledBuffPermission = yaml.getString("settings.buffs.disabled-permission")?.takeIf { it.isNotBlank() },
             disableBuffsInPvp = yaml.getBoolean("settings.buffs.disable-in-pvp", false),
-            challengeProgressSaveIntervalMillis = yaml.getLong("settings.challenge-progress-save-interval-seconds", 30L)
+            challengeProgressSaveIntervalMillis = yaml.getLong("settings.challenge-progress-save-interval-seconds", 300L)
                 .coerceAtLeast(5L) * 1_000L,
         )
         storage = StorageSettings(
@@ -324,6 +324,10 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
                 username = yaml.getString("storage.mysql.username", "root") ?: "root",
                 password = yaml.getString("storage.mysql.password", "") ?: "",
                 table = yaml.getString("storage.mysql.table", "uptags_player_data") ?: "uptags_player_data",
+                normalSaveDebounceMillis = yaml.getLong("storage.mysql.normal-save-debounce-seconds", 60L)
+                    .coerceAtLeast(0L) * 1_000L,
+                maxSaveDelayMillis = yaml.getLong("storage.mysql.max-save-delay-seconds", 300L)
+                    .coerceAtLeast(0L) * 1_000L,
             ),
             orderRetention = OrderRetentionSettings(
                 completedDays = yaml.getInt("storage.order-retention.completed-days", 7).coerceAtLeast(0),

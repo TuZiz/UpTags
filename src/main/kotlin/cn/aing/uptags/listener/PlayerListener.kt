@@ -52,6 +52,9 @@ class PlayerListener(
     fun onQuit(event: PlayerQuitEvent) {
         effectService.stopPlayer(event.player.uniqueId)
         customTitleService.cancelDraft(event.player, notify = false)
-        repository.getCached(event.player.uniqueId)?.let(repository::saveAsync)
+        repository.getCached(event.player.uniqueId)?.let { data ->
+            repository.saveAsync(data)
+            repository.flushPlayerAsync(event.player.uniqueId)
+        }
     }
 }

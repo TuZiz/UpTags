@@ -2,28 +2,44 @@ package cn.aing.uptags.repository
 
 import cn.aing.uptags.compat.PlatformScheduler
 import cn.aing.uptags.model.runtime.PlayerTagData
+import cn.aing.uptags.repository.store.PlayerDataCodec
 import cn.aing.uptags.repository.store.PlayerDataStore
 import cn.aing.uptags.service.sync.PlayerSyncMessage
 import cn.aing.uptags.service.sync.RedisSyncService
 import org.bukkit.plugin.java.JavaPlugin
+import java.security.MessageDigest
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicLong
 import org.bukkit.entity.Player
 
 class PlayerDataRepository(
     private val plugin: JavaPlugin,
     private val scheduler: PlatformScheduler,
     private val store: PlayerDataStore,
+    normalSaveDebounceMillis: Long = 0L,
+    maxSaveDelayMillis: Long = normalSaveDebounceMillis,
 ) {
     private val cache = ConcurrentHashMap<UUID, PlayerCacheEntry>()
     private val dirty = ConcurrentHashMap.newKeySet<UUID>()
     private val pendingSaves = ConcurrentHashMap<UUID, PendingSave>()
     private val strictSaves = ConcurrentHashMap<UUID, ConcurrentLinkedQueue<PendingSave>>()
     private val savingNow = ConcurrentHashMap.newKeySet<UUID>()
+    private val forceNormalDrains = ConcurrentHashMap.newKeySet<UUID>()
+    private val normalSaveTimers = ConcurrentHashMap<UUID, ScheduledFuture<*>>()
+    private val lastSavedMainJsonHashes = ConcurrentHashMap<UUID, String>()
     private val loading = ConcurrentHashMap<UUID, CompletableFuture<PlayerCacheEntry>>()
+    private val saveSequence = AtomicLong()
+    private val normalSaveDebounceMillis = normalSaveDebounceMillis.coerceAtLeast(0L)
+    private val maxSaveDelayMillis = maxSaveDelayMillis.coerceAtLeast(0L)
+    private val normalSaveTimer = Executors.newSingleThreadScheduledExecutor { runnable ->
+        Thread(runnable, "${plugin.name.ifBlank { "UpTags" }}-normal-save-timer").apply { isDaemon = true }
+    }
     private var redisSyncService: RedisSyncService? = null
     private var serverId: String = "local"
 
@@ -91,6 +107,8 @@ class PlayerDataRepository(
             stale = false,
             lastSyncAt = snapshot.updatedAt,
         )
+        val mainJson = PlayerDataCodec.serialize(snapshot.data, includeOrders = false)
+        lastSavedMainJsonHashes[snapshot.data.uniqueId] = hashJson(mainJson)
         dirty.remove(snapshot.data.uniqueId)
     }
 
@@ -117,6 +135,8 @@ class PlayerDataRepository(
     }
 
     private fun saveAsync(data: PlayerTagData, retryOnFailure: Boolean, callback: ((SaveResult) -> Unit)?) {
+        val now = System.currentTimeMillis()
+        val sequence = saveSequence.incrementAndGet()
         markDirty(data)
         pendingSaves.compute(data.uniqueId) { _, existing ->
             val callbacks = existing?.callbacks ?: mutableListOf()
@@ -127,15 +147,16 @@ class PlayerDataRepository(
                 data = data.copyDeep(),
                 retryOnFailure = existing?.retryOnFailure == true || retryOnFailure,
                 callbacks = callbacks,
+                firstQueuedAt = existing?.firstQueuedAt ?: now,
+                latestQueuedAt = now,
+                sequence = sequence,
             )
         }
-        if (!savingNow.add(data.uniqueId)) {
-            return
-        }
-        scheduleDrain(data.uniqueId)
+        scheduleNormalSave(data.uniqueId)
     }
 
     fun saveAsyncStrict(data: PlayerTagData, callback: (SaveResult) -> Unit) {
+        val now = System.currentTimeMillis()
         markDirty(data)
         strictSaves.computeIfAbsent(data.uniqueId) { ConcurrentLinkedQueue() }
             .add(
@@ -143,59 +164,62 @@ class PlayerDataRepository(
                     data = data.copyDeep(),
                     retryOnFailure = false,
                     callbacks = mutableListOf(callback),
+                    firstQueuedAt = now,
+                    latestQueuedAt = now,
+                    sequence = saveSequence.incrementAndGet(),
                 ),
             )
-        if (!savingNow.add(data.uniqueId)) {
-            return
-        }
-        scheduleDrain(data.uniqueId)
+        requestDrain(data.uniqueId, forceNormal = false)
     }
 
     fun saveSync(data: PlayerTagData) {
-        val currentEntry = entry(data.uniqueId)
-        val expectedVersion = currentEntry.version
-        val snapshot = PlayerDataSnapshot(
-            data = data.copyDeep(),
-            version = expectedVersion + 1,
-            updatedAt = System.currentTimeMillis(),
-        )
-        var flushed = false
-        when (val result = store.save(snapshot, expectedVersion)) {
+        when (val result = saveToStore(data.uniqueId, data.copyDeep())) {
             is SaveResult.Success -> {
-                replace(snapshot.copy(version = result.version, updatedAt = result.updatedAt))
-                publishInvalidation(data.uniqueId, result.version, result.updatedAt)
-                flushed = true
+                if (!hasPendingSave(data.uniqueId)) {
+                    dirty.remove(data.uniqueId)
+                }
             }
-            is SaveResult.Conflict -> {
-                result.latest?.let {
-                    replace(it)
-                    flushed = true
+            is SaveResult.Conflict -> result.latest?.let {
+                replace(it)
+                if (!hasPendingSave(data.uniqueId)) {
+                    dirty.remove(data.uniqueId)
                 }
             }
             is SaveResult.Failure -> plugin.logger.warning(result.message)
         }
-        if (flushed) {
-            dirty.remove(data.uniqueId)
-        }
     }
 
     fun saveAllSync() {
+        (pendingSaves.keys + strictSaves.keys).toSet().forEach { uniqueId ->
+            cancelNormalTimer(uniqueId)
+            forceNormalDrains.remove(uniqueId)
+            drainSaveQueue(uniqueId, forceNormal = true)
+        }
         dirty.toList().forEach { uniqueId ->
             cache[uniqueId]?.let { entry -> saveSync(entry.data) }
         }
     }
 
     fun invalidate(uniqueId: UUID) {
+        cancelNormalTimer(uniqueId)
         cache.remove(uniqueId)
         dirty.remove(uniqueId)
         pendingSaves.remove(uniqueId)
         strictSaves.remove(uniqueId)
         savingNow.remove(uniqueId)
+        forceNormalDrains.remove(uniqueId)
+        lastSavedMainJsonHashes.remove(uniqueId)
+    }
+
+    fun flushPlayerAsync(uniqueId: UUID) {
+        cancelNormalTimer(uniqueId)
+        requestDrain(uniqueId, forceNormal = true)
     }
 
     fun flushAndStop(timeoutSeconds: Long = 30L) {
         val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds.coerceAtLeast(1L))
-        while ((pendingSaves.isNotEmpty() || strictSaves.isNotEmpty() || savingNow.isNotEmpty()) && System.nanoTime() < deadline) {
+        (pendingSaves.keys + strictSaves.keys).toSet().forEach(::flushPlayerAsync)
+        while ((pendingSaves.isNotEmpty() || strictSaves.isNotEmpty() || savingNow.isNotEmpty() || forceNormalDrains.isNotEmpty()) && System.nanoTime() < deadline) {
             Thread.sleep(25L)
         }
         saveAllSync()
@@ -203,36 +227,31 @@ class PlayerDataRepository(
     }
 
     fun shutdown() {
+        normalSaveTimers.keys.toList().forEach(::cancelNormalTimer)
+        normalSaveTimer.shutdownNow()
         store.shutdown()
     }
 
-    private fun drainSaveQueue(uniqueId: UUID) {
+    private fun drainSaveQueue(uniqueId: UUID, forceNormal: Boolean) {
+        var allowNormalSave = forceNormal || forceNormalDrains.remove(uniqueId)
         while (true) {
-            val request = nextSaveRequest(uniqueId) ?: break
+            val request = nextSaveRequest(uniqueId, allowNormalSave) ?: break
             val nextData = request.data
-            val currentEntry = entry(uniqueId)
-            val expectedVersion = currentEntry.version
-            val snapshot = PlayerDataSnapshot(
-                data = nextData.copyDeep(),
-                version = expectedVersion + 1,
-                updatedAt = System.currentTimeMillis(),
-            )
-            when (val result = store.save(snapshot, expectedVersion)) {
+            when (val result = saveToStore(uniqueId, nextData)) {
                 is SaveResult.Success -> {
-                    cache.compute(uniqueId) { _, existing ->
-                        val entry = existing ?: PlayerCacheEntry(snapshot.data.copyDeep(), result.version)
-                        entry.data = snapshot.data.copyDeep()
-                        entry.version = result.version
-                        entry.stale = false
-                        entry.lastSyncAt = result.updatedAt
-                        entry
+                    if (!request.normal) {
+                        discardNormalSavesBefore(uniqueId, request.sequence, result)
                     }
-                    publishInvalidation(uniqueId, result.version, result.updatedAt)
-                    dirty.remove(uniqueId)
+                    if (!hasPendingSave(uniqueId)) {
+                        dirty.remove(uniqueId)
+                    }
                     completeCallbacks(request, result)
                 }
                 is SaveResult.Conflict -> {
                     result.latest?.let(::replace)
+                    if (!hasPendingSave(uniqueId)) {
+                        dirty.remove(uniqueId)
+                    }
                     completeCallbacks(request, result)
                     plugin.logger.fine("玩家数据保存遇到版本冲突，已回源刷新: $uniqueId")
                 }
@@ -245,33 +264,149 @@ class PlayerDataRepository(
                     break
                 }
             }
+            allowNormalSave = false
         }
+    }
+
+    private fun requestDrain(uniqueId: UUID, forceNormal: Boolean) {
+        if (forceNormal) {
+            forceNormalDrains += uniqueId
+        }
+        if (!savingNow.add(uniqueId)) {
+            return
+        }
+        scheduleDrain(uniqueId)
     }
 
     private fun scheduleDrain(uniqueId: UUID) {
         scheduler.runAsync {
             try {
-                drainSaveQueue(uniqueId)
+                drainSaveQueue(uniqueId, forceNormal = false)
             } finally {
                 savingNow.remove(uniqueId)
-                if (hasPendingSave(uniqueId) && savingNow.add(uniqueId)) {
-                    scheduleDrain(uniqueId)
+                when {
+                    hasImmediateSave(uniqueId) && savingNow.add(uniqueId) -> scheduleDrain(uniqueId)
+                    pendingSaves.containsKey(uniqueId) -> scheduleNormalSave(uniqueId)
                 }
             }
         }
     }
 
-    private fun nextSaveRequest(uniqueId: UUID): PendingSave? {
+    private fun scheduleNormalSave(uniqueId: UUID) {
+        val pending = pendingSaves[uniqueId] ?: return
+        if (normalSaveDebounceMillis <= 0L) {
+            requestDrain(uniqueId, forceNormal = true)
+            return
+        }
+        val now = System.currentTimeMillis()
+        val debounceDueAt = pending.latestQueuedAt + normalSaveDebounceMillis
+        val maxDueAt = if (maxSaveDelayMillis > 0L) pending.firstQueuedAt + maxSaveDelayMillis else debounceDueAt
+        val delayMillis = (minOf(debounceDueAt, maxDueAt) - now).coerceAtLeast(0L)
+        cancelNormalTimer(uniqueId)
+        normalSaveTimers[uniqueId] = normalSaveTimer.schedule(
+            {
+                normalSaveTimers.remove(uniqueId)
+                requestDrain(uniqueId, forceNormal = true)
+            },
+            delayMillis,
+            TimeUnit.MILLISECONDS,
+        )
+    }
+
+    private fun nextSaveRequest(uniqueId: UUID, forceNormal: Boolean): PendingSave? {
         val strictQueue = strictSaves[uniqueId]
         val strict = strictQueue?.poll()
         if (strictQueue != null && strictQueue.isEmpty()) {
             strictSaves.remove(uniqueId, strictQueue)
         }
-        return strict ?: pendingSaves.remove(uniqueId)
+        if (strict != null) {
+            return strict
+        }
+        val pending = pendingSaves[uniqueId] ?: return null
+        if (!forceNormal && !isNormalSaveDue(pending)) {
+            return null
+        }
+        cancelNormalTimer(uniqueId)
+        return pendingSaves.remove(uniqueId)?.copy(normal = true)
     }
 
     private fun hasPendingSave(uniqueId: UUID): Boolean {
         return pendingSaves.containsKey(uniqueId) || strictSaves[uniqueId]?.isNotEmpty() == true
+    }
+
+    private fun hasImmediateSave(uniqueId: UUID): Boolean {
+        return forceNormalDrains.contains(uniqueId) ||
+            strictSaves[uniqueId]?.isNotEmpty() == true ||
+            pendingSaves[uniqueId]?.let(::isNormalSaveDue) == true
+    }
+
+    private fun isNormalSaveDue(request: PendingSave): Boolean {
+        if (normalSaveDebounceMillis <= 0L) {
+            return true
+        }
+        val now = System.currentTimeMillis()
+        val debounceDue = now - request.latestQueuedAt >= normalSaveDebounceMillis
+        val maxDelayDue = maxSaveDelayMillis > 0L && now - request.firstQueuedAt >= maxSaveDelayMillis
+        return debounceDue || maxDelayDue
+    }
+
+    private fun cancelNormalTimer(uniqueId: UUID) {
+        normalSaveTimers.remove(uniqueId)?.cancel(false)
+    }
+
+    private fun discardNormalSavesBefore(uniqueId: UUID, sequence: Long, result: SaveResult) {
+        var discarded: PendingSave? = null
+        pendingSaves.compute(uniqueId) { _, pending ->
+            if (pending != null && pending.sequence < sequence) {
+                discarded = pending
+                null
+            } else {
+                pending
+            }
+        }
+        val superseded = discarded
+        if (superseded != null) {
+            cancelNormalTimer(uniqueId)
+            completeCallbacks(superseded.copy(normal = true), result)
+        }
+    }
+
+    private fun saveToStore(uniqueId: UUID, data: PlayerTagData): SaveResult {
+        val currentEntry = entry(uniqueId)
+        val expectedVersion = currentEntry.version
+        val snapshot = PlayerDataSnapshot(
+            data = data.copyDeep(),
+            version = expectedVersion + 1,
+            updatedAt = System.currentTimeMillis(),
+        )
+        val mainJson = PlayerDataCodec.serialize(snapshot.data, includeOrders = false)
+        val mainHash = hashJson(mainJson)
+        val mainDataChanged = lastSavedMainJsonHashes[uniqueId] != mainHash
+        val result = store.save(snapshot, expectedVersion, mainJson, mainDataChanged)
+        when (result) {
+            is SaveResult.Success -> {
+                cache.compute(uniqueId) { _, existing ->
+                    val entry = existing ?: PlayerCacheEntry(snapshot.data.copyDeep(), result.version)
+                    entry.data = snapshot.data.copyDeep()
+                    entry.version = result.version
+                    entry.stale = false
+                    entry.lastSyncAt = result.updatedAt
+                    entry
+                }
+                lastSavedMainJsonHashes[uniqueId] = mainHash
+                if (mainDataChanged) {
+                    publishInvalidation(uniqueId, result.version, result.updatedAt)
+                }
+            }
+            is SaveResult.Conflict -> result.latest?.let(::replace)
+            is SaveResult.Failure -> {}
+        }
+        return result
+    }
+
+    private fun hashJson(json: String): String {
+        val digest = MessageDigest.getInstance("SHA-256").digest(json.toByteArray(Charsets.UTF_8))
+        return digest.joinToString("") { "%02x".format(it.toInt() and 0xff) }
     }
 
     private fun completeCallbacks(request: PendingSave, result: SaveResult) {
@@ -294,7 +429,14 @@ class PlayerDataRepository(
     }
 
     private fun loadEntryFromStore(uniqueId: UUID): PlayerCacheEntry {
-        val snapshot = store.load(uniqueId) ?: PlayerDataSnapshot(PlayerTagData(uniqueId), 0L, System.currentTimeMillis())
+        val loaded = store.load(uniqueId)
+        val snapshot = loaded ?: PlayerDataSnapshot(PlayerTagData(uniqueId), 0L, System.currentTimeMillis())
+        if (loaded != null) {
+            val mainJson = PlayerDataCodec.serialize(snapshot.data, includeOrders = false)
+            lastSavedMainJsonHashes[uniqueId] = hashJson(mainJson)
+        } else {
+            lastSavedMainJsonHashes.remove(uniqueId)
+        }
         return PlayerCacheEntry(
             data = snapshot.data.copyDeep(),
             version = snapshot.version,
@@ -307,8 +449,12 @@ class PlayerDataRepository(
         val data: PlayerTagData,
         val retryOnFailure: Boolean,
         val callbacks: MutableList<(SaveResult) -> Unit>,
+        val firstQueuedAt: Long,
+        val latestQueuedAt: Long,
+        val sequence: Long,
+        val normal: Boolean = false,
     ) {
-        fun withoutCallbacks(): PendingSave = copy(callbacks = mutableListOf())
+        fun withoutCallbacks(): PendingSave = copy(callbacks = mutableListOf(), normal = true)
     }
 }
 

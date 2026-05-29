@@ -75,7 +75,13 @@ class UpTagsPlugin : JavaPlugin() {
         messages.load()
         playerNameService = PlayerNameService(this).also { it.load() }
 
-        repository = PlayerDataRepository(this, scheduler, createStore())
+        repository = PlayerDataRepository(
+            plugin = this,
+            scheduler = scheduler,
+            store = createStore(),
+            normalSaveDebounceMillis = config.storage.mysql.normalSaveDebounceMillis,
+            maxSaveDelayMillis = config.storage.mysql.maxSaveDelayMillis,
+        )
         playerSyncService = PlayerSyncService(repository, scheduler)
         redisSyncService = createRedisSyncService()
         repository.attachSync(redisSyncService, config.sync.serverId)

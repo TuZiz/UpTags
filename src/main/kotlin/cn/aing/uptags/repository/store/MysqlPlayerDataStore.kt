@@ -101,12 +101,35 @@ class MysqlPlayerDataStore(
     }
 
     override fun save(snapshot: PlayerDataSnapshot, expectedVersion: Long?): SaveResult {
+        return saveInternal(
+            snapshot = snapshot,
+            expectedVersion = expectedVersion,
+            serializedMainData = PlayerDataCodec.serialize(snapshot.data, includeOrders = false),
+            mainDataChanged = null,
+        )
+    }
+
+    override fun save(
+        snapshot: PlayerDataSnapshot,
+        expectedVersion: Long?,
+        serializedMainData: String,
+        mainDataChanged: Boolean,
+    ): SaveResult {
+        return saveInternal(snapshot, expectedVersion, serializedMainData, mainDataChanged)
+    }
+
+    private fun saveInternal(
+        snapshot: PlayerDataSnapshot,
+        expectedVersion: Long?,
+        serializedMainData: String,
+        mainDataChanged: Boolean?,
+    ): SaveResult {
         var connection: Connection? = null
         return try {
             connection = connection()
             connection.autoCommit = false
-            val mainUpdated = saveMainSnapshot(connection, snapshot, expectedVersion)
-            if (!mainUpdated) {
+            val mainSave = saveMainSnapshot(connection, snapshot, expectedVersion, serializedMainData, mainDataChanged)
+            if (mainSave == null) {
                 connection.rollback()
                 return SaveResult.Conflict(load(snapshot.data.uniqueId))
             }
@@ -114,7 +137,7 @@ class MysqlPlayerDataStore(
             upsertCustomTitleOrders(connection, snapshot.data.uniqueId, snapshot.data.customTitleOrders.values)
             cleanupPlayerOrders(connection, snapshot.data.uniqueId)
             connection.commit()
-            SaveResult.Success(snapshot.version, snapshot.updatedAt)
+            SaveResult.Success(mainSave.version, mainSave.updatedAt)
         } catch (ex: SQLIntegrityConstraintViolationException) {
             runCatching { connection?.rollback() }
             SaveResult.Conflict(load(snapshot.data.uniqueId))
@@ -242,43 +265,83 @@ class MysqlPlayerDataStore(
         }
     }
 
-    private fun saveMainSnapshot(connection: Connection, snapshot: PlayerDataSnapshot, expectedVersion: Long?): Boolean {
+    private fun saveMainSnapshot(
+        connection: Connection,
+        snapshot: PlayerDataSnapshot,
+        expectedVersion: Long?,
+        serializedMainData: String,
+        mainDataChanged: Boolean?,
+    ): MainSnapshotSave? {
+        val uniqueId = snapshot.data.uniqueId
         if (expectedVersion == null) {
+            val existing = if (mainDataChanged != true) loadMainRow(connection, uniqueId) else null
+            if (existing != null && (mainDataChanged == false || existing.dataJson == serializedMainData)) {
+                return MainSnapshotSave(existing.version, existing.updatedAt)
+            }
             connection.prepareStatement(
                 "INSERT INTO $table (uuid, data_json, version, updated_at) VALUES (?, ?, ?, ?) " +
                     "ON DUPLICATE KEY UPDATE data_json = VALUES(data_json), version = VALUES(version), updated_at = VALUES(updated_at)",
             ).use { statement ->
-                bindSnapshot(statement, snapshot)
+                bindSnapshot(statement, snapshot, serializedMainData)
                 statement.executeUpdate()
             }
-            return true
+            return MainSnapshotSave(snapshot.version, snapshot.updatedAt)
         }
         if (expectedVersion == 0L) {
             connection.prepareStatement(
                 "INSERT INTO $table (uuid, data_json, version, updated_at) VALUES (?, ?, ?, ?)",
             ).use { statement ->
-                bindSnapshot(statement, snapshot)
+                bindSnapshot(statement, snapshot, serializedMainData)
                 statement.executeUpdate()
             }
-            return true
+            return MainSnapshotSave(snapshot.version, snapshot.updatedAt)
+        }
+        if (mainDataChanged != true) {
+            val existing = loadMainRow(connection, uniqueId) ?: return null
+            if (existing.version != expectedVersion) {
+                return null
+            }
+            if (mainDataChanged == false || existing.dataJson == serializedMainData) {
+                return MainSnapshotSave(existing.version, existing.updatedAt)
+            }
         }
         connection.prepareStatement(
             "UPDATE $table SET data_json = ?, version = ?, updated_at = ? WHERE uuid = ? AND version = ?",
         ).use { statement ->
-            statement.setString(1, PlayerDataCodec.serialize(snapshot.data, includeOrders = false))
+            statement.setString(1, serializedMainData)
             statement.setLong(2, snapshot.version)
             statement.setLong(3, snapshot.updatedAt)
             statement.setString(4, snapshot.data.uniqueId.toString())
             statement.setLong(5, expectedVersion)
-            return statement.executeUpdate() > 0
+            return if (statement.executeUpdate() > 0) {
+                MainSnapshotSave(snapshot.version, snapshot.updatedAt)
+            } else {
+                null
+            }
         }
     }
 
-    private fun bindSnapshot(statement: PreparedStatement, snapshot: PlayerDataSnapshot) {
+    private fun bindSnapshot(statement: PreparedStatement, snapshot: PlayerDataSnapshot, serializedMainData: String) {
         statement.setString(1, snapshot.data.uniqueId.toString())
-        statement.setString(2, PlayerDataCodec.serialize(snapshot.data, includeOrders = false))
+        statement.setString(2, serializedMainData)
         statement.setLong(3, snapshot.version)
         statement.setLong(4, snapshot.updatedAt)
+    }
+
+    private fun loadMainRow(connection: Connection, uniqueId: UUID): MainRow? {
+        connection.prepareStatement("SELECT data_json, version, updated_at FROM $table WHERE uuid = ?").use { statement ->
+            statement.setString(1, uniqueId.toString())
+            statement.executeQuery().use { result ->
+                if (!result.next()) {
+                    return null
+                }
+                return MainRow(
+                    dataJson = result.getString("data_json"),
+                    version = result.getLong("version"),
+                    updatedAt = result.getLong("updated_at"),
+                )
+            }
+        }
     }
 
     private fun upsertPurchaseOrders(connection: Connection, uniqueId: UUID, orders: Collection<PurchaseOrderData>) {
@@ -614,6 +677,17 @@ class MysqlPlayerDataStore(
         val source = dataSource ?: throw IllegalStateException("MySQL connection pool is not initialized.")
         return source.connection
     }
+
+    private data class MainSnapshotSave(
+        val version: Long,
+        val updatedAt: Long,
+    )
+
+    private data class MainRow(
+        val dataJson: String,
+        val version: Long,
+        val updatedAt: Long,
+    )
 
     companion object {
         private val tableNamePattern = Regex("^[A-Za-z0-9_]+$")
