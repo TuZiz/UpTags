@@ -20,6 +20,14 @@ interface PlayerDataStore {
         mainDataChanged: Boolean,
     ): SaveResult = save(snapshot, expectedVersion)
 
+    fun save(
+        snapshot: PlayerDataSnapshot,
+        expectedVersion: Long?,
+        serializedMainData: String,
+        mainDataChanged: Boolean,
+        ordersChanged: Boolean,
+    ): SaveResult = save(snapshot, expectedVersion, serializedMainData, mainDataChanged)
+
     fun loadAll(): List<PlayerDataSnapshot> = emptyList()
 
     fun loadVersions(uniqueIds: Collection<UUID>): Map<UUID, Long> = emptyMap()

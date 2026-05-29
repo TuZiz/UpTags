@@ -106,6 +106,7 @@ class MysqlPlayerDataStore(
             expectedVersion = expectedVersion,
             serializedMainData = PlayerDataCodec.serialize(snapshot.data, includeOrders = false),
             mainDataChanged = null,
+            ordersChanged = snapshot.data.purchaseOrders.isNotEmpty() || snapshot.data.customTitleOrders.isNotEmpty(),
         )
     }
 
@@ -115,7 +116,23 @@ class MysqlPlayerDataStore(
         serializedMainData: String,
         mainDataChanged: Boolean,
     ): SaveResult {
-        return saveInternal(snapshot, expectedVersion, serializedMainData, mainDataChanged)
+        return saveInternal(
+            snapshot,
+            expectedVersion,
+            serializedMainData,
+            mainDataChanged,
+            snapshot.data.purchaseOrders.isNotEmpty() || snapshot.data.customTitleOrders.isNotEmpty(),
+        )
+    }
+
+    override fun save(
+        snapshot: PlayerDataSnapshot,
+        expectedVersion: Long?,
+        serializedMainData: String,
+        mainDataChanged: Boolean,
+        ordersChanged: Boolean,
+    ): SaveResult {
+        return saveInternal(snapshot, expectedVersion, serializedMainData, mainDataChanged, ordersChanged)
     }
 
     private fun saveInternal(
@@ -123,19 +140,29 @@ class MysqlPlayerDataStore(
         expectedVersion: Long?,
         serializedMainData: String,
         mainDataChanged: Boolean?,
+        ordersChanged: Boolean,
     ): SaveResult {
         var connection: Connection? = null
         return try {
             connection = connection()
             connection.autoCommit = false
-            val mainSave = saveMainSnapshot(connection, snapshot, expectedVersion, serializedMainData, mainDataChanged)
+            val mainSave = saveMainSnapshot(
+                connection,
+                snapshot,
+                expectedVersion,
+                serializedMainData,
+                mainDataChanged,
+                metadataChanged = ordersChanged,
+            )
             if (mainSave == null) {
                 connection.rollback()
                 return SaveResult.Conflict(load(snapshot.data.uniqueId))
             }
-            upsertPurchaseOrders(connection, snapshot.data.uniqueId, snapshot.data.purchaseOrders.values)
-            upsertCustomTitleOrders(connection, snapshot.data.uniqueId, snapshot.data.customTitleOrders.values)
-            cleanupPlayerOrders(connection, snapshot.data.uniqueId)
+            if (ordersChanged) {
+                upsertPurchaseOrders(connection, snapshot.data.uniqueId, snapshot.data.purchaseOrders.values)
+                upsertCustomTitleOrders(connection, snapshot.data.uniqueId, snapshot.data.customTitleOrders.values)
+                cleanupPlayerOrders(connection, snapshot.data.uniqueId)
+            }
             connection.commit()
             SaveResult.Success(mainSave.version, mainSave.updatedAt)
         } catch (ex: SQLIntegrityConstraintViolationException) {
@@ -271,11 +298,15 @@ class MysqlPlayerDataStore(
         expectedVersion: Long?,
         serializedMainData: String,
         mainDataChanged: Boolean?,
+        metadataChanged: Boolean,
     ): MainSnapshotSave? {
         val uniqueId = snapshot.data.uniqueId
         if (expectedVersion == null) {
             val existing = if (mainDataChanged != true) loadMainRow(connection, uniqueId) else null
             if (existing != null && (mainDataChanged == false || existing.dataJson == serializedMainData)) {
+                if (metadataChanged) {
+                    return updateMainMetadata(connection, snapshot, existing.version)
+                }
                 return MainSnapshotSave(existing.version, existing.updatedAt)
             }
             connection.prepareStatement(
@@ -302,6 +333,9 @@ class MysqlPlayerDataStore(
                 return null
             }
             if (mainDataChanged == false || existing.dataJson == serializedMainData) {
+                if (metadataChanged) {
+                    return updateMainMetadata(connection, snapshot, expectedVersion)
+                }
                 return MainSnapshotSave(existing.version, existing.updatedAt)
             }
         }
@@ -313,6 +347,26 @@ class MysqlPlayerDataStore(
             statement.setLong(3, snapshot.updatedAt)
             statement.setString(4, snapshot.data.uniqueId.toString())
             statement.setLong(5, expectedVersion)
+            return if (statement.executeUpdate() > 0) {
+                MainSnapshotSave(snapshot.version, snapshot.updatedAt)
+            } else {
+                null
+            }
+        }
+    }
+
+    private fun updateMainMetadata(
+        connection: Connection,
+        snapshot: PlayerDataSnapshot,
+        expectedVersion: Long,
+    ): MainSnapshotSave? {
+        connection.prepareStatement(
+            "UPDATE $table SET version = ?, updated_at = ? WHERE uuid = ? AND version = ?",
+        ).use { statement ->
+            statement.setLong(1, snapshot.version)
+            statement.setLong(2, snapshot.updatedAt)
+            statement.setString(3, snapshot.data.uniqueId.toString())
+            statement.setLong(4, expectedVersion)
             return if (statement.executeUpdate() > 0) {
                 MainSnapshotSave(snapshot.version, snapshot.updatedAt)
             } else {

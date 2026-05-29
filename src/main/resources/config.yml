@@ -16,6 +16,8 @@ settings:
 
 storage:
   mode: "yml"
+  normal-save-debounce-seconds: 60
+  max-save-delay-seconds: 300
   yml:
     file: "data/playerdata"
   mysql:
@@ -23,8 +25,6 @@ storage:
     username: "root"
     password: "change-me"
     table: "uptags_player_data"
-    normal-save-debounce-seconds: 60
-    max-save-delay-seconds: 300
   order-retention:
     completed-days: 7
     failed-days: 7

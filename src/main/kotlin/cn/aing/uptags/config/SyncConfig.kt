@@ -16,6 +16,8 @@ enum class StorageMode {
 
 data class StorageSettings(
     val mode: StorageMode,
+    val normalSaveDebounceMillis: Long = 60_000L,
+    val maxSaveDelayMillis: Long = 300_000L,
     val yml: YamlStorageSettings,
     val mysql: MysqlSettings,
     val orderRetention: OrderRetentionSettings = OrderRetentionSettings(),
@@ -30,8 +32,6 @@ data class MysqlSettings(
     val username: String,
     val password: String,
     val table: String,
-    val normalSaveDebounceMillis: Long = 60_000L,
-    val maxSaveDelayMillis: Long = 300_000L,
 )
 
 data class OrderRetentionSettings(

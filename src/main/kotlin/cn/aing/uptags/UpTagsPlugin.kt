@@ -79,8 +79,8 @@ class UpTagsPlugin : JavaPlugin() {
             plugin = this,
             scheduler = scheduler,
             store = createStore(),
-            normalSaveDebounceMillis = config.storage.mysql.normalSaveDebounceMillis,
-            maxSaveDelayMillis = config.storage.mysql.maxSaveDelayMillis,
+            normalSaveDebounceMillis = config.storage.normalSaveDebounceMillis,
+            maxSaveDelayMillis = config.storage.maxSaveDelayMillis,
         )
         playerSyncService = PlayerSyncService(repository, scheduler)
         redisSyncService = createRedisSyncService()

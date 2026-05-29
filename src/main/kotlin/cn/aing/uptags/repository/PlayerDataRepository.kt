@@ -33,6 +33,7 @@ class PlayerDataRepository(
     private val forceNormalDrains = ConcurrentHashMap.newKeySet<UUID>()
     private val normalSaveTimers = ConcurrentHashMap<UUID, ScheduledFuture<*>>()
     private val lastSavedMainJsonHashes = ConcurrentHashMap<UUID, String>()
+    private val lastSavedOrdersHashes = ConcurrentHashMap<UUID, OrdersHashes>()
     private val loading = ConcurrentHashMap<UUID, CompletableFuture<PlayerCacheEntry>>()
     private val saveSequence = AtomicLong()
     private val normalSaveDebounceMillis = normalSaveDebounceMillis.coerceAtLeast(0L)
@@ -109,6 +110,7 @@ class PlayerDataRepository(
         )
         val mainJson = PlayerDataCodec.serialize(snapshot.data, includeOrders = false)
         lastSavedMainJsonHashes[snapshot.data.uniqueId] = hashJson(mainJson)
+        lastSavedOrdersHashes[snapshot.data.uniqueId] = ordersHashes(snapshot.data)
         dirty.remove(snapshot.data.uniqueId)
     }
 
@@ -209,6 +211,7 @@ class PlayerDataRepository(
         savingNow.remove(uniqueId)
         forceNormalDrains.remove(uniqueId)
         lastSavedMainJsonHashes.remove(uniqueId)
+        lastSavedOrdersHashes.remove(uniqueId)
     }
 
     fun flushPlayerAsync(uniqueId: UUID) {
@@ -381,8 +384,10 @@ class PlayerDataRepository(
         )
         val mainJson = PlayerDataCodec.serialize(snapshot.data, includeOrders = false)
         val mainHash = hashJson(mainJson)
+        val ordersHash = ordersHashes(snapshot.data)
         val mainDataChanged = lastSavedMainJsonHashes[uniqueId] != mainHash
-        val result = store.save(snapshot, expectedVersion, mainJson, mainDataChanged)
+        val ordersChanged = lastSavedOrdersHashes[uniqueId] != ordersHash
+        val result = store.save(snapshot, expectedVersion, mainJson, mainDataChanged, ordersChanged)
         when (result) {
             is SaveResult.Success -> {
                 cache.compute(uniqueId) { _, existing ->
@@ -394,7 +399,8 @@ class PlayerDataRepository(
                     entry
                 }
                 lastSavedMainJsonHashes[uniqueId] = mainHash
-                if (mainDataChanged) {
+                lastSavedOrdersHashes[uniqueId] = ordersHash
+                if (mainDataChanged || ordersChanged) {
                     publishInvalidation(uniqueId, result.version, result.updatedAt)
                 }
             }
@@ -402,6 +408,49 @@ class PlayerDataRepository(
             is SaveResult.Failure -> {}
         }
         return result
+    }
+
+    private fun ordersHashes(data: PlayerTagData): OrdersHashes {
+        val purchaseRaw = buildStableString {
+            data.purchaseOrders.toSortedMap().forEach { (orderId, order) ->
+                value(orderId)
+                value(order.productId)
+                value(order.targetId)
+                value(order.status.name)
+                value(order.currencyType.name)
+                value(order.currencyAmount.toString())
+                values(order.submittedItems)
+                values(order.compensatedItems)
+                value(order.createdAt.toString())
+                value(order.updatedAt.toString())
+                value(order.failureReason.orEmpty())
+            }
+        }
+        val customTitleRaw = buildStableString {
+            data.customTitleOrders.toSortedMap().forEach { (orderId, order) ->
+                value(orderId)
+                value(order.titleId)
+                value(order.rawText)
+                value(order.presetId)
+                value(order.groupId.orEmpty())
+                value(order.currencyType.name)
+                value(order.currencyAmount.toString())
+                value(order.status.name)
+                value(order.createdAt.toString())
+                value(order.updatedAt.toString())
+                value(order.failureReason.orEmpty())
+                value(order.previousEquippedTagId.orEmpty())
+                value(order.previousEquippedCustomTitleId.orEmpty())
+            }
+        }
+        return OrdersHashes(
+            purchaseOrders = hashJson(purchaseRaw),
+            customTitleOrders = hashJson(customTitleRaw),
+        )
+    }
+
+    private fun buildStableString(block: StableHashBuilder.() -> Unit): String {
+        return StableHashBuilder().apply(block).build()
     }
 
     private fun hashJson(json: String): String {
@@ -434,8 +483,10 @@ class PlayerDataRepository(
         if (loaded != null) {
             val mainJson = PlayerDataCodec.serialize(snapshot.data, includeOrders = false)
             lastSavedMainJsonHashes[uniqueId] = hashJson(mainJson)
+            lastSavedOrdersHashes[uniqueId] = ordersHashes(snapshot.data)
         } else {
             lastSavedMainJsonHashes.remove(uniqueId)
+            lastSavedOrdersHashes[uniqueId] = ordersHashes(snapshot.data)
         }
         return PlayerCacheEntry(
             data = snapshot.data.copyDeep(),
@@ -443,6 +494,27 @@ class PlayerDataRepository(
             stale = false,
             lastSyncAt = snapshot.updatedAt,
         )
+    }
+
+    private data class OrdersHashes(
+        val purchaseOrders: String,
+        val customTitleOrders: String,
+    )
+
+    private class StableHashBuilder {
+        private val builder = StringBuilder()
+
+        fun value(value: String) {
+            builder.append(value.length).append(':').append(value)
+        }
+
+        fun values(values: List<String>) {
+            builder.append(values.size).append('[')
+            values.forEach(::value)
+            builder.append(']')
+        }
+
+        fun build(): String = builder.toString()
     }
 
     private data class PendingSave(

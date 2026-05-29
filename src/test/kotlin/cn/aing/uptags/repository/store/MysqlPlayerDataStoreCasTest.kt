@@ -145,4 +145,112 @@ class MysqlPlayerDataStoreCasTest {
             store.shutdown()
         }
     }
+
+    @Test
+    fun unchangedOrdersSkipOrderTableUpsert() {
+        val table = "uptags_test_${System.nanoTime()}"
+        val jdbcUrl = "jdbc:h2:mem:$table;MODE=MySQL;DATABASE_TO_UPPER=false"
+        val store = MysqlPlayerDataStore(
+            jdbcUrl = jdbcUrl,
+            username = "sa",
+            password = "",
+            table = table,
+        )
+        store.initialize()
+        try {
+            val uniqueId = UUID.randomUUID()
+            val data = PlayerTagData(uniqueId).apply {
+                ownedTags += "vip"
+                purchaseOrders["order-1"] = PurchaseOrderData(
+                    orderId = "order-1",
+                    productId = "vip",
+                    targetId = "vip",
+                    status = PurchaseOrderStatus.PENDING,
+                    currencyType = CurrencyType.POINTS,
+                    currencyAmount = 5.0,
+                )
+            }
+
+            assertIs<SaveResult.Success>(
+                store.save(PlayerDataSnapshot(data, version = 1L, updatedAt = 100L), expectedVersion = 0L),
+            )
+
+            val changedOrder = data.copyDeep().apply {
+                purchaseOrders.getValue("order-1").status = PurchaseOrderStatus.GRANTED
+            }
+            val second = store.save(
+                snapshot = PlayerDataSnapshot(changedOrder, version = 2L, updatedAt = 200L),
+                expectedVersion = 1L,
+                serializedMainData = PlayerDataCodec.serialize(changedOrder, includeOrders = false),
+                mainDataChanged = false,
+                ordersChanged = false,
+            )
+
+            assertIs<SaveResult.Success>(second)
+            assertEquals(PurchaseOrderStatus.PENDING, store.load(uniqueId)?.data?.purchaseOrders?.get("order-1")?.status)
+            assertEquals(1L, store.load(uniqueId)?.version)
+        } finally {
+            store.shutdown()
+        }
+    }
+
+    @Test
+    fun orderOnlyChangeAdvancesVersionWithoutChangingMainJson() {
+        val table = "uptags_test_${System.nanoTime()}"
+        val jdbcUrl = "jdbc:h2:mem:$table;MODE=MySQL;DATABASE_TO_UPPER=false"
+        val store = MysqlPlayerDataStore(
+            jdbcUrl = jdbcUrl,
+            username = "sa",
+            password = "",
+            table = table,
+        )
+        store.initialize()
+        try {
+            val uniqueId = UUID.randomUUID()
+            val data = PlayerTagData(uniqueId).apply { ownedTags += "vip" }
+
+            assertIs<SaveResult.Success>(
+                store.save(PlayerDataSnapshot(data, version = 1L, updatedAt = 100L), expectedVersion = 0L),
+            )
+
+            val mainJsonBefore = readMainJson(jdbcUrl, table, uniqueId)
+            val withOrder = data.copyDeep().apply {
+                purchaseOrders["order-1"] = PurchaseOrderData(
+                    orderId = "order-1",
+                    productId = "vip",
+                    targetId = "vip",
+                    status = PurchaseOrderStatus.PENDING,
+                    currencyType = CurrencyType.POINTS,
+                    currencyAmount = 5.0,
+                )
+            }
+
+            val second = store.save(
+                snapshot = PlayerDataSnapshot(withOrder, version = 2L, updatedAt = 200L),
+                expectedVersion = 1L,
+                serializedMainData = PlayerDataCodec.serialize(withOrder, includeOrders = false),
+                mainDataChanged = false,
+                ordersChanged = true,
+            )
+
+            assertIs<SaveResult.Success>(second)
+            assertEquals(2L, second.version)
+            assertEquals(mainJsonBefore, readMainJson(jdbcUrl, table, uniqueId))
+            assertEquals(PurchaseOrderStatus.PENDING, store.load(uniqueId)?.data?.purchaseOrders?.get("order-1")?.status)
+        } finally {
+            store.shutdown()
+        }
+    }
+
+    private fun readMainJson(jdbcUrl: String, table: String, uniqueId: UUID): String {
+        DriverManager.getConnection(jdbcUrl, "sa", "").use { connection ->
+            connection.prepareStatement("SELECT data_json FROM $table WHERE uuid = ?").use { statement ->
+                statement.setString(1, uniqueId.toString())
+                statement.executeQuery().use { result ->
+                    result.next()
+                    return result.getString("data_json")
+                }
+            }
+        }
+    }
 }

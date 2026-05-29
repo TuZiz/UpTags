@@ -2,7 +2,10 @@ package cn.aing.uptags.repository
 
 import cn.aing.uptags.compat.PlatformScheduler
 import cn.aing.uptags.compat.TaskHandle
+import cn.aing.uptags.model.config.CurrencyType
 import cn.aing.uptags.model.runtime.PlayerTagData
+import cn.aing.uptags.model.runtime.PurchaseOrderData
+import cn.aing.uptags.model.runtime.PurchaseOrderStatus
 import cn.aing.uptags.repository.store.PlayerDataStore
 import cn.aing.uptags.service.sync.PlayerSyncMessage
 import cn.aing.uptags.service.sync.RedisSyncService
@@ -74,6 +77,25 @@ class PlayerDataRepositoryDebounceTest {
     }
 
     @Test
+    fun flushPlayerAsyncSavesPendingNormalDataImmediately() {
+        val playerId = UUID.randomUUID()
+        val store = RecordingStore()
+        val repository = repository(store, normalSaveDebounceMillis = 10_000L, maxSaveDelayMillis = 10_000L)
+        repository.preparePlayerAsync(playerId).join()
+
+        val data = repository.get(playerId)
+        data.ownedTags += "flush-player"
+        repository.saveAsync(data)
+
+        assertEquals(0, store.saved.size)
+        repository.flushPlayerAsync(playerId)
+
+        assertTrue(waitUntil { store.saved.size == 1 })
+        assertEquals(setOf("flush-player"), store.saved.single().data.ownedTags.toSet())
+        repository.shutdown()
+    }
+
+    @Test
     fun sameMainJsonDoesNotPublishRedisInvalidationAgain() {
         val playerId = UUID.randomUUID()
         val store = RecordingStore()
@@ -91,7 +113,39 @@ class PlayerDataRepositoryDebounceTest {
         assertTrue(waitUntil { store.saved.size == 2 })
 
         assertEquals(listOf(true, false), store.mainDataChanged)
+        assertEquals(listOf(false, false), store.ordersChanged)
         assertEquals(1, redis.messages.size)
+        repository.shutdown()
+    }
+
+    @Test
+    fun orderOnlyChangePublishesInvalidationWithoutMainJsonChange() {
+        val playerId = UUID.randomUUID()
+        val store = RecordingStore()
+        val redis = RecordingRedisSync()
+        val repository = repository(store, normalSaveDebounceMillis = 0L, maxSaveDelayMillis = 0L)
+        repository.attachSync(redis, "test")
+        repository.preparePlayerAsync(playerId).join()
+
+        val data = repository.get(playerId)
+        data.ownedTags += "vip"
+        repository.saveAsync(data)
+        assertTrue(waitUntil { store.saved.size == 1 })
+
+        data.purchaseOrders["order-1"] = PurchaseOrderData(
+            orderId = "order-1",
+            productId = "vip",
+            targetId = "vip",
+            status = PurchaseOrderStatus.PENDING,
+            currencyType = CurrencyType.POINTS,
+            currencyAmount = 5.0,
+        )
+        repository.saveAsyncStrict(data) {}
+        assertTrue(waitUntil { store.saved.size == 2 && redis.messages.size == 2 })
+
+        assertEquals(listOf(true, false), store.mainDataChanged)
+        assertEquals(listOf(false, true), store.ordersChanged)
+        assertEquals(2L, redis.messages.last().version)
         repository.shutdown()
     }
 
@@ -134,12 +188,13 @@ class PlayerDataRepositoryDebounceTest {
     private class RecordingStore : PlayerDataStore {
         val saved = mutableListOf<PlayerDataSnapshot>()
         val mainDataChanged = mutableListOf<Boolean>()
+        val ordersChanged = mutableListOf<Boolean>()
         private val versions = mutableMapOf<UUID, Long>()
 
         override fun load(uniqueId: UUID): PlayerDataSnapshot? = null
 
         override fun save(snapshot: PlayerDataSnapshot, expectedVersion: Long?): SaveResult {
-            return record(snapshot, mainChanged = true)
+            return record(snapshot, mainChanged = true, ordersChanged = true)
         }
 
         override fun save(
@@ -148,14 +203,25 @@ class PlayerDataRepositoryDebounceTest {
             serializedMainData: String,
             mainDataChanged: Boolean,
         ): SaveResult {
-            return record(snapshot, mainChanged = mainDataChanged)
+            return record(snapshot, mainChanged = mainDataChanged, ordersChanged = true)
         }
 
-        private fun record(snapshot: PlayerDataSnapshot, mainChanged: Boolean): SaveResult {
+        override fun save(
+            snapshot: PlayerDataSnapshot,
+            expectedVersion: Long?,
+            serializedMainData: String,
+            mainDataChanged: Boolean,
+            ordersChanged: Boolean,
+        ): SaveResult {
+            return record(snapshot, mainChanged = mainDataChanged, ordersChanged = ordersChanged)
+        }
+
+        private fun record(snapshot: PlayerDataSnapshot, mainChanged: Boolean, ordersChanged: Boolean): SaveResult {
             saved += snapshot.copy(data = snapshot.data.copyDeep())
             mainDataChanged += mainChanged
+            this.ordersChanged += ordersChanged
             val current = versions.getOrDefault(snapshot.data.uniqueId, 0L)
-            val version = if (mainChanged) current + 1L else current
+            val version = if (mainChanged || ordersChanged) current + 1L else current
             versions[snapshot.data.uniqueId] = version
             return SaveResult.Success(version, snapshot.updatedAt)
         }

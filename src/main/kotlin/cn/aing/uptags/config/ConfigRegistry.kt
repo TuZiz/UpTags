@@ -314,8 +314,18 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
             challengeProgressSaveIntervalMillis = yaml.getLong("settings.challenge-progress-save-interval-seconds", 300L)
                 .coerceAtLeast(5L) * 1_000L,
         )
+        val normalSaveDebounceMillis = yaml.getLong(
+            "storage.normal-save-debounce-seconds",
+            yaml.getLong("storage.mysql.normal-save-debounce-seconds", 60L),
+        ).coerceAtLeast(0L) * 1_000L
+        val maxSaveDelayMillis = yaml.getLong(
+            "storage.max-save-delay-seconds",
+            yaml.getLong("storage.mysql.max-save-delay-seconds", 300L),
+        ).coerceAtLeast(0L) * 1_000L
         storage = StorageSettings(
             mode = StorageMode.from(yaml.getString("storage.mode", "yml")),
+            normalSaveDebounceMillis = normalSaveDebounceMillis,
+            maxSaveDelayMillis = maxSaveDelayMillis,
             yml = YamlStorageSettings(
                 file = yaml.getString("storage.yml.file", "data/playerdata") ?: "data/playerdata",
             ),
@@ -324,10 +334,6 @@ class ConfigRegistry(private val plugin: JavaPlugin) {
                 username = yaml.getString("storage.mysql.username", "root") ?: "root",
                 password = yaml.getString("storage.mysql.password", "") ?: "",
                 table = yaml.getString("storage.mysql.table", "uptags_player_data") ?: "uptags_player_data",
-                normalSaveDebounceMillis = yaml.getLong("storage.mysql.normal-save-debounce-seconds", 60L)
-                    .coerceAtLeast(0L) * 1_000L,
-                maxSaveDelayMillis = yaml.getLong("storage.mysql.max-save-delay-seconds", 300L)
-                    .coerceAtLeast(0L) * 1_000L,
             ),
             orderRetention = OrderRetentionSettings(
                 completedDays = yaml.getInt("storage.order-retention.completed-days", 7).coerceAtLeast(0),
